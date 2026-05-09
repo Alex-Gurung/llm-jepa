@@ -26,6 +26,9 @@ from transformers import (
 from peft import LoraConfig, get_peft_model, TaskType
 import argparse
 
+from sphere_jepa.heads import MLP, freeze_module, update_ema
+from sphere_jepa.losses import cross_view_cap_anchor_loss, noisy_cap_anchor_loss
+
 
 def get_messages(model_name, messages):
     if "google/gemma" in model_name:
@@ -523,6 +526,7 @@ class RepresentationTrainer(Trainer):
     
     def __init__(self, *args, **kwargs):
         # Extract custom loss parameters
+        model = kwargs.get("model", args[0] if args else None)
         self.lbd = kwargs.pop('lbd', 1.0)
         self.gamma = kwargs.pop('gamma', 1.0)
         self.last_token = kwargs.pop('last_token', -2)
@@ -532,8 +536,33 @@ class RepresentationTrainer(Trainer):
         self.jepa_mse = kwargs.pop('jepa_mse', False)
         self.infonce = kwargs.pop('infonce', False)
         self.jepa_ratio = kwargs.pop('jepa_ratio', -1.0)
+        self.anchor_type = kwargs.pop('anchor_type', 'none')
+        self.anchor_model = kwargs.pop('anchor_model', None)
+        self.sigma_max = kwargs.pop('sigma_max', 0.5)
+        self.sphere_radius = kwargs.pop('sphere_radius', None)
+        self.lambda_cap = kwargs.pop('lambda_cap', 0.0)
+        self.cap_mode = kwargs.pop('cap_mode', 'own')
+        self.ema_momentum = kwargs.pop('ema_momentum', 0.99)
         assert self.jepa_l2 + self.jepa_mse <= 1, "Only one of jepa_l2 and jepa_mse can be True."
+        assert self.cap_mode in {"own", "cross", "both"}, "unknown cap mode"
+        self.cap_predictors = None
+        if model is not None and self.anchor_type != "none" and self.lambda_cap != 0.0:
+            hidden_size = getattr(getattr(model, "config", None), "hidden_size", None)
+            if hidden_size is None:
+                hidden_size = getattr(getattr(getattr(model, "base_model", None), "config", None), "hidden_size", None)
+            if hidden_size is None:
+                raise ValueError("Could not infer model hidden_size for cap predictors")
+            self.cap_predictors = nn.ModuleDict({
+                "own_text": MLP(hidden_size, hidden_size, hidden_dim=hidden_size * 2),
+                "own_code": MLP(hidden_size, hidden_size, hidden_dim=hidden_size * 2),
+                "cross_text_to_code": MLP(hidden_size, hidden_size, hidden_dim=hidden_size * 2),
+                "cross_code_to_text": MLP(hidden_size, hidden_size, hidden_dim=hidden_size * 2),
+            })
+            model.add_module("sphere_cap_predictors", self.cap_predictors)
         super().__init__(*args, **kwargs)
+
+    def _cap_enabled(self):
+        return self.cap_predictors is not None and self.anchor_type != "none" and self.lambda_cap != 0.0
     
     def _last_token_index(self, input_ids, labels, attention_mask):
         index = []
@@ -675,12 +704,96 @@ class RepresentationTrainer(Trainer):
             'assistant_hidden_states': assistant_hidden_states,
         }
 
+    def _pool_reference_embedding(self, model, input_ids, labels, attention_mask, index):
+        outputs = model(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            output_hidden_states=True,
+            use_cache=False,
+        )
+        return outputs.hidden_states[-1][range(input_ids.shape[0]), index, :]
+
+    def _compute_anchor_embeddings(self, model, inputs, index_user, index_assistant, user_embedding, assistant_embedding):
+        if self.anchor_type == "cotrained":
+            return user_embedding, assistant_embedding, False
+        if self.anchor_type not in {"frozen", "ema"}:
+            raise ValueError(f"unknown anchor type: {self.anchor_type}")
+        if self.anchor_model is None:
+            raise ValueError(f"anchor_model is required for anchor_type={self.anchor_type}")
+        anchor_model = self.anchor_model
+        anchor_model.to(user_embedding.device)
+        anchor_model.eval()
+        with torch.no_grad():
+            anchor_user = self._pool_reference_embedding(
+                anchor_model,
+                inputs["input_ids_user"],
+                inputs["labels_user"],
+                inputs["attention_mask_user"],
+                index_user,
+            )
+            anchor_assistant = self._pool_reference_embedding(
+                anchor_model,
+                inputs["input_ids_assistant"],
+                inputs["labels_assistant"],
+                inputs["attention_mask_assistant"],
+                index_assistant,
+            )
+        return anchor_user, anchor_assistant, True
+
+    def _compute_cap_loss(self, user_embedding, assistant_embedding, anchor_user, anchor_assistant, detach_anchor):
+        self.cap_predictors.to(device=user_embedding.device, dtype=user_embedding.dtype)
+        cap_terms = []
+        if self.cap_mode in {"own", "both"}:
+            cap_terms.append(noisy_cap_anchor_loss(
+                user_embedding,
+                anchor_user,
+                self.cap_predictors["own_text"],
+                sigma_max=self.sigma_max,
+                sphere_radius=self.sphere_radius,
+                detach_anchor=detach_anchor,
+            ))
+            cap_terms.append(noisy_cap_anchor_loss(
+                assistant_embedding,
+                anchor_assistant,
+                self.cap_predictors["own_code"],
+                sigma_max=self.sigma_max,
+                sphere_radius=self.sphere_radius,
+                detach_anchor=detach_anchor,
+            ))
+        if self.cap_mode in {"cross", "both"}:
+            cap_terms.append(cross_view_cap_anchor_loss(
+                user_embedding,
+                anchor_assistant,
+                self.cap_predictors["cross_text_to_code"],
+                sigma_max=self.sigma_max,
+                sphere_radius=self.sphere_radius,
+                detach_anchor=detach_anchor,
+            ))
+            if self.cap_mode == "both":
+                cap_terms.append(cross_view_cap_anchor_loss(
+                    assistant_embedding,
+                    anchor_user,
+                    self.cap_predictors["cross_code_to_text"],
+                    sigma_max=self.sigma_max,
+                    sphere_radius=self.sphere_radius,
+                    detach_anchor=detach_anchor,
+                ))
+        if not cap_terms:
+            return torch.zeros((), device=user_embedding.device, dtype=user_embedding.dtype)
+        return torch.stack(cap_terms).mean()
+
+    def _update_ema_anchor(self, model):
+        if self.anchor_type != "ema" or self.anchor_model is None:
+            return
+        current_model = model.module if hasattr(model, "module") else model
+        update_ema(self.anchor_model, current_model, momentum=self.ema_momentum)
+
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         """
         Compute loss with additional regularization terms.
         """
         # Get indeices
-        if not self.additive_mask:
+        if not self.additive_mask or self._cap_enabled():
             index_user = self._last_token_index(inputs["input_ids_user"], inputs["labels_user"], inputs["attention_mask_user"])
             index_assistant = self._last_token_index(inputs["input_ids_assistant"], inputs["labels_assistant"], inputs["attention_mask_assistant"])
         first_dim = inputs["input_ids_user"].shape[0]
@@ -734,9 +847,28 @@ class RepresentationTrainer(Trainer):
             else:
                 jepa_loss = 1.0 - torch.mean(cosine_similarity)
         else:
-            jepa_loss = 0.0
+            jepa_loss = torch.zeros((), device=lm_loss.device, dtype=lm_loss.dtype)
 
-        total_loss = self.gamma * lm_loss + self.lbd * jepa_loss
+        cap_loss = torch.zeros((), device=lm_loss.device, dtype=lm_loss.dtype)
+        if self._cap_enabled() and user_hidden_states is not None:
+            anchor_user, anchor_assistant, detach_anchor = self._compute_anchor_embeddings(
+                model,
+                inputs,
+                index_user,
+                index_assistant,
+                user_embedding,
+                assistant_embedding,
+            )
+            cap_loss = self._compute_cap_loss(
+                user_embedding,
+                assistant_embedding,
+                anchor_user,
+                anchor_assistant,
+                detach_anchor,
+            )
+            self._update_ema_anchor(model)
+
+        total_loss = self.gamma * lm_loss + self.lbd * jepa_loss + self.lambda_cap * cap_loss
 
         if self.debug == 2 and torch.cuda.current_device() == 0:
             print(lm_loss, self.lbd, torch.mean(cosine_similarity))
@@ -745,7 +877,7 @@ class RepresentationTrainer(Trainer):
             exit(0)
 
         if self.debug == 5 and torch.cuda.current_device() == 0:
-            print(f"llm_loss: {lm_loss.float()}, jepa_loss: {jepa_loss.float()}")
+            print(f"llm_loss: {lm_loss.float()}, jepa_loss: {jepa_loss.float()}, cap_loss: {cap_loss.float()}")
 
         return (total_loss, main_outputs) if return_outputs else total_loss
 
@@ -815,6 +947,12 @@ def main():
     parser.add_argument("--jepa_ratio", type=float, default=-1.0, help="When >0, randomly select this ratio of batches to apply JEPA. This implments Random JEPA-Loss Dropout (LD). If LD = alpha, jepa_ratio = 1 - alpha")
     parser.add_argument("--use_default_data_collator", action="store_true", help="When set, Use `default_data_collator`.")
     parser.add_argument("--unmask_assistant_special_tokens", action="store_true", help="When set, unmask assistant special tokens.")
+    parser.add_argument("--anchor-type", choices=["none", "cotrained", "ema", "frozen"], default="none", help="Cap-anchor target source for sphere-constrained JEPA.")
+    parser.add_argument("--sigma-max", type=float, default=0.5, help="Maximum spherical cap noise; use 0.0 for the sigma=0 control.")
+    parser.add_argument("--sphere-radius", type=float, default=None, help="Optional fixed sphere radius. Defaults to sqrt(hidden_dim).")
+    parser.add_argument("--lambda-cap", type=float, default=0.0, help="Weight for own/cross noisy cap-anchor reconstruction.")
+    parser.add_argument("--cap-mode", choices=["own", "cross", "both"], default="own", help="Cap-anchor structure to use.")
+    parser.add_argument("--ema-momentum", type=float, default=0.99, help="EMA reference momentum when --anchor-type=ema.")
 
     args = parser.parse_args()
     
@@ -860,6 +998,11 @@ def main():
     model, tokenizer = setup_model_and_tokenizer(
         args.model_name, use_lora=args.lora, lora_rank=args.lora_rank, pretrain=args.pretrain,
         debug=args.debug, seed=args.finetune_seed)
+    anchor_model = None
+    if not args.regular and args.anchor_type in {"frozen", "ema"} and args.lambda_cap != 0.0:
+        if torch.cuda.current_device() == 0:
+            print(f"Creating {args.anchor_type} reference encoder for cap anchors...")
+        anchor_model = freeze_module(copy.deepcopy(model))
     
     # Load and prepare dataset
     if torch.cuda.current_device() == 0:
@@ -1042,6 +1185,13 @@ def main():
             jepa_mse=args.jepa_mse,
             infonce=args.infonce,
             jepa_ratio=args.jepa_ratio,
+            anchor_type=args.anchor_type,
+            anchor_model=anchor_model,
+            sigma_max=args.sigma_max,
+            sphere_radius=args.sphere_radius,
+            lambda_cap=args.lambda_cap,
+            cap_mode=args.cap_mode,
+            ema_momentum=args.ema_momentum,
         )
     
     if torch.cuda.current_device() == 0 and args.lora:

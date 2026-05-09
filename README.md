@@ -1,5 +1,48 @@
 # LLM-JEPA
 
+## Sphere-Constrained JEPA Additions
+
+This fork contains a `sphere_jepa` package plus CPU-runnable experiment
+harnesses for the sphere-constrained JEPA handoff.
+
+Set up the local environment with `uv`:
+
+```bash
+uv venv --system-site-packages
+uv pip install -e . --no-deps
+uv pip install pytest matplotlib tqdm
+```
+
+Core package:
+
+* `sphere_jepa/spherify.py`: RMS-radius spherification and sigma-jittering.
+* `sphere_jepa/losses.py`: cosine JEPA alignment, own-view/cross-view
+  noisy cap-anchor losses, token cap loss, VICReg, InfoNCE, and SIGReg.
+* `sphere_jepa/metrics.py`: RankMe, within-class RankMe, bounded uniformity,
+  cosine pair stats, retrieval, and anchor-geometry diagnostics.
+
+CPU smoke checks:
+
+```bash
+uv run --no-sync pytest -q
+uv run --no-sync python experiments/exp0_toy/run.py --preset smoke --output-dir results/exp0_smoke --variants A D0a D1a D3 F G
+uv run --no-sync python experiments/viewer/build_viewer.py results/exp0_smoke/summary.json --out results/exp0_smoke/index.html
+```
+
+The full LLM-JEPA cap-anchor path is wired into `finetune.py`:
+
+```bash
+--anchor-type {none,cotrained,ema,frozen}
+--sigma-max 0.5
+--sphere-radius <float>
+--lambda-cap <float>
+--cap-mode {own,cross,both}
+--ema-momentum 0.99
+```
+
+Use `--sigma-max 0.0` for the matched D0 control. The default JEPA metric
+remains cosine and last-token pooling remains controlled by `--last_token`.
+
 ## Set Up
 
 See `setup.sh`.

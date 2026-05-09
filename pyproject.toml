@@ -1,0 +1,38 @@
+[project]
+name = "sphere-jepa"
+version = "0.1.0"
+description = "Sphere-constrained JEPA experiments and LLM-JEPA extensions."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.26",
+    "torch>=2.2",
+]
+
+[project.optional-dependencies]
+experiments = [
+    "matplotlib>=3.8",
+    "torchvision>=0.17",
+    "tqdm>=4.66",
+]
+llm = [
+    "accelerate>=0.30",
+    "datasets>=2.19",
+    "peft>=0.11",
+    "protobuf>=4.25",
+    "sentencepiece>=0.2",
+    "transformers>=4.44",
+]
+dev = [
+    "pytest>=8.0",
+]
+
+[tool.uv]
+package = true
+
+[tool.setuptools.packages.find]
+include = ["sphere_jepa*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
