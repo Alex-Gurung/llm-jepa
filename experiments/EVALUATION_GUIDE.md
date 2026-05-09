@@ -64,6 +64,21 @@ uv run --no-sync python experiments/viewer/build_viewer.py \
   --out results/<experiment>/index.html
 ```
 
+The viewer is intentionally static and browser-only. For summaries that include
+enhanced diagnostics, inspect these panels before looking at downstream task
+metrics:
+
+- **PCA scatter:** checks whether variants visibly collapse, spread by class,
+  or form one diffuse cloud.
+- **Cosine histograms:** checks the full pairwise similarity distribution, not
+  just mean/p95. Collapse appears as a distribution concentrated near 1.
+- **Eigenspectra:** checks whether representation mass is concentrated in a few
+  dimensions. A dominant first eigenvalue is an anisotropy warning.
+- **Retrieval heatmaps:** checks whether paired examples light up on the
+  diagonal. Off-diagonal blocks indicate clustering or shortcuts.
+- **Anchor diagnostics:** checks whether the frozen target space is already
+  anisotropic before training starts.
+
 ## Experiment 0 - Toy 2D Sanity Check
 
 ### Purpose
@@ -362,4 +377,3 @@ Every `RESULTS.md` should include:
 - E1 CE improvement over no-prefix where token anchors are used.
 - Known limitations, including whether the run was smoke, CPU-only, fake-data,
   or GPU-scale.
-

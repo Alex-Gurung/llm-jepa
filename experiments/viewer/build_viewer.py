@@ -98,7 +98,11 @@ def bar_chart(records: list[dict[str, Any]], metric: str, title: str, *, lower_i
 
 
 def scatter_plot(record: dict[str, Any]) -> str:
-    points = record.get("scatter") or []
+    return scatter_plot_for_key(record, "scatter", record["variant"])
+
+
+def scatter_plot_for_key(record: dict[str, Any], key: str, title: str) -> str:
+    points = record.get(key) or []
     if not points:
         return ""
     xs = [float(p["x"]) for p in points]
@@ -117,12 +121,28 @@ def scatter_plot(record: dict[str, Any]) -> str:
         )
     return f"""
     <article class="scatter-card">
-      <h3>{html.escape(record['variant'])}</h3>
-      <svg viewBox="0 0 220 220" role="img" aria-label="latent scatter for {html.escape(record['variant'])}">
+      <h3>{html.escape(title)}</h3>
+      <svg viewBox="0 0 220 220" role="img" aria-label="latent scatter for {html.escape(title)}">
         <rect x="12" y="12" width="196" height="196" fill="#fbfbf9" stroke="#ddd"/>
         {''.join(circles)}
       </svg>
     </article>
+    """
+
+
+def scatter_section(records: list[dict[str, Any]], key: str, title: str) -> str:
+    cards = []
+    for record in records[:12]:
+        label = record["variant"] if key == "scatter" else f"{record['variant']} {title.split()[0]}"
+        cards.append(scatter_plot_for_key(record, key, label))
+    cards_html = "".join(cards)
+    if not cards_html:
+        return ""
+    return f"""
+    <section>
+      <h2>{html.escape(title)}</h2>
+      <div class="grid">{cards_html}</div>
+    </section>
     """
 
 
@@ -136,6 +156,14 @@ def contrast_rows(records: list[dict[str, Any]]) -> str:
         ("D1b", "C", "anchor: D1b vs co-trained"),
         ("D1c", "C", "anchor: D1c vs co-trained"),
         ("D1a", "D3", "sample-specific vs class-level"),
+        ("D1", "D0", "noise: frozen teacher anchor"),
+        ("D1", "C", "anchor: D1 vs co-trained"),
+        ("D1", "C_ema", "anchor: D1 vs EMA"),
+        ("D1", "D2", "sample-specific vs class-level"),
+        ("D_own_1", "D_own_0", "noise: own-view frozen anchor"),
+        ("D_own_1", "C", "anchor: own-view vs co-trained"),
+        ("D_own_1", "C_ema", "anchor: own-view vs EMA"),
+        ("D_cross_1", "D_cross_0", "noise: cross-view frozen anchor"),
     ]
     rows = []
     for left, right, label in pairs:
@@ -227,9 +255,210 @@ def metrics_table(records: list[dict[str, Any]]) -> str:
     """
 
 
+def retrieval_table(records: list[dict[str, Any]]) -> str:
+    rows = []
+    for record in records:
+        for key, value in record.items():
+            if not key.startswith("retrieval") or not isinstance(value, dict):
+                continue
+            rows.append(
+                "<tr>"
+                f"<td>{html.escape(record['variant'])}</td>"
+                f"<td>{html.escape(key)}</td>"
+                f"<td>{fmt(float(value.get('recall@1', float('nan'))))}</td>"
+                f"<td>{fmt(float(value.get('recall@10', float('nan'))))}</td>"
+                f"<td>{fmt(float(value.get('mean_rank', float('nan'))))}</td>"
+                "</tr>"
+            )
+    if not rows:
+        return ""
+    return """
+    <section>
+      <h2>Retrieval</h2>
+      <table>
+        <thead><tr><th>Variant</th><th>Space</th><th>R@1</th><th>R@10</th><th>Mean Rank</th></tr></thead>
+        <tbody>
+    """ + "".join(rows) + """
+        </tbody>
+      </table>
+    </section>
+    """
+
+
+def histogram_card(title: str, hist: dict[str, Any]) -> str:
+    counts = hist.get("counts") or []
+    if not counts:
+        return ""
+    max_count = max(max(counts), 1)
+    width = 260
+    height = 145
+    left = 28
+    bottom = 24
+    chart_w = width - left - 10
+    chart_h = height - 34 - bottom
+    bar_w = chart_w / len(counts)
+    bars = []
+    for i, count in enumerate(counts):
+        h = chart_h * count / max_count
+        x = left + i * bar_w
+        y = 28 + chart_h - h
+        bars.append(f"<rect x='{x:.2f}' y='{y:.2f}' width='{max(1.0, bar_w - 1):.2f}' height='{h:.2f}' fill='#2f6f9f'/>")
+    return f"""
+    <article class="viz-card">
+      <h3>{html.escape(title)}</h3>
+      <svg viewBox="0 0 {width} {height}">
+        <text x="{left}" y="16" class="axis">cosine histogram</text>
+        <line x1="{left}" y1="{28 + chart_h}" x2="{width - 8}" y2="{28 + chart_h}" stroke="#999"/>
+        <text x="{left}" y="{height - 5}" class="axis">-1</text>
+        <text x="{width - 28}" y="{height - 5}" class="axis">1</text>
+        {''.join(bars)}
+      </svg>
+    </article>
+    """
+
+
+def spectrum_card(title: str, spectrum: dict[str, Any]) -> str:
+    mass = spectrum.get("mass") or []
+    if not mass:
+        return ""
+    width = 260
+    height = 145
+    left = 30
+    top = 22
+    chart_w = width - left - 12
+    chart_h = height - top - 26
+    max_v = max(max(mass), 1e-9)
+    points = []
+    for i, value in enumerate(mass):
+        x = left + (chart_w * i / max(1, len(mass) - 1))
+        y = top + chart_h - chart_h * value / max_v
+        points.append(f"{x:.2f},{y:.2f}")
+    circles = []
+    for point in points:
+        x, y = point.split(",")
+        circles.append(f"<circle cx='{x}' cy='{y}' r='1.8' fill='#d1495b'/>")
+    return f"""
+    <article class="viz-card">
+      <h3>{html.escape(title)}</h3>
+      <svg viewBox="0 0 {width} {height}">
+        <text x="{left}" y="16" class="axis">eigenvalue mass</text>
+        <line x1="{left}" y1="{top + chart_h}" x2="{width - 8}" y2="{top + chart_h}" stroke="#999"/>
+        <polyline points="{' '.join(points)}" fill="none" stroke="#d1495b" stroke-width="2"/>
+        {''.join(circles)}
+      </svg>
+    </article>
+    """
+
+
+def diagnostics_section(records: list[dict[str, Any]], key: str, title: str, renderer) -> str:
+    cards = []
+    for record in records[:12]:
+        value = record.get(key)
+        if value:
+            cards.append(renderer(record["variant"], value))
+    cards_html = "".join(cards)
+    if not cards_html:
+        return ""
+    return f"""
+    <section>
+      <h2>{html.escape(title)}</h2>
+      <div class="viz-grid">{cards_html}</div>
+    </section>
+    """
+
+
+def prefixed_diagnostics_section(records: list[dict[str, Any]], prefix: str, title: str, renderer) -> str:
+    cards = []
+    for record in records[:12]:
+        value = record.get(f"{prefix}_{renderer.__name__.replace('_card', '')}")
+        if value:
+            cards.append(renderer(f"{record['variant']} {prefix}", value))
+    cards_html = "".join(cards)
+    if not cards_html:
+        return ""
+    return f"""
+    <section>
+      <h2>{html.escape(title)}</h2>
+      <div class="viz-grid">{cards_html}</div>
+    </section>
+    """
+
+
+def heatmap_card(title: str, heatmap: dict[str, Any]) -> str:
+    values = heatmap.get("values") or []
+    if not values:
+        return ""
+    n = len(values)
+    cell = max(2.0, 180.0 / n)
+    size = cell * n
+    rects = []
+    for i, row in enumerate(values):
+        for j, value in enumerate(row):
+            v = max(-1.0, min(1.0, float(value)))
+            if v >= 0:
+                intensity = int(255 - 115 * v)
+                color = f"rgb({intensity},{intensity},{255})"
+            else:
+                intensity = int(255 + 115 * v)
+                color = f"rgb(255,{intensity},{intensity})"
+            stroke = "#111" if i == j else color
+            rects.append(
+                f"<rect x='{j * cell:.2f}' y='{i * cell:.2f}' width='{cell:.2f}' height='{cell:.2f}' fill='{color}' stroke='{stroke}' stroke-width='{0.45 if i == j else 0}'/>"
+            )
+    return f"""
+    <article class="viz-card">
+      <h3>{html.escape(title)}</h3>
+      <svg viewBox="0 0 {size:.1f} {size:.1f}" class="heatmap">
+        {''.join(rects)}
+      </svg>
+    </article>
+    """
+
+
+def heatmap_section(records: list[dict[str, Any]]) -> str:
+    keys = [
+        "embedding_similarity_heatmap",
+        "text_cap_to_text_anchor_heatmap",
+        "code_cap_to_code_anchor_heatmap",
+        "text_cap_to_code_anchor_heatmap",
+    ]
+    cards = []
+    for record in records[:8]:
+        for key in keys:
+            if key in record:
+                cards.append(heatmap_card(f"{record['variant']} {key}", record[key]))
+    cards_html = "".join(cards)
+    if not cards_html:
+        return ""
+    return f"""
+    <section>
+      <h2>Retrieval Similarity Heatmaps</h2>
+      <div class="viz-grid">{cards_html}</div>
+    </section>
+    """
+
+
+def anchor_visuals(payload: dict[str, Any]) -> str:
+    diagnostics = payload.get("anchor_geometry") or {}
+    if not diagnostics:
+        return ""
+    hist_cards = []
+    spectrum_cards = []
+    for name, diag in diagnostics.items():
+        if diag.get("cosine_histogram"):
+            hist_cards.append(histogram_card(str(name), diag["cosine_histogram"]))
+        if diag.get("eigen_spectrum"):
+            spectrum_cards.append(spectrum_card(str(name), diag["eigen_spectrum"]))
+    sections = []
+    if hist_cards:
+        sections.append(f"<section><h2>Anchor Cosine Histograms</h2><div class='viz-grid'>{''.join(hist_cards)}</div></section>")
+    if spectrum_cards:
+        sections.append(f"<section><h2>Anchor Eigenspectra</h2><div class='viz-grid'>{''.join(spectrum_cards)}</div></section>")
+    return "".join(sections)
+
+
 def build_html(payload: dict[str, Any], source: Path) -> str:
     records = payload.get("records", [])
-    scatter = "".join(scatter_plot(record) for record in records[:12])
     config = payload.get("config", {})
     title = source.stem
     return f"""<!doctype html>
@@ -255,7 +484,10 @@ def build_html(payload: dict[str, Any], source: Path) -> str:
     th, td {{ border-bottom: 1px solid #e6e0d2; padding: 8px 9px; text-align: left; }}
     th {{ color: #415058; font-size: 12px; text-transform: uppercase; letter-spacing: 0; }}
     .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }}
+    .viz-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; }}
     .scatter-card {{ background: #fffefa; border: 1px solid #ddd7ca; border-radius: 8px; padding: 12px; }}
+    .viz-card {{ background: #fffefa; border: 1px solid #ddd7ca; border-radius: 8px; padding: 12px; }}
+    .heatmap {{ max-height: 220px; image-rendering: pixelated; }}
     code {{ background: #ebe5d8; padding: 2px 5px; border-radius: 4px; }}
   </style>
 </head>
@@ -270,6 +502,7 @@ def build_html(payload: dict[str, Any], source: Path) -> str:
       <pre>{html.escape(json.dumps(config, indent=2))}</pre>
     </section>
     {anchor_table(payload)}
+    {anchor_visuals(payload)}
     {contrast_rows(records)}
     {bar_chart(records, "rankme", "RankMe")}
     {bar_chart(records, "text_rankme", "Text RankMe")}
@@ -281,10 +514,17 @@ def build_html(payload: dict[str, Any], source: Path) -> str:
     {bar_chart(records, "text_uniformity", "Text Uniformity", lower_is_better=True)}
     {bar_chart(records, "code_uniformity", "Code Uniformity", lower_is_better=True)}
     {metrics_table(records)}
-    <section>
-      <h2>Latent Scatter</h2>
-      <div class="grid">{scatter}</div>
-    </section>
+    {retrieval_table(records)}
+    {scatter_section(records, "scatter", "PCA Scatter")}
+    {scatter_section(records, "text_pca_scatter", "Text PCA Scatter")}
+    {scatter_section(records, "code_pca_scatter", "Code PCA Scatter")}
+    {diagnostics_section(records, "cosine_histogram", "Cosine Histograms", histogram_card)}
+    {diagnostics_section(records, "text_cosine_histogram", "Text Cosine Histograms", histogram_card)}
+    {diagnostics_section(records, "code_cosine_histogram", "Code Cosine Histograms", histogram_card)}
+    {diagnostics_section(records, "eigen_spectrum", "Eigenspectra", spectrum_card)}
+    {diagnostics_section(records, "text_eigen_spectrum", "Text Eigenspectra", spectrum_card)}
+    {diagnostics_section(records, "code_eigen_spectrum", "Code Eigenspectra", spectrum_card)}
+    {heatmap_section(records)}
   </main>
 </body>
 </html>

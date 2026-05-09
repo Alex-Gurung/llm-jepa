@@ -64,6 +64,88 @@ def cosine_pair_stats(z: torch.Tensor) -> dict:
     }
 
 
+def cosine_histogram(z: torch.Tensor, bins: int = 40) -> dict:
+    z = F.normalize(z, dim=-1)
+    if len(z) < 2:
+        return {"bin_edges": [], "counts": []}
+    c = z @ z.T
+    mask = ~torch.eye(len(z), dtype=torch.bool, device=z.device)
+    c_off = c[mask].float().cpu()
+    hist = torch.histogram(c_off, bins=bins, range=(-1.0, 1.0))
+    return {
+        "bin_edges": [float(x) for x in hist.bin_edges.tolist()],
+        "counts": [int(x) for x in hist.hist.tolist()],
+    }
+
+
+def eigen_spectrum(z: torch.Tensor, top_k: int = 32) -> dict:
+    z = z.detach().float()
+    if z.numel() == 0 or min(z.shape) == 0:
+        return {"mass": [], "cumulative": []}
+    centered = z - z.mean(dim=0, keepdim=True)
+    s = torch.linalg.svdvals(centered)
+    mass = s.pow(2)
+    total = mass.sum()
+    if total <= 0:
+        values = torch.zeros_like(mass[:top_k])
+    else:
+        values = mass[:top_k] / total
+    cumulative = values.cumsum(dim=0)
+    return {
+        "mass": [float(x) for x in values.tolist()],
+        "cumulative": [float(x) for x in cumulative.tolist()],
+    }
+
+
+def pca_scatter(
+    z: torch.Tensor,
+    labels: torch.Tensor | None = None,
+    *,
+    max_points: int = 800,
+) -> list[dict]:
+    z = z.detach().float().cpu()
+    if z.ndim != 2 or len(z) == 0:
+        return []
+    n = min(len(z), max_points)
+    idx = torch.linspace(0, len(z) - 1, steps=n).round().long()
+    sampled = z[idx]
+    centered = sampled - sampled.mean(dim=0, keepdim=True)
+    if centered.shape[1] == 1:
+        coords = torch.cat([centered, torch.zeros_like(centered)], dim=1)
+    else:
+        _, _, vh = torch.linalg.svd(centered, full_matrices=False)
+        coords = centered @ vh[:2].T
+        if coords.shape[1] == 1:
+            coords = torch.cat([coords, torch.zeros_like(coords)], dim=1)
+    out = []
+    labels_cpu = labels.detach().cpu() if labels is not None else None
+    for point_idx, coord in zip(idx.tolist(), coords):
+        row = {
+            "x": float(coord[0]),
+            "y": float(coord[1]),
+            "index": int(point_idx),
+        }
+        if labels_cpu is not None:
+            row["label"] = int(labels_cpu[point_idx])
+        out.append(row)
+    return out
+
+
+def embedding_visual_diagnostics(
+    z: torch.Tensor,
+    labels: torch.Tensor | None = None,
+    *,
+    max_points: int = 800,
+    hist_bins: int = 40,
+    spectrum_k: int = 32,
+) -> dict:
+    return {
+        "pca_scatter": pca_scatter(z, labels, max_points=max_points),
+        "cosine_histogram": cosine_histogram(z, bins=hist_bins),
+        "eigen_spectrum": eigen_spectrum(z, top_k=spectrum_k),
+    }
+
+
 def anchor_geometry_diagnostics(anchor: torch.Tensor) -> dict:
     """Diagnostics that must be reported before cap-anchor training."""
 
@@ -82,6 +164,8 @@ def anchor_geometry_diagnostics(anchor: torch.Tensor) -> dict:
         "mean_norm": anchor.norm(dim=-1).mean().item(),
         "uniformity_after_normalize": uniformity_loss(a_normed),
         "cosine_stats": cosine_pair_stats(anchor),
+        "cosine_histogram": cosine_histogram(anchor),
+        "eigen_spectrum": eigen_spectrum(anchor),
     }
 
 
@@ -111,3 +195,18 @@ def retrieval_at_k(query: torch.Tensor, target: torch.Tensor, ks: tuple[int, ...
         out[f"recall@{k}"] = (order[:, :k] == labels).any(dim=1).float().mean().item()
     out["mean_rank"] = ((order == labels).nonzero()[:, 1].float() + 1.0).mean().item()
     return out
+
+
+def similarity_heatmap(query: torch.Tensor, target: torch.Tensor, *, max_items: int = 48) -> dict:
+    """Small cosine matrix for visual inspection of paired retrieval structure."""
+
+    n = min(len(query), len(target), max_items)
+    if n == 0:
+        return {"values": [], "paired": []}
+    q = F.normalize(query[:n].detach().float().cpu(), dim=-1)
+    t = F.normalize(target[:n].detach().float().cpu(), dim=-1)
+    sim = q @ t.T
+    return {
+        "values": [[float(v) for v in row] for row in sim.tolist()],
+        "paired": [float(v) for v in sim.diag().tolist()],
+    }

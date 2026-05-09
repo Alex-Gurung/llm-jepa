@@ -21,9 +21,11 @@ from sphere_jepa.losses import (
 from sphere_jepa.metrics import (
     anchor_geometry_diagnostics,
     cosine_pair_stats,
+    embedding_visual_diagnostics,
     paired_vs_unpaired_cosine,
     rankme,
     retrieval_at_k,
+    similarity_heatmap,
     uniformity_loss,
 )
 from sphere_jepa.spherify import perturb_and_respherify, spherify
@@ -168,6 +170,8 @@ def train_variant(args: argparse.Namespace, variant: str, train_data: TensorData
         z_text = g_text(text_eval)
         z_code = g_code(code_eval)
         pred_code = predictor(spherify(z_text))
+        text_visuals = embedding_visual_diagnostics(z_text.cpu(), max_points=args.visual_samples)
+        code_visuals = embedding_visual_diagnostics(z_code.cpu(), max_points=args.visual_samples)
         records = {
             "variant": variant,
             "text_rankme": rankme(z_text.cpu()),
@@ -179,15 +183,25 @@ def train_variant(args: argparse.Namespace, variant: str, train_data: TensorData
             "paired_vs_unpaired": paired_vs_unpaired_cosine(z_text.cpu(), z_code.cpu()),
             "retrieval_embedding": retrieval_at_k(z_text.cpu(), z_code.cpu(), ks=(1, 10)),
             "retrieval_predicted_code_embedding": retrieval_at_k(pred_code.cpu(), z_code.cpu(), ks=(1, 10)),
+            "embedding_similarity_heatmap": similarity_heatmap(z_text.cpu(), z_code.cpu(), max_items=args.heatmap_items),
+            "text_pca_scatter": text_visuals["pca_scatter"],
+            "code_pca_scatter": code_visuals["pca_scatter"],
+            "text_cosine_histogram": text_visuals["cosine_histogram"],
+            "code_cosine_histogram": code_visuals["cosine_histogram"],
+            "text_eigen_spectrum": text_visuals["eigen_spectrum"],
+            "code_eigen_spectrum": code_visuals["eigen_spectrum"],
         }
         if variant.startswith("D_cross"):
             projected = cap_cross_t2c(spherify(z_text))
             records["retrieval_text_cap_to_code_anchor"] = retrieval_at_k(projected.cpu(), anchor_code_eval.cpu(), ks=(1, 10))
+            records["text_cap_to_code_anchor_heatmap"] = similarity_heatmap(projected.cpu(), anchor_code_eval.cpu(), max_items=args.heatmap_items)
         if variant.startswith("D_own"):
             text_cap = cap_text(spherify(z_text))
             code_cap = cap_code(spherify(z_code))
             records["retrieval_text_cap_to_text_anchor"] = retrieval_at_k(text_cap.cpu(), anchor_text_eval.cpu(), ks=(1, 10))
             records["retrieval_code_cap_to_code_anchor"] = retrieval_at_k(code_cap.cpu(), anchor_code_eval.cpu(), ks=(1, 10))
+            records["text_cap_to_text_anchor_heatmap"] = similarity_heatmap(text_cap.cpu(), anchor_text_eval.cpu(), max_items=args.heatmap_items)
+            records["code_cap_to_code_anchor_heatmap"] = similarity_heatmap(code_cap.cpu(), anchor_code_eval.cpu(), max_items=args.heatmap_items)
     return records
 
 
@@ -210,6 +224,8 @@ def main() -> None:
     parser.add_argument("--sigreg-weight", type=float, default=0.1)
     parser.add_argument("--ema-momentum", type=float, default=0.99)
     parser.add_argument("--cpu", action="store_true")
+    parser.add_argument("--visual-samples", type=int, default=800)
+    parser.add_argument("--heatmap-items", type=int, default=48)
     parser.add_argument("--threads", type=int, default=1)
     args = parser.parse_args()
     torch.set_num_threads(args.threads)

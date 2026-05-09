@@ -22,6 +22,7 @@ from sphere_jepa.metrics import (
     alignment_loss,
     anchor_geometry_diagnostics,
     cosine_pair_stats,
+    embedding_visual_diagnostics,
     rankme,
     uniformity_loss,
     within_class_rankme,
@@ -195,9 +196,9 @@ def train_variant(
     encoder = Encoder(config.emb_dim, config.hidden_dim)
     predictor = MLP(config.emb_dim, config.emb_dim, hidden_dim=config.hidden_dim, num_layers=2)
     cap_dim = config.emb_dim
-    if variant.endswith("a"):
+    if variant in {"D0a", "D1a"}:
         cap_dim = 2
-    elif variant.endswith("b") or variant.endswith("c"):
+    elif variant in {"D0b", "D1b", "D0c", "D1c"}:
         cap_dim = config.rff_dim
     cap_predictor = MLP(config.emb_dim, cap_dim, hidden_dim=config.hidden_dim, num_layers=2)
     classifier = MLP(config.emb_dim, config.clusters, hidden_dim=config.hidden_dim, num_layers=2)
@@ -279,6 +280,7 @@ def train_variant(
         z_a = encoder(view_a)
         z_b = encoder(view_b)
 
+    visuals = embedding_visual_diagnostics(z, labels, max_points=800)
     metrics = {
         "variant": variant,
         "rankme": rankme(z),
@@ -287,14 +289,8 @@ def train_variant(
         "alignment_view_ab": alignment_loss(z_a, z_b),
         "within_class_rankme": within_class_rankme(z, labels),
         "history": history,
-        "scatter": [
-            {
-                "x": float(z[i, 0]),
-                "y": float(z[i, 1]),
-                "label": int(labels[i]),
-            }
-            for i in range(min(800, len(z)))
-        ],
+        "scatter": visuals["pca_scatter"],
+        **visuals,
     }
     return metrics
 

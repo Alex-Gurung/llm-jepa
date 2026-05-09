@@ -5,7 +5,7 @@ import torch.nn as nn
 
 from sphere_jepa.heads import MLP
 from sphere_jepa.losses import clean_jepa_alignment, noisy_cap_anchor_loss
-from sphere_jepa.metrics import anchor_geometry_diagnostics, uniformity_loss, within_class_rankme
+from sphere_jepa.metrics import anchor_geometry_diagnostics, embedding_visual_diagnostics, uniformity_loss, within_class_rankme
 from sphere_jepa.spherify import perturb_and_respherify, spherify
 
 
@@ -44,3 +44,12 @@ def test_metrics_handle_labels_and_large_uniformity_subsample():
     diagnostics = anchor_geometry_diagnostics(z)
     assert "top_eig_mass_ratio" in diagnostics
     assert diagnostics["top_eig_mass_ratio"] >= 0
+
+
+def test_visual_diagnostics_are_json_ready():
+    z = torch.randn(32, 6)
+    labels = torch.arange(32) % 3
+    visuals = embedding_visual_diagnostics(z, labels, max_points=10, hist_bins=8, spectrum_k=4)
+    assert len(visuals["pca_scatter"]) == 10
+    assert len(visuals["cosine_histogram"]["counts"]) == 8
+    assert len(visuals["eigen_spectrum"]["mass"]) == 4

@@ -12,7 +12,14 @@ from torch.utils.data import DataLoader, Dataset
 from train_teacher_autoencoder import CifarAutoencoderTeacher
 from sphere_jepa.heads import MLP, make_ema_copy, update_ema
 from sphere_jepa.losses import clean_jepa_alignment, noisy_cap_anchor_loss, sigreg_loss, vicreg_loss
-from sphere_jepa.metrics import anchor_geometry_diagnostics, cosine_pair_stats, rankme, uniformity_loss, within_class_rankme
+from sphere_jepa.metrics import (
+    anchor_geometry_diagnostics,
+    cosine_pair_stats,
+    embedding_visual_diagnostics,
+    rankme,
+    uniformity_loss,
+    within_class_rankme,
+)
 from sphere_jepa.spherify import perturb_and_respherify, spherify
 
 
@@ -251,6 +258,7 @@ def train_variant(args: argparse.Namespace, variant: str, train_loader: DataLoad
 
     z, y = collect_embeddings(encoder, train_base, device, args.batch_size)
     probe_acc = train_linear_probe(encoder, train_base, test_base, device, batch_size=args.batch_size, epochs=args.probe_epochs)
+    visuals = embedding_visual_diagnostics(z, y, max_points=args.visual_samples)
     return {
         "variant": variant,
         "linear_probe_top1": probe_acc,
@@ -258,6 +266,8 @@ def train_variant(args: argparse.Namespace, variant: str, train_loader: DataLoad
         "uniformity": uniformity_loss(z),
         "cosine": cosine_pair_stats(z),
         "within_class_rankme": within_class_rankme(z, y),
+        "scatter": visuals["pca_scatter"],
+        **visuals,
     }
 
 
@@ -282,6 +292,7 @@ def main() -> None:
     parser.add_argument("--allow-random-teacher", action="store_true")
     parser.add_argument("--cpu", action="store_true")
     parser.add_argument("--diagnostic-samples", type=int, default=2048)
+    parser.add_argument("--visual-samples", type=int, default=800)
     parser.add_argument("--threads", type=int, default=1)
     args = parser.parse_args()
     torch.set_num_threads(args.threads)
