@@ -5,6 +5,9 @@ GPU pass. Open the files in `html/` directly in a browser.
 
 ## Reports
 
+- `index.html`: aggregate dashboard for all GPU summaries in this folder,
+  including tables, hypersphere projections, PCA maps, cosine histograms,
+  eigenspectra, retrieval heatmaps, and preprocessing comparisons.
 - `html/exp0_full.html`: full toy run, all variants.
 - `html/exp1_cifar_gpu.html`: real CIFAR-10 bridge run on a 10k train / 2k
   test subset.
@@ -14,6 +17,14 @@ GPU pass. Open the files in `html/` directly in a browser.
   anchor preprocessing ablations with raw source states.
 - `html/exp2_pythia160m_synth_input_white_anchor_white.html`: source-whitened
   and anchor-whitened diagnostic. This is the useful Exp2 run.
+
+Rebuild the aggregate dashboard with:
+
+```bash
+python experiments/viewer/build_dashboard.py \
+  --report-dir reports/gpu_2026-05-09 \
+  --out reports/gpu_2026-05-09/index.html
+```
 
 ## Exp0 Toy
 
