@@ -6,9 +6,10 @@ GPU pass. Open the files in `html/` directly in a browser.
 ## Reports
 
 - `index.html`: aggregate matplotlib/seaborn report for all GPU summaries in
-  this folder, including a variant glossary, interpretation notes, tables,
-  hypersphere projections, PCA maps, cosine histograms, eigenspectra, retrieval
-  heatmaps, and preprocessing comparisons.
+  this folder, including natural variant names, a JEPA-vs-baseline explanation,
+  task map, interpretation notes, tables, hypersphere projections, PCA maps,
+  cosine histograms, eigenspectra, retrieval heatmaps, and preprocessing
+  comparisons.
 - `html/exp0_full.html`: full toy run, all variants.
 - `html/exp1_cifar_gpu.html`: real CIFAR-10 bridge run on a 10k train / 2k
   test subset.
@@ -45,8 +46,9 @@ uv run --extra experiments python experiments/viewer/build_dashboard.py \
 | F | 7.538 | 0.036 | 4.920 |
 | G | 7.765 | 0.015 | 3.150 |
 
-Read: co-trained `C` collapses hard. Noise helps for continuous and frozen-AE
-anchors (`D1a>D0a`, `D1c>D0c`) but not for RFF in this run (`D1b` is mixed).
+Read: the co-trained self-anchor (`C`) collapses hard. Sphere noise helps for
+continuous and frozen-teacher anchors (`D1a>D0a`, `D1c>D0c`) but not for the
+RFF anchor in this run (`D1b` is mixed).
 
 ## Exp1 CIFAR Bridge
 
@@ -65,9 +67,10 @@ This is a bridge/sanity run, not the main result.
 | F | 0.370 | 38.074 | 0.648 | 36.358 |
 | G | 0.151 | 3.577 | 0.974 | 10.703 |
 
-Read: `D1` improves spread over `D0`, but probe accuracy is lower. Since `D2`
-uses labels, its high probe score is not evidence for the sample-specific
-anchor mechanism.
+Read: the noisy frozen anchor (`D1`) improves spread over the clean frozen
+anchor (`D0`), but probe accuracy is lower. Since the class-anchor control
+(`D2`) uses labels, its high probe score is not evidence for the
+sample-specific anchor mechanism.
 
 ## Exp2 Frozen LLM
 
@@ -92,10 +95,12 @@ projection heads remain anisotropic.
 
 Read:
 
-- `D_own_1 > D_own_0` on RankMe, mean cosine, and predicted-code retrieval.
-- `D_own_1 >> C`, so external anchoring matters.
-- `C_ema` is a strong geometry control but trails `D_own_1` on predicted-code
-  retrieval.
+- Noisy frozen own-anchor (`D_own_1`) beats clean frozen own-anchor
+  (`D_own_0`) on RankMe, mean cosine, and predicted-code retrieval.
+- Noisy frozen own-anchor (`D_own_1`) is far stronger than co-trained
+  self-anchor (`C`), so external anchoring matters.
+- Momentum self-anchor (`C_ema`) is a strong geometry control but trails noisy
+  frozen own-anchor on predicted-code retrieval.
 - InfoNCE/VICReg still dominate direct embedding retrieval, so the next run
   should compare retrieval spaces carefully rather than claim an accuracy win.
 - Input/source whitening appears necessary for this Pythia setup.
@@ -107,9 +112,9 @@ one epoch, no evaluation split.
 
 Completed controls:
 
-- `D1`: frozen own-view anchors, `sigma_max=0.5`.
-- `D0`: frozen own-view anchors, `sigma_max=0.0`.
-- `C`: co-trained own-view target.
+- Noisy frozen anchor (`D1`): frozen own-view anchors, `sigma_max=0.5`.
+- Clean frozen anchor (`D0`): frozen own-view anchors, `sigma_max=0.0`.
+- Co-trained self-anchor (`C`): own-view target produced by the moving model.
 
 This validates the full fine-tuning path only. It is not a downstream result.
 
@@ -122,7 +127,9 @@ Important implementation fixes from this run:
 
 ## Recommendation
 
-Do not scale Exp3 yet as a task-performance run. The strongest next experiment
-is Exp2 on the actual target dataset, with source whitening and explicit
-retrieval-space choices. If that reproduces the `D_own_1>D_own_0` and
-`D_own_1>C` pattern, then run Exp3 as a geometry-first downstream experiment.
+Do not treat SmolLM2 Exp3 as a task-performance result. The strongest current
+downstream check is the Llama 1B full fine-tune: compare plain fine-tune,
+co-trained/momentum self-anchor, clean frozen anchor, and noisy frozen anchor
+once those runs finish evaluating. The main mechanism pattern to reproduce is
+noisy frozen own-anchor beating clean frozen own-anchor and co-trained
+self-anchor.

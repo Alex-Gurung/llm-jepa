@@ -25,9 +25,9 @@ EXPERIMENT_META = {
         "group": "Toy",
         "summary": "Synthetic paired-view run with continuous, RFF, and frozen-teacher sample-specific anchors.",
         "takeaways": [
-            "C is the intentionally dangerous co-trained target. It collapses hard: low RankMe and cosine near 1.",
-            "D1a and D1c improve over their matched D0 controls, which is the cleanest evidence that noise can help.",
-            "D3 uses class labels. It can look good globally while missing sample-level spread, so within-class RankMe matters.",
+            "Co-trained self-anchor collapses hard: low RankMe and cosine near 1.",
+            "Noisy continuous and noisy frozen-teacher anchors improve over their matched clean-anchor controls, which is the cleanest evidence that noise can help.",
+            "The class-anchor control uses labels. It can look good globally while missing sample-level spread, so within-class RankMe matters.",
         ],
     },
     "exp1_cifar_gpu": {
@@ -36,8 +36,8 @@ EXPERIMENT_META = {
         "group": "Vision bridge",
         "summary": "GPU sanity run on a 10k/2k CIFAR-10 subset with a frozen autoencoder teacher anchor.",
         "takeaways": [
-            "D1 improves spread over D0, but linear-probe accuracy drops in this pass.",
-            "D2 uses labels, so its high probe accuracy is a supervised control rather than evidence for the anchor mechanism.",
+            "The noisy frozen anchor improves spread over the clean frozen anchor, but linear-probe accuracy drops in this pass.",
+            "The class-anchor control uses labels, so its high probe accuracy is a supervised control rather than evidence for the anchor mechanism.",
             "Treat this as a bridge/sanity run, not the main downstream result.",
         ],
     },
@@ -47,8 +47,8 @@ EXPERIMENT_META = {
         "group": "Frozen LLM",
         "summary": "The useful Pythia-160M diagnostic: source states and anchors are both whitened.",
         "takeaways": [
-            "D_own_1 beats D_own_0 on RankMe, mean cosine, and predicted-code retrieval.",
-            "D_own_1 is far stronger than co-trained C, so external anchoring matters.",
+            "Noisy frozen own-anchor beats clean frozen own-anchor on RankMe, mean cosine, and predicted-code retrieval.",
+            "Noisy frozen own-anchor is far stronger than co-trained self-anchor, so external anchoring matters.",
             "InfoNCE and VICReg still dominate direct embedding retrieval, so retrieval-space choice matters.",
         ],
     },
@@ -100,19 +100,19 @@ EXPERIMENT_META = {
         "summary": "Full 8k-example SmolLM2-135M synthetic NL-to-regex fine-tune sweep.",
         "takeaways": [
             "The downstream metric is strict exact-match string equality on synth_test.jsonl.",
-            "D1 versus D0 isolates the effect of noisy frozen anchors.",
+            "Noisy frozen anchor versus clean frozen anchor isolates the effect of sphere noise.",
             "Training loss and exact match can move in different directions, so both are shown.",
         ],
     },
     "exp3_llama1b_synth": {
-        "title": "Exp3 LLM-JEPA: Llama 1B Controls",
+        "title": "Exp3 Full LLM-JEPA: Llama 1B Synth",
         "short_title": "E3 Llama",
         "group": "Full LLM fine-tune",
-        "summary": "Primary Llama-3.2-1B synthetic NL-to-regex controls: regular, co-trained cap, D0, and D1.",
+        "summary": "Full 8k-example Llama-3.2-1B synthetic NL-to-regex fine-tune sweep.",
         "takeaways": [
-            "This is the larger-model sanity pass for the full fine-tuning path.",
-            "Regular, C, D0, and D1 isolate the main questions without waiting on every secondary ablation.",
-            "Use the SmolLM2 full sweep for ablation breadth and Llama 1B for a stronger-base check.",
+            "This is the larger-model pass for the same full fine-tuning ablations as SmolLM2.",
+            "Plain fine-tune, co-trained self-anchor, clean frozen anchor, noisy frozen anchor, momentum self-anchor, cross-view anchor, and combined anchors test the matched controls from the handoff.",
+            "Read noisy frozen minus clean frozen as the sphere-noise contribution, and noisy frozen minus self-anchor as the external-anchor contribution.",
         ],
     },
 }
@@ -134,23 +134,102 @@ RUN_ORDER = [
 VARIANT_GLOSSARY = [
     ("A", "MSE JEPA baseline", "Predict paired-view embedding with MSE. Mostly a baseline, not the sphere mechanism."),
     ("B", "Cosine JEPA baseline", "Predict paired-view embedding with cosine loss, matching the LLM-JEPA default metric."),
-    ("C", "Co-trained cap target", "The cap reconstructs a target produced by the same moving encoder. This is collapse-prone and is the anchor-failure control."),
-    ("C_detach", "Detached co-trained target", "Like C, but the current target is detached from gradient flow."),
-    ("C_ema", "EMA moving target", "The target comes from an exponential moving-average copy of the encoder."),
-    ("D0 / D_own_0", "Frozen own-view anchor, no noise", "Same external anchor as D1, but sigma=0. This isolates the value of anchoring alone."),
-    ("D1 / D_own_1", "Frozen own-view anchor, noisy cap", "The main sphere-encoder-style test: noisy spherical cap must recover a sample-specific external anchor."),
-    ("D0a/D1a", "Toy continuous anchor", "Toy run only: target is the original continuous 2-D sample."),
-    ("D0b/D1b", "Toy RFF anchor", "Toy run only: target is a random Fourier feature anchor."),
-    ("D0c/D1c", "Toy frozen-teacher anchor", "Toy run only: target is a frozen teacher/autoencoder feature."),
+    ("C", "Co-trained self-anchor", "The cap reconstructs a target produced by the same moving encoder. This is collapse-prone and is the anchor-failure control."),
+    ("C_detach", "Detached self-anchor", "Like the co-trained self-anchor, but the current target is detached from gradient flow."),
+    ("C_ema", "Momentum self-anchor", "The target comes from an exponential moving-average copy of the encoder."),
+    ("D0 / D_own_0", "Clean frozen own-anchor", "Same external anchor as the noisy frozen anchor, but sigma=0. This isolates the value of anchoring alone."),
+    ("D1 / D_own_1", "Noisy frozen own-anchor", "The main sphere-encoder-style test: noisy spherical cap must recover a sample-specific external anchor."),
+    ("D0a/D1a", "Clean/noisy continuous anchor", "Toy run only: target is the original continuous 2-D sample."),
+    ("D0b/D1b", "Clean/noisy RFF anchor", "Toy run only: target is a random Fourier feature anchor."),
+    ("D0c/D1c", "Clean/noisy frozen-teacher anchor", "Toy run only: target is a frozen teacher/autoencoder feature."),
     ("D2 / D3", "Class-level anchor", "Supervised class-label target. Useful as a cardinality warning: class spread is not sample spread."),
-    ("D_cross_*", "Cross-view anchor", "Noisy cap from one view reconstructs the paired view's anchor."),
-    ("D_cross_sym_*", "Symmetric cross-view anchor", "Cross-view cap reconstruction in both text-to-code and code-to-text directions."),
+    ("D_cross_*", "Frozen cross-view anchor", "Noisy cap from one view reconstructs the paired view's anchor."),
+    ("D_cross_sym_*", "Two-way frozen cross-view anchor", "Cross-view cap reconstruction in both text-to-code and code-to-text directions."),
     ("F", "Regularizer baseline", "VICReg in Exp0/Exp1; InfoNCE in Exp2. Read in the context of each run."),
     ("G", "Regularizer baseline", "SIGReg in Exp0/Exp1; VICReg in Exp2."),
     ("H", "SIGReg baseline", "Exp2 only: cosine alignment plus SIGReg-style isotropic regularization."),
-    ("Regular", "Standard fine-tune", "Exp3 only: supervised LLM fine-tuning without the cap-anchor objective."),
-    ("Cross / Both", "Full LLM cap variants", "Exp3 only: cross-view cap, or own-view plus cross-view cap."),
+    ("Regular", "Plain fine-tune", "Exp3 only: supervised LLM fine-tuning without the cap-anchor objective."),
+    ("Cross / Both", "Cross-view / combined frozen anchors", "Exp3 only: cross-view cap, or own-view plus cross-view cap."),
 ]
+
+
+TASK_GLOSSARY = [
+    ("Toy geometry", "Synthetic paired views", "Can the objective avoid collapse and produce a spread-out sample-level embedding space?"),
+    ("CIFAR bridge", "Image augmentation representation learning", "Does better geometry transfer to a simple linear-probe image task?"),
+    ("Frozen LLM heads", "Natural-language/regex pairs with a frozen Pythia backbone", "Can small heads learn useful text/code geometry without changing the LLM?"),
+    ("Full LLM fine-tune", "Generate a regex from a natural-language prompt", "Does the cap-anchor objective improve strict downstream exact match over plain supervised fine-tuning?"),
+]
+
+
+RUN_TASK_NOTES = {
+    "exp0_full": "Synthetic paired-view geometry test. This is about collapse, spread, and whether sphere noise helps when the target anchor is controlled.",
+    "exp1_cifar_gpu": "CIFAR-10 bridge task. This checks whether geometry improvements survive contact with a simple image representation benchmark.",
+    "exp2_pythia160m_synth_input_white_anchor_white": "Frozen Pythia text/code head task. This is the cleanest geometry diagnostic for NL-to-regex pairs because both source and anchor states are whitened.",
+    "exp2_pythia160m_synth_sphere": "Frozen Pythia preprocessing control with spherical anchors on raw source states.",
+    "exp2_pythia160m_synth_raw": "Frozen Pythia preprocessing control with raw anchors and raw source states.",
+    "exp2_pythia160m_synth_norm": "Frozen Pythia preprocessing control with normalized anchors and raw source states.",
+    "exp2_pythia160m_synth_white": "Frozen Pythia preprocessing control with whitened anchors and raw source states.",
+    "exp3_full_synth": "Full SmolLM2 fine-tune. This is the actual regex-generation task, scored by strict exact-match on held-out synthetic prompts.",
+    "exp3_llama1b_synth": "Full Llama 1B fine-tune. This repeats the actual regex-generation task with a stronger base model.",
+}
+
+
+BASE_VARIANT_NAMES = {
+    "A": "MSE JEPA baseline",
+    "B": "Cosine JEPA baseline",
+    "C": "Co-trained self-anchor",
+    "C_detach": "Detached self-anchor",
+    "C_ema": "Momentum self-anchor",
+    "D0": "Clean frozen anchor",
+    "D1": "Noisy frozen anchor",
+    "D0a": "Clean continuous anchor",
+    "D1a": "Noisy continuous anchor",
+    "D0b": "Clean RFF anchor",
+    "D1b": "Noisy RFF anchor",
+    "D0c": "Clean frozen-teacher anchor",
+    "D1c": "Noisy frozen-teacher anchor",
+    "D2": "Class anchor",
+    "D3": "Class anchor",
+    "D_own_0": "Clean frozen own-anchor",
+    "D_own_1": "Noisy frozen own-anchor",
+    "D_cross_0": "Clean frozen cross-anchor",
+    "D_cross_1": "Noisy frozen cross-anchor",
+    "D_cross_sym_0": "Clean two-way cross-anchor",
+    "D_cross_sym_1": "Noisy two-way cross-anchor",
+    "H": "SIGReg baseline",
+    "Regular": "Plain fine-tune",
+    "Cross": "Frozen cross-view anchor",
+    "Both": "Own + cross frozen anchors",
+}
+
+
+BASE_VARIANT_SHORT_NAMES = {
+    "A": "MSE JEPA",
+    "B": "Cosine JEPA",
+    "C": "Co-trained self",
+    "C_detach": "Detached self",
+    "C_ema": "Momentum self",
+    "D0": "Clean frozen",
+    "D1": "Noisy frozen",
+    "D0a": "Clean continuous",
+    "D1a": "Noisy continuous",
+    "D0b": "Clean RFF",
+    "D1b": "Noisy RFF",
+    "D0c": "Clean teacher",
+    "D1c": "Noisy teacher",
+    "D2": "Class anchor",
+    "D3": "Class anchor",
+    "D_own_0": "Clean own-anchor",
+    "D_own_1": "Noisy own-anchor",
+    "D_cross_0": "Clean cross-anchor",
+    "D_cross_1": "Noisy cross-anchor",
+    "D_cross_sym_0": "Clean two-way cross",
+    "D_cross_sym_1": "Noisy two-way cross",
+    "H": "SIGReg",
+    "Regular": "Plain fine-tune",
+    "Cross": "Cross-view anchor",
+    "Both": "Own + cross anchors",
+}
 
 
 METRIC_GLOSSARY = [
@@ -165,7 +244,7 @@ METRIC_GLOSSARY = [
 
 
 FIGURE_NOTES = {
-    "overview": "Read this first. The desired pattern is high RankMe and low mean cosine for D1-style external-anchor variants, especially when compared with C and D0 controls.",
+    "overview": "Read this first. The desired pattern is high RankMe and low mean cosine for noisy external-anchor variants, especially when compared with co-trained self-anchor and clean-anchor controls.",
     "preprocessing": "For the frozen LLM run, whitening the source states matters. The best mechanism comparison is inside the source+anchor whitened run.",
     "metrics": "Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.",
     "pca": "Look for collapse as a tight dot, a thin line, or all classes stacked together. PCA is qualitative: it helps spot failure modes but does not prove success.",
@@ -175,6 +254,42 @@ FIGURE_NOTES = {
     "heatmap": "For retrieval-like figures, a strong diagonal is good. Uniform vertical or horizontal bands mean a small number of embeddings act as hubs.",
     "anchors": "Anchor diagnostics tell whether the target itself is usable. If anchors are anisotropic, the model can inherit that anisotropy.",
 }
+
+
+def variant_name(code: Any, run: dict[str, Any] | None = None) -> str:
+    value = str(code)
+    slug = str((run or {}).get("slug", ""))
+    if slug.startswith("exp2_pythia160m"):
+        run_specific = {"F": "InfoNCE baseline", "G": "VICReg baseline"}
+    elif slug in {"exp0_full", "exp1_cifar_gpu"}:
+        run_specific = {"F": "VICReg baseline", "G": "SIGReg baseline"}
+    else:
+        run_specific = {}
+    return run_specific.get(value, BASE_VARIANT_NAMES.get(value, value))
+
+
+def variant_label(code: Any, run: dict[str, Any] | None = None, *, multiline: bool = False) -> str:
+    value = str(code)
+    name = variant_name(value, run)
+    label = value if name == value else f"{name} ({value})"
+    if multiline:
+        label = label.replace(" + ", " +\n").replace(", ", ",\n")
+    return label
+
+
+def variant_plot_label(code: Any, run: dict[str, Any] | None = None, *, multiline: bool = False) -> str:
+    value = str(code)
+    slug = str((run or {}).get("slug", ""))
+    if slug.startswith("exp2_pythia160m"):
+        run_specific = {"F": "InfoNCE", "G": "VICReg"}
+    elif slug in {"exp0_full", "exp1_cifar_gpu"}:
+        run_specific = {"F": "VICReg", "G": "SIGReg"}
+    else:
+        run_specific = {}
+    label = run_specific.get(value, BASE_VARIANT_SHORT_NAMES.get(value, value))
+    if multiline:
+        return "\n".join(textwrap.wrap(label, width=16, break_long_words=False))
+    return label
 
 
 def setup_theme() -> None:
@@ -429,8 +544,10 @@ def plot_overview(runs: list[dict[str, Any]], assets_dir: Path) -> str:
                 rows.append(
                     {
                         "run": run["short_title"],
+                        "slug": run["slug"],
                         "group": run["group"],
                         "variant": str(record.get("variant")),
+                        "variant_label": variant_plot_label(record.get("variant"), run),
                         "rank": rank,
                         "mean_cosine": cosine,
                     }
@@ -453,8 +570,13 @@ def plot_overview(runs: list[dict[str, Any]], assets_dir: Path) -> str:
         axes[0, 0].set_xlabel("Mean off-diagonal cosine (lower is better)")
         axes[0, 0].set_ylabel("RankMe (higher is better)")
         axes[0, 0].legend(loc="best", fontsize=8)
-        for _, row in df[df["variant"].isin(["C", "D1", "D_own_1", "D_own_0", "F", "G"])].iterrows():
-            axes[0, 0].annotate(row["variant"], (row["mean_cosine"], row["rank"]), fontsize=8, xytext=(4, 4), textcoords="offset points")
+        label_mask = (
+            (df["slug"].eq("exp2_pythia160m_synth_input_white_anchor_white") & df["variant"].isin(["C", "D_own_1", "F", "G"]))
+            | (df["slug"].eq("exp0_full") & df["variant"].isin(["C", "D1c"]))
+            | (df["slug"].eq("exp1_cifar_gpu") & df["variant"].isin(["D0", "D1"]))
+        )
+        for _, row in df[label_mask].iterrows():
+            axes[0, 0].annotate(row["variant_label"], (row["mean_cosine"], row["rank"]), fontsize=7, xytext=(4, 4), textcoords="offset points")
     else:
         axes[0, 0].axis("off")
 
@@ -469,25 +591,24 @@ def plot_overview(runs: list[dict[str, Any]], assets_dir: Path) -> str:
             focus_rows.append(
                 {
                     "variant": name,
+                    "variant_label": variant_plot_label(name, focus, multiline=True),
                     "code_rankme": get_path(record, "code_rankme"),
                     "pred_r1": get_path(record, "retrieval_predicted_code_embedding.recall@1"),
                 }
             )
         if focus_rows:
             local = pd.DataFrame(focus_rows)
-            sns.barplot(data=local, x="variant", y="code_rankme", ax=axes[0, 1], color="#276a8c")
+            sns.barplot(data=local, y="variant_label", x="code_rankme", ax=axes[0, 1], color="#276a8c")
             axes[0, 1].set_title("Best Exp2 Run: Code RankMe + Pred-Code R@1", fontsize=17)
-            axes[0, 1].tick_params(axis="x", rotation=30)
-            axes[0, 1].set_xlabel("")
-            axes[0, 1].set_ylabel("Code RankMe")
-            ax_r = axes[0, 1].twinx()
+            axes[0, 1].set_xlabel("Code RankMe")
+            axes[0, 1].set_ylabel("")
+            ax_r = axes[0, 1].twiny()
             valid = local.dropna(subset=["pred_r1"])
-            ax_r.plot(valid["variant"], valid["pred_r1"], color="#b9524d", marker="o", linewidth=2.6)
-            ax_r.set_ylim(0, max(1.0, float(valid["pred_r1"].max()) * 1.2 if len(valid) else 1.0))
-            ax_r.set_ylabel("Pred-code R@1")
-            positions = {name: pos for pos, name in enumerate(local["variant"].tolist())}
+            ax_r.plot(valid["pred_r1"], valid["variant_label"], color="#b9524d", marker="o", linewidth=2.6)
+            ax_r.set_xlim(0, max(1.0, float(valid["pred_r1"].max()) * 1.2 if len(valid) else 1.0))
+            ax_r.set_xlabel("Pred-code R@1")
             for row in valid.itertuples(index=False):
-                ax_r.annotate(fmt(row.pred_r1, "percent"), (positions[row.variant], row.pred_r1), textcoords="offset points", xytext=(0, 7), ha="center", fontsize=9, color="#7a332f")
+                ax_r.annotate(fmt(row.pred_r1, "percent"), (row.pred_r1, row.variant_label), textcoords="offset points", xytext=(7, 0), va="center", fontsize=9, color="#7a332f")
 
         anchor_rows = []
         for name, diag in (focus.get("anchor_geometry") or {}).items():
@@ -512,7 +633,7 @@ def plot_overview(runs: list[dict[str, Any]], assets_dir: Path) -> str:
             probe = get_path(record, "linear_probe_top1")
             rank = get_path(record, "rankme")
             if finite(probe) and finite(rank):
-                rows.append({"variant": str(record.get("variant")), "probe": probe, "rank": rank})
+                rows.append({"variant": variant_plot_label(record.get("variant"), exp1), "probe": probe, "rank": rank})
         if rows:
             local = pd.DataFrame(rows)
             sns.scatterplot(data=local, x="rank", y="probe", hue="variant", s=130, ax=axes[1, 1])
@@ -541,17 +662,17 @@ def plot_preprocessing(runs: list[dict[str, Any]], assets_dir: Path) -> str | No
         label = f"{run.get('config', {}).get('input_preprocess', 'raw')} / {run.get('config', {}).get('anchor_preprocess', 'raw')}"
         rows.extend(
             [
-                {"mode": label, "metric": "D1 text RankMe", "value": get_path(d1, "text_rankme")},
-                {"mode": label, "metric": "D1 code RankMe", "value": get_path(d1, "code_rankme")},
-                {"mode": label, "metric": "D1 pred-code R@1", "value": get_path(d1, "retrieval_predicted_code_embedding.recall@1")},
-                {"mode": label, "metric": "D1 mean text cosine", "value": get_path(d1, "text_cosine.mean")},
+                {"mode": label, "metric": "Noisy anchor text RankMe", "value": get_path(d1, "text_rankme")},
+                {"mode": label, "metric": "Noisy anchor code RankMe", "value": get_path(d1, "code_rankme")},
+                {"mode": label, "metric": "Noisy anchor pred-code R@1", "value": get_path(d1, "retrieval_predicted_code_embedding.recall@1")},
+                {"mode": label, "metric": "Noisy anchor mean text cosine", "value": get_path(d1, "text_cosine.mean")},
             ]
         )
         if d0:
             rows.extend(
                 [
-                    {"mode": label, "metric": "D1-D0 code RankMe", "value": get_path(d1, "code_rankme") - get_path(d0, "code_rankme")},
-                    {"mode": label, "metric": "D1-D0 pred-code R@1", "value": get_path(d1, "retrieval_predicted_code_embedding.recall@1") - get_path(d0, "retrieval_predicted_code_embedding.recall@1")},
+                    {"mode": label, "metric": "Noisy-clean code RankMe", "value": get_path(d1, "code_rankme") - get_path(d0, "code_rankme")},
+                    {"mode": label, "metric": "Noisy-clean pred-code R@1", "value": get_path(d1, "retrieval_predicted_code_embedding.recall@1") - get_path(d0, "retrieval_predicted_code_embedding.recall@1")},
                 ]
             )
     rows = [row for row in rows if finite(row["value"])]
@@ -589,8 +710,10 @@ def plot_metrics(run: dict[str, Any], assets_dir: Path) -> str | None:
     axes = np.ravel(axes)
     for ax, metric in zip(axes, metrics[:max_panels]):
         local = df[df["metric"] == metric].copy()
-        local["variant"] = pd.Categorical(local["variant"], categories=[str(r.get("variant")) for r in run.get("records", [])], ordered=True)
-        sns.barplot(data=local, y="variant", x="value", hue="variant", dodge=False, legend=False, ax=ax)
+        order = [variant_plot_label(r.get("variant"), run) for r in run.get("records", [])]
+        local["variant_label"] = local["variant"].map(lambda value: variant_plot_label(value, run))
+        local["variant_label"] = pd.Categorical(local["variant_label"], categories=order, ordered=True)
+        sns.barplot(data=local, y="variant_label", x="value", hue="variant_label", dodge=False, legend=False, ax=ax)
         ax.set_title(metric)
         ax.set_xlabel("")
         ax.set_ylabel("")
@@ -636,7 +759,7 @@ def plot_pca(run: dict[str, Any], assets_dir: Path) -> str | None:
     panels = []
     for record in selected_variants(run, limit=8):
         for space, points in scatter_points(record):
-            panels.append((str(record.get("variant")), space, points))
+            panels.append((variant_plot_label(record.get("variant"), run), space, points))
     if not panels:
         return None
     cols = min(4, len(panels))
@@ -648,7 +771,7 @@ def plot_pca(run: dict[str, Any], assets_dir: Path) -> str | None:
             ax.axis("off")
             continue
         sns.scatterplot(data=df, x="x", y="y", hue="label", palette="tab10", s=14, alpha=0.74, linewidth=0, legend=False, ax=ax)
-        ax.set_title(f"{variant} {space}")
+        ax.set_title(f"{variant}\n{space}", fontsize=11)
         ax.set_xlabel("PC1")
         ax.set_ylabel("PC2")
     for ax in axes.ravel()[len(panels):]:
@@ -663,7 +786,7 @@ def plot_sphere(run: dict[str, Any], assets_dir: Path) -> str | None:
     for record in selected_variants(run, limit=8):
         points = scatter_points(record)
         if points:
-            panels.append((str(record.get("variant")), points[0][0], points[0][1], record))
+            panels.append((variant_plot_label(record.get("variant"), run), points[0][0], points[0][1], record))
     if not panels:
         return None
     cols = min(4, len(panels))
@@ -690,7 +813,7 @@ def plot_sphere(run: dict[str, Any], assets_dir: Path) -> str | None:
         ax.set_ylim(-1.08, 1.08)
         ax.set_xticks([])
         ax.set_yticks([])
-        ax.set_title(f"{variant} {space}\nRankMe {fmt(rank_value(record))}, cos {fmt(mean_cosine(record))}", fontsize=11)
+        ax.set_title(f"{variant}\n{space}: RankMe {fmt(rank_value(record))}, cos {fmt(mean_cosine(record))}", fontsize=10)
     for ax in axes.ravel()[len(panels):]:
         ax.axis("off")
     fig.suptitle(f"{run['short_title']} Hypersphere Proxy", fontsize=22, fontweight="bold")
@@ -728,7 +851,7 @@ def plot_cosine_hists(run: dict[str, Any], assets_dir: Path) -> str | None:
     panels = []
     for record in selected_variants(run, limit=8):
         for label, hist in hist_specs(record):
-            panels.append((str(record.get("variant")), label, hist))
+            panels.append((variant_plot_label(record.get("variant"), run), label, hist))
     if not panels:
         return None
     cols = min(4, len(panels))
@@ -740,7 +863,7 @@ def plot_cosine_hists(run: dict[str, Any], assets_dir: Path) -> str | None:
         centers = 0.5 * (bins[:-1] + bins[1:])
         ax.bar(centers, counts, width=2 / max(len(counts), 1), color="#276a8c", alpha=0.86)
         ax.axvline(0, color="#333", linewidth=1)
-        ax.set_title(f"{variant} {label}")
+        ax.set_title(f"{variant}\n{label}", fontsize=10)
         ax.set_xlabel("Pairwise cosine")
         ax.set_ylabel("count")
     for ax in axes.ravel()[len(panels):]:
@@ -754,7 +877,7 @@ def plot_spectra(run: dict[str, Any], assets_dir: Path) -> str | None:
     panels = []
     for record in selected_variants(run, limit=8):
         for label, spectrum in spectrum_specs(record):
-            panels.append((str(record.get("variant")), label, spectrum))
+            panels.append((variant_plot_label(record.get("variant"), run), label, spectrum))
     if not panels:
         return None
     cols = min(4, len(panels))
@@ -763,7 +886,7 @@ def plot_spectra(run: dict[str, Any], assets_dir: Path) -> str | None:
     for ax, (variant, label, spectrum) in zip(axes.ravel(), panels):
         mass = np.array(spectrum.get("mass", []), dtype=float)
         sns.lineplot(x=np.arange(1, len(mass) + 1), y=mass, marker="o", linewidth=2.0, ax=ax, color="#287c62")
-        ax.set_title(f"{variant} {label}")
+        ax.set_title(f"{variant}\n{label}", fontsize=10)
         ax.set_xlabel("component")
         ax.set_ylabel("eigenvalue mass")
     for ax in axes.ravel()[len(panels):]:
@@ -808,7 +931,7 @@ def plot_retrieval(run: dict[str, Any], assets_dir: Path) -> str | None:
             if key.startswith("retrieval") and isinstance(value, dict):
                 r1 = get_path(value, "recall@1")
                 if finite(r1):
-                    rows.append({"variant": str(record.get("variant")), "space": key.replace("retrieval_", "").replace("_", " "), "recall@1": r1})
+                    rows.append({"variant": variant_plot_label(record.get("variant"), run), "space": key.replace("retrieval_", "").replace("_", " "), "recall@1": r1})
     if not rows:
         return None
     df = pd.DataFrame(rows)
@@ -840,7 +963,7 @@ def plot_heatmaps(run: dict[str, Any], assets_dir: Path) -> str | None:
     panels = []
     for record in selected_variants(run, limit=6):
         for label, heatmap in heatmap_specs(record):
-            panels.append((str(record.get("variant")), label, heatmap))
+            panels.append((variant_plot_label(record.get("variant"), run), label, heatmap))
     if not panels:
         return None
     panels = panels[:12]
@@ -863,7 +986,7 @@ def plot_history(run: dict[str, Any], assets_dir: Path) -> str | None:
     for record in run.get("records", []):
         for point in record.get("history") or []:
             if finite(point.get("step")) and finite(point.get("loss")):
-                rows.append({"variant": str(record.get("variant")), "step": float(point["step"]), "loss": float(point["loss"])})
+                rows.append({"variant": variant_plot_label(record.get("variant"), run), "step": float(point["step"]), "loss": float(point["loss"])})
     if not rows:
         return None
     df = pd.DataFrame(rows)
@@ -897,7 +1020,11 @@ def build_metric_table(run: dict[str, Any]) -> str:
         return ""
     rows = []
     for record in run.get("records", []):
-        cells = [f"<td><code>{html.escape(str(record.get('variant')))}</code></td>"]
+        code = str(record.get("variant"))
+        cells = [
+            f"<td>{html.escape(variant_name(code, run))}</td>",
+            f"<td><code>{html.escape(code)}</code></td>",
+        ]
         for _, path in active:
             kind = "percent" if path in {"linear_probe_top1", "eval_exact_match"} or path.endswith("recall@1") else "number"
             cells.append(f"<td class='num'>{html.escape(fmt(get_path(record, path), kind))}</td>")
@@ -905,7 +1032,7 @@ def build_metric_table(run: dict[str, Any]) -> str:
     return f"""
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Variant</th>{''.join(f'<th>{html.escape(label)}</th>' for label, _ in active)}</tr></thead>
+        <thead><tr><th>Variant</th><th>Code</th>{''.join(f'<th>{html.escape(label)}</th>' for label, _ in active)}</tr></thead>
         <tbody>{''.join(rows)}</tbody>
       </table>
     </div>
@@ -915,26 +1042,26 @@ def build_metric_table(run: dict[str, Any]) -> str:
 def contrast_rows(run: dict[str, Any]) -> str:
     records = by_variant(run)
     pairs = [
-        ("D1a", "D0a", "Noise: continuous anchor"),
-        ("D1b", "D0b", "Noise: RFF anchor"),
-        ("D1c", "D0c", "Noise: frozen teacher anchor"),
-        ("D1a", "C", "External continuous anchor vs co-trained target"),
-        ("D1c", "C", "External teacher anchor vs co-trained target"),
-        ("D1", "D0", "Noise: frozen anchor"),
-        ("D1", "C", "Frozen anchor vs co-trained target"),
+        ("D1a", "D0a", "Sphere noise on continuous anchor"),
+        ("D1b", "D0b", "Sphere noise on RFF anchor"),
+        ("D1c", "D0c", "Sphere noise on frozen-teacher anchor"),
+        ("D1a", "C", "Frozen continuous anchor vs co-trained self-anchor"),
+        ("D1c", "C", "Frozen teacher anchor vs co-trained self-anchor"),
+        ("D1", "D0", "Sphere noise on frozen anchor"),
+        ("D1", "C", "Frozen anchor vs co-trained self-anchor"),
         ("D1", "D2", "Sample-specific vs class-level"),
-        ("D_own_1", "D_own_0", "Noise: own-view anchor"),
-        ("D_own_1", "C", "External anchor vs co-trained target"),
-        ("D_own_1", "C_ema", "External anchor vs EMA target"),
-        ("D_cross_1", "D_cross_0", "Noise: cross-view anchor"),
-        ("F", "D_own_1", "InfoNCE vs D_own_1"),
-        ("G", "D_own_1", "VICReg vs D_own_1"),
-        ("H", "D_own_1", "SIGReg vs D_own_1"),
-        ("D1", "Regular", "Exp3 D1 vs regular"),
-        ("C", "Regular", "Exp3 co-trained vs regular"),
-        ("C_ema", "C", "Exp3 EMA vs co-trained"),
-        ("Both", "D1", "Exp3 both caps vs D1"),
-        ("Cross", "D1", "Exp3 cross-view vs D1"),
+        ("D_own_1", "D_own_0", "Sphere noise on frozen own-anchor"),
+        ("D_own_1", "C", "Frozen own-anchor vs co-trained self-anchor"),
+        ("D_own_1", "C_ema", "Frozen own-anchor vs momentum self-anchor"),
+        ("D_cross_1", "D_cross_0", "Sphere noise on cross-view anchor"),
+        ("F", "D_own_1", "Regularizer baseline vs noisy frozen own-anchor"),
+        ("G", "D_own_1", "Regularizer baseline vs noisy frozen own-anchor"),
+        ("H", "D_own_1", "SIGReg baseline vs noisy frozen own-anchor"),
+        ("D1", "Regular", "Noisy frozen anchor vs plain fine-tune"),
+        ("C", "Regular", "Co-trained self-anchor vs plain fine-tune"),
+        ("C_ema", "C", "Momentum self-anchor vs co-trained self-anchor"),
+        ("Both", "D1", "Combined anchors vs noisy own-anchor"),
+        ("Cross", "D1", "Cross-view anchor vs noisy own-anchor"),
     ]
     rows = []
     for left, right, label in pairs:
@@ -945,7 +1072,7 @@ def contrast_rows(run: dict[str, Any]) -> str:
         rows.append(
             "<tr>"
             f"<td>{html.escape(label)}</td>"
-            f"<td><code>{html.escape(left)}</code> - <code>{html.escape(right)}</code></td>"
+            f"<td>{html.escape(variant_label(left, run))} - {html.escape(variant_label(right, run))}</td>"
             f"<td class='num'>{html.escape(fmt(rank_value(l_rec) - rank_value(r_rec)))}</td>"
             f"<td class='num'>{html.escape(fmt(mean_cosine(l_rec) - mean_cosine(r_rec)))}</td>"
             f"<td class='num'>{html.escape(fmt(get_path(l_rec, 'retrieval_predicted_code_embedding.recall@1') - get_path(r_rec, 'retrieval_predicted_code_embedding.recall@1'), 'pp'))}</td>"
@@ -968,33 +1095,33 @@ def run_reading_notes(run: dict[str, Any]) -> list[str]:
     slug = run["slug"]
     if slug == "exp0_full":
         return [
-            "Start with C: it is the collapse demonstration. The useful pattern is D1* moving up in RankMe and away from cosine=1 compared with C and matched D0* controls.",
-            "D1a/D0a, D1b/D0b, and D1c/D0c are matched pairs. The only intended difference is noisy cap reconstruction.",
+            "Start with co-trained self-anchor: it is the collapse demonstration. The useful pattern is noisy-anchor variants moving up in RankMe and away from cosine=1 compared with co-trained and matched clean-anchor controls.",
+            "Clean/noisy continuous, RFF, and frozen-teacher anchors are matched pairs. The only intended difference is noisy cap reconstruction.",
         ]
     if slug == "exp1_cifar_gpu":
         return [
-            "Separate geometry from task usefulness. D1 can improve spread while still losing probe accuracy.",
-            "D2 is not a fair unsupervised win because it uses labels; use it to see what class-level anchoring can and cannot explain.",
+            "Separate geometry from task usefulness. The noisy frozen anchor can improve spread while still losing probe accuracy.",
+            "The class-anchor control is not a fair unsupervised win because it uses labels; use it to see what class-level anchoring can and cannot explain.",
         ]
     if slug == "exp2_pythia160m_synth_input_white_anchor_white":
         return [
-            "This is the main frozen-LLM diagnostic. The headline read is D_own_1 > D_own_0 and D_own_1 >> C on geometry and predicted-code retrieval.",
+            "This is the main frozen-LLM diagnostic. The headline read is noisy frozen own-anchor beating clean frozen own-anchor, and strongly beating co-trained self-anchor, on geometry and predicted-code retrieval.",
             "Direct embedding retrieval is a different question. InfoNCE/VICReg can win there without disproving the cap-anchor geometry mechanism.",
         ]
     if slug.startswith("exp2_pythia160m"):
         return [
             "Use this as a preprocessing control. Raw Pythia states are highly anisotropic, so failures here mostly tell us that the source geometry is hostile.",
-            "Compare D_own_1 to D_own_0 within the same preprocessing mode, then compare the whole mode against source+anchor whitening.",
+            "Compare noisy frozen own-anchor to clean frozen own-anchor within the same preprocessing mode, then compare the whole mode against source+anchor whitening.",
         ]
     if slug == "exp3_full_synth":
         return [
             "This is downstream task behavior, not a pure geometry diagnostic. Exact match answers whether the final generator got better.",
-            "D1-D0 is still the matched noise comparison. D1-Regular asks whether the cap objective helps beyond standard supervised fine-tuning.",
+            "Noisy frozen anchor minus clean frozen anchor is the matched noise comparison. Noisy frozen anchor minus plain fine-tune asks whether the cap objective helps beyond standard supervised fine-tuning.",
         ]
     if slug == "exp3_llama1b_synth":
         return [
-            "Read this as the stronger-base control pass. It checks whether the main Regular/C/D0/D1 pattern changes when the base model is Llama 1B.",
-            "Use D1-D0 for the matched noise comparison and D1-Regular for the cap-objective comparison.",
+            "Read this as the stronger-base full ablation. It checks whether the SmolLM2 downstream pattern changes when the base model is Llama 1B.",
+            "Use noisy frozen anchor minus clean frozen anchor for the matched noise comparison, and noisy frozen anchor minus co-trained/momentum self-anchor for the external-anchor comparison.",
         ]
     return ["Use matched pairs first, then compare against co-trained and regularizer baselines."]
 
@@ -1019,11 +1146,16 @@ def render_glossary() -> str:
     metric_rows_html = "".join(
         f"<tr><td>{html.escape(metric)}</td><td>{html.escape(desc)}</td></tr>" for metric, desc in METRIC_GLOSSARY
     )
+    task_rows_html = "".join(
+        f"<tr><td>{html.escape(name)}</td><td>{html.escape(task)}</td><td>{html.escape(question)}</td></tr>"
+        for name, task, question in TASK_GLOSSARY
+    )
     return f"""
     <section class="panel" id="glossary">
       <h2>How to Read This</h2>
       <div class="callout">
-        <p><strong>What we are going for:</strong> a useful sphere-cap mechanism should make <code>D1</code>-style noisy, external-anchor variants beat their matched <code>D0</code> no-noise controls, and beat <code>C</code> co-trained targets that can move with the encoder and collapse. High RankMe plus low mean cosine is the main geometry signature.</p>
+        <p><strong>Are we comparing against JEPA?</strong> Yes, but not only JEPA versus no-JEPA. The JEPA-style family is the predictor/target setup: MSE JEPA, cosine JEPA, co-trained self-anchor, momentum self-anchor, and the frozen-anchor sphere variants. Plain fine-tune is the non-JEPA downstream baseline; InfoNCE, VICReg, and SIGReg are non-JEPA anti-collapse baselines.</p>
+        <p><strong>What we are going for:</strong> a useful sphere-cap mechanism should make noisy frozen-anchor variants beat their matched clean-anchor controls, and beat self-anchor targets that can move with the encoder and collapse. High RankMe plus low mean cosine is the main geometry signature.</p>
       </div>
       <div class="two-col">
         <div>
@@ -1044,6 +1176,13 @@ def render_glossary() -> str:
             </table>
           </div>
         </div>
+      </div>
+      <h3>Task Map</h3>
+      <div class="table-wrap small">
+        <table>
+          <thead><tr><th>Experiment</th><th>Task</th><th>Question</th></tr></thead>
+          <tbody>{task_rows_html}</tbody>
+        </table>
       </div>
     </section>
     """
@@ -1077,6 +1216,7 @@ def render_run(run: dict[str, Any], figures: dict[str, str | None]) -> str:
           <p class="eyebrow">{html.escape(run['group'])}</p>
           <h2>{html.escape(run['title'])}</h2>
           <p>{html.escape(run['summary'])}</p>
+          <p class="task-note"><strong>Task:</strong> {html.escape(RUN_TASK_NOTES.get(run['slug'], 'Use matched controls to separate geometry, noise, anchoring, and downstream behavior.'))}</p>
         </div>
         <div class="links">{' / '.join(links)}</div>
       </div>
@@ -1167,6 +1307,7 @@ def build_html(runs: list[dict[str, Any]], overview: dict[str, str | None], per_
     h4 {{ margin: 0 0 9px; font-size: 15px; }}
     p, li {{ line-height: 1.48; }}
     .muted, .figure-card p {{ color: var(--muted); }}
+    .task-note {{ margin-top: 8px; color: #405047; }}
     .eyebrow {{ margin: 0 0 4px; color: var(--green); font-size: 12px; font-weight: 750; text-transform: uppercase; letter-spacing: 0; }}
     .figure-card, .text-card {{ background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 13px; min-width: 0; }}
     .figure-card img {{ display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 7px; background: white; }}

@@ -37,6 +37,7 @@
     h4 { margin: 0 0 9px; font-size: 15px; }
     p, li { line-height: 1.48; }
     .muted, .figure-card p { color: var(--muted); }
+    .task-note { margin-top: 8px; color: #405047; }
     .eyebrow { margin: 0 0 4px; color: var(--green); font-size: 12px; font-weight: 750; text-transform: uppercase; letter-spacing: 0; }
     .figure-card, .text-card { background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 13px; min-width: 0; }
     .figure-card img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 7px; background: white; }
@@ -74,7 +75,8 @@
     <section class="panel" id="glossary">
       <h2>How to Read This</h2>
       <div class="callout">
-        <p><strong>What we are going for:</strong> a useful sphere-cap mechanism should make <code>D1</code>-style noisy, external-anchor variants beat their matched <code>D0</code> no-noise controls, and beat <code>C</code> co-trained targets that can move with the encoder and collapse. High RankMe plus low mean cosine is the main geometry signature.</p>
+        <p><strong>Are we comparing against JEPA?</strong> Yes, but not only JEPA versus no-JEPA. The JEPA-style family is the predictor/target setup: MSE JEPA, cosine JEPA, co-trained self-anchor, momentum self-anchor, and the frozen-anchor sphere variants. Plain fine-tune is the non-JEPA downstream baseline; InfoNCE, VICReg, and SIGReg are non-JEPA anti-collapse baselines.</p>
+        <p><strong>What we are going for:</strong> a useful sphere-cap mechanism should make noisy frozen-anchor variants beat their matched clean-anchor controls, and beat self-anchor targets that can move with the encoder and collapse. High RankMe plus low mean cosine is the main geometry signature.</p>
       </div>
       <div class="two-col">
         <div>
@@ -82,7 +84,7 @@
           <div class="table-wrap small">
             <table>
               <thead><tr><th>Code</th><th>Meaning</th><th>How to interpret it</th></tr></thead>
-              <tbody><tr><td><code>A</code></td><td>MSE JEPA baseline</td><td>Predict paired-view embedding with MSE. Mostly a baseline, not the sphere mechanism.</td></tr><tr><td><code>B</code></td><td>Cosine JEPA baseline</td><td>Predict paired-view embedding with cosine loss, matching the LLM-JEPA default metric.</td></tr><tr><td><code>C</code></td><td>Co-trained cap target</td><td>The cap reconstructs a target produced by the same moving encoder. This is collapse-prone and is the anchor-failure control.</td></tr><tr><td><code>C_detach</code></td><td>Detached co-trained target</td><td>Like C, but the current target is detached from gradient flow.</td></tr><tr><td><code>C_ema</code></td><td>EMA moving target</td><td>The target comes from an exponential moving-average copy of the encoder.</td></tr><tr><td><code>D0 / D_own_0</code></td><td>Frozen own-view anchor, no noise</td><td>Same external anchor as D1, but sigma=0. This isolates the value of anchoring alone.</td></tr><tr><td><code>D1 / D_own_1</code></td><td>Frozen own-view anchor, noisy cap</td><td>The main sphere-encoder-style test: noisy spherical cap must recover a sample-specific external anchor.</td></tr><tr><td><code>D0a/D1a</code></td><td>Toy continuous anchor</td><td>Toy run only: target is the original continuous 2-D sample.</td></tr><tr><td><code>D0b/D1b</code></td><td>Toy RFF anchor</td><td>Toy run only: target is a random Fourier feature anchor.</td></tr><tr><td><code>D0c/D1c</code></td><td>Toy frozen-teacher anchor</td><td>Toy run only: target is a frozen teacher/autoencoder feature.</td></tr><tr><td><code>D2 / D3</code></td><td>Class-level anchor</td><td>Supervised class-label target. Useful as a cardinality warning: class spread is not sample spread.</td></tr><tr><td><code>D_cross_*</code></td><td>Cross-view anchor</td><td>Noisy cap from one view reconstructs the paired view&#x27;s anchor.</td></tr><tr><td><code>D_cross_sym_*</code></td><td>Symmetric cross-view anchor</td><td>Cross-view cap reconstruction in both text-to-code and code-to-text directions.</td></tr><tr><td><code>F</code></td><td>Regularizer baseline</td><td>VICReg in Exp0/Exp1; InfoNCE in Exp2. Read in the context of each run.</td></tr><tr><td><code>G</code></td><td>Regularizer baseline</td><td>SIGReg in Exp0/Exp1; VICReg in Exp2.</td></tr><tr><td><code>H</code></td><td>SIGReg baseline</td><td>Exp2 only: cosine alignment plus SIGReg-style isotropic regularization.</td></tr><tr><td><code>Regular</code></td><td>Standard fine-tune</td><td>Exp3 only: supervised LLM fine-tuning without the cap-anchor objective.</td></tr><tr><td><code>Cross / Both</code></td><td>Full LLM cap variants</td><td>Exp3 only: cross-view cap, or own-view plus cross-view cap.</td></tr></tbody>
+              <tbody><tr><td><code>A</code></td><td>MSE JEPA baseline</td><td>Predict paired-view embedding with MSE. Mostly a baseline, not the sphere mechanism.</td></tr><tr><td><code>B</code></td><td>Cosine JEPA baseline</td><td>Predict paired-view embedding with cosine loss, matching the LLM-JEPA default metric.</td></tr><tr><td><code>C</code></td><td>Co-trained self-anchor</td><td>The cap reconstructs a target produced by the same moving encoder. This is collapse-prone and is the anchor-failure control.</td></tr><tr><td><code>C_detach</code></td><td>Detached self-anchor</td><td>Like the co-trained self-anchor, but the current target is detached from gradient flow.</td></tr><tr><td><code>C_ema</code></td><td>Momentum self-anchor</td><td>The target comes from an exponential moving-average copy of the encoder.</td></tr><tr><td><code>D0 / D_own_0</code></td><td>Clean frozen own-anchor</td><td>Same external anchor as the noisy frozen anchor, but sigma=0. This isolates the value of anchoring alone.</td></tr><tr><td><code>D1 / D_own_1</code></td><td>Noisy frozen own-anchor</td><td>The main sphere-encoder-style test: noisy spherical cap must recover a sample-specific external anchor.</td></tr><tr><td><code>D0a/D1a</code></td><td>Clean/noisy continuous anchor</td><td>Toy run only: target is the original continuous 2-D sample.</td></tr><tr><td><code>D0b/D1b</code></td><td>Clean/noisy RFF anchor</td><td>Toy run only: target is a random Fourier feature anchor.</td></tr><tr><td><code>D0c/D1c</code></td><td>Clean/noisy frozen-teacher anchor</td><td>Toy run only: target is a frozen teacher/autoencoder feature.</td></tr><tr><td><code>D2 / D3</code></td><td>Class-level anchor</td><td>Supervised class-label target. Useful as a cardinality warning: class spread is not sample spread.</td></tr><tr><td><code>D_cross_*</code></td><td>Frozen cross-view anchor</td><td>Noisy cap from one view reconstructs the paired view&#x27;s anchor.</td></tr><tr><td><code>D_cross_sym_*</code></td><td>Two-way frozen cross-view anchor</td><td>Cross-view cap reconstruction in both text-to-code and code-to-text directions.</td></tr><tr><td><code>F</code></td><td>Regularizer baseline</td><td>VICReg in Exp0/Exp1; InfoNCE in Exp2. Read in the context of each run.</td></tr><tr><td><code>G</code></td><td>Regularizer baseline</td><td>SIGReg in Exp0/Exp1; VICReg in Exp2.</td></tr><tr><td><code>H</code></td><td>SIGReg baseline</td><td>Exp2 only: cosine alignment plus SIGReg-style isotropic regularization.</td></tr><tr><td><code>Regular</code></td><td>Plain fine-tune</td><td>Exp3 only: supervised LLM fine-tuning without the cap-anchor objective.</td></tr><tr><td><code>Cross / Both</code></td><td>Cross-view / combined frozen anchors</td><td>Exp3 only: cross-view cap, or own-view plus cross-view cap.</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -96,6 +98,13 @@
           </div>
         </div>
       </div>
+      <h3>Task Map</h3>
+      <div class="table-wrap small">
+        <table>
+          <thead><tr><th>Experiment</th><th>Task</th><th>Question</th></tr></thead>
+          <tbody><tr><td>Toy geometry</td><td>Synthetic paired views</td><td>Can the objective avoid collapse and produce a spread-out sample-level embedding space?</td></tr><tr><td>CIFAR bridge</td><td>Image augmentation representation learning</td><td>Does better geometry transfer to a simple linear-probe image task?</td></tr><tr><td>Frozen LLM heads</td><td>Natural-language/regex pairs with a frozen Pythia backbone</td><td>Can small heads learn useful text/code geometry without changing the LLM?</td></tr><tr><td>Full LLM fine-tune</td><td>Generate a regex from a natural-language prompt</td><td>Does the cap-anchor objective improve strict downstream exact match over plain supervised fine-tuning?</td></tr></tbody>
+        </table>
+      </div>
     </section>
 
     <section class="panel" id="overview">
@@ -105,7 +114,7 @@
     <article class="figure-card">
       <h4>Overall Geometry Map</h4>
       <img src="assets/dashboard/overview_geometry.png" alt="Overall Geometry Map">
-      <p>Read this first. The desired pattern is high RankMe and low mean cosine for D1-style external-anchor variants, especially when compared with C and D0 controls.</p>
+      <p>Read this first. The desired pattern is high RankMe and low mean cosine for noisy external-anchor variants, especially when compared with co-trained self-anchor and clean-anchor controls.</p>
     </article>
 
 
@@ -124,15 +133,16 @@
           <p class="eyebrow">Toy</p>
           <h2>Exp0 Toy Geometry</h2>
           <p>Synthetic paired-view run with continuous, RFF, and frozen-teacher sample-specific anchors.</p>
+          <p class="task-note"><strong>Task:</strong> Synthetic paired-view geometry test. This is about collapse, spread, and whether sphere noise helps when the target anchor is controlled.</p>
         </div>
         <div class="links"><a href='json/exp0_full_summary.json'>summary JSON</a> / <a href='html/exp0_full.html'>old per-run HTML</a></div>
       </div>
       <div class="run-grid">
         <article class="text-card">
           <h3>What to Look For</h3>
-          <ul><li>Start with C: it is the collapse demonstration. The useful pattern is D1* moving up in RankMe and away from cosine=1 compared with C and matched D0* controls.</li><li>D1a/D0a, D1b/D0b, and D1c/D0c are matched pairs. The only intended difference is noisy cap reconstruction.</li></ul>
+          <ul><li>Start with co-trained self-anchor: it is the collapse demonstration. The useful pattern is noisy-anchor variants moving up in RankMe and away from cosine=1 compared with co-trained and matched clean-anchor controls.</li><li>Clean/noisy continuous, RFF, and frozen-teacher anchors are matched pairs. The only intended difference is noisy cap reconstruction.</li></ul>
           <h3>Current Read</h3>
-          <ul><li>C is the intentionally dangerous co-trained target. It collapses hard: low RankMe and cosine near 1.</li><li>D1a and D1c improve over their matched D0 controls, which is the cleanest evidence that noise can help.</li><li>D3 uses class labels. It can look good globally while missing sample-level spread, so within-class RankMe matters.</li></ul>
+          <ul><li>Co-trained self-anchor collapses hard: low RankMe and cosine near 1.</li><li>Noisy continuous and noisy frozen-teacher anchors improve over their matched clean-anchor controls, which is the cleanest evidence that noise can help.</li><li>The class-anchor control uses labels. It can look good globally while missing sample-level spread, so within-class RankMe matters.</li></ul>
         </article>
         <article class="text-card">
           <h3>Headline Contrasts</h3>
@@ -140,7 +150,7 @@
     <div class="table-wrap">
       <table>
         <thead><tr><th>Question</th><th>Pair</th><th>Delta RankMe</th><th>Delta Cos</th><th>Delta Pred R@1</th><th>Delta EM</th></tr></thead>
-        <tbody><tr><td>Noise: continuous anchor</td><td><code>D1a</code> - <code>D0a</code></td><td class='num'>0.5712</td><td class='num'>-0.2889</td><td class='num'>n/a</td><td class='num'>n/a</td></tr><tr><td>Noise: RFF anchor</td><td><code>D1b</code> - <code>D0b</code></td><td class='num'>-0.0411</td><td class='num'>0.0705</td><td class='num'>n/a</td><td class='num'>n/a</td></tr><tr><td>Noise: frozen teacher anchor</td><td><code>D1c</code> - <code>D0c</code></td><td class='num'>0.6033</td><td class='num'>-0.1786</td><td class='num'>n/a</td><td class='num'>n/a</td></tr><tr><td>External continuous anchor vs co-trained target</td><td><code>D1a</code> - <code>C</code></td><td class='num'>4.609</td><td class='num'>-0.9973</td><td class='num'>n/a</td><td class='num'>n/a</td></tr><tr><td>External teacher anchor vs co-trained target</td><td><code>D1c</code> - <code>C</code></td><td class='num'>5.444</td><td class='num'>-0.9520</td><td class='num'>n/a</td><td class='num'>n/a</td></tr><tr><td>Exp3 EMA vs co-trained</td><td><code>C_ema</code> - <code>C</code></td><td class='num'>5.210</td><td class='num'>-0.9926</td><td class='num'>n/a</td><td class='num'>n/a</td></tr></tbody>
+        <tbody><tr><td>Sphere noise on continuous anchor</td><td>Noisy continuous anchor (D1a) - Clean continuous anchor (D0a)</td><td class='num'>0.5712</td><td class='num'>-0.2889</td><td class='num'>n/a</td><td class='num'>n/a</td></tr><tr><td>Sphere noise on RFF anchor</td><td>Noisy RFF anchor (D1b) - Clean RFF anchor (D0b)</td><td class='num'>-0.0411</td><td class='num'>0.0705</td><td class='num'>n/a</td><td class='num'>n/a</td></tr><tr><td>Sphere noise on frozen-teacher anchor</td><td>Noisy frozen-teacher anchor (D1c) - Clean frozen-teacher anchor (D0c)</td><td class='num'>0.6033</td><td class='num'>-0.1786</td><td class='num'>n/a</td><td class='num'>n/a</td></tr><tr><td>Frozen continuous anchor vs co-trained self-anchor</td><td>Noisy continuous anchor (D1a) - Co-trained self-anchor (C)</td><td class='num'>4.609</td><td class='num'>-0.9973</td><td class='num'>n/a</td><td class='num'>n/a</td></tr><tr><td>Frozen teacher anchor vs co-trained self-anchor</td><td>Noisy frozen-teacher anchor (D1c) - Co-trained self-anchor (C)</td><td class='num'>5.444</td><td class='num'>-0.9520</td><td class='num'>n/a</td><td class='num'>n/a</td></tr><tr><td>Momentum self-anchor vs co-trained self-anchor</td><td>Momentum self-anchor (C_ema) - Co-trained self-anchor (C)</td><td class='num'>5.210</td><td class='num'>-0.9926</td><td class='num'>n/a</td><td class='num'>n/a</td></tr></tbody>
       </table>
     </div>
 
@@ -194,8 +204,8 @@
 
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Variant</th><th>RankMe</th><th>Within RankMe</th><th>Mean Cos</th><th>Uniformity</th></tr></thead>
-        <tbody><tr><td><code>A</code></td><td class='num'>4.869</td><td class='num'>2.994</td><td class='num'>0.1169</td><td class='num'>-1.615</td></tr><tr><td><code>B</code></td><td class='num'>5.130</td><td class='num'>2.604</td><td class='num'>0.2271</td><td class='num'>-1.404</td></tr><tr><td><code>C</code></td><td class='num'>1.589</td><td class='num'>1.174</td><td class='num'>1.0000</td><td class='num'>-3.87e-05</td></tr><tr><td><code>C_detach</code></td><td class='num'>5.799</td><td class='num'>2.735</td><td class='num'>0.0309</td><td class='num'>-1.856</td></tr><tr><td><code>C_ema</code></td><td class='num'>6.799</td><td class='num'>2.770</td><td class='num'>7.36e-03</td><td class='num'>-1.968</td></tr><tr><td><code>D0a</code></td><td class='num'>5.627</td><td class='num'>3.135</td><td class='num'>0.2915</td><td class='num'>-1.566</td></tr><tr><td><code>D1a</code></td><td class='num'>6.198</td><td class='num'>3.060</td><td class='num'>2.65e-03</td><td class='num'>-1.826</td></tr><tr><td><code>D0b</code></td><td class='num'>6.403</td><td class='num'>2.884</td><td class='num'>0.1009</td><td class='num'>-1.810</td></tr><tr><td><code>D1b</code></td><td class='num'>6.362</td><td class='num'>2.889</td><td class='num'>0.1713</td><td class='num'>-1.785</td></tr><tr><td><code>D0c</code></td><td class='num'>6.429</td><td class='num'>3.088</td><td class='num'>0.2267</td><td class='num'>-1.642</td></tr><tr><td><code>D1c</code></td><td class='num'>7.033</td><td class='num'>3.006</td><td class='num'>0.0480</td><td class='num'>-1.892</td></tr><tr><td><code>D3</code></td><td class='num'>7.056</td><td class='num'>3.221</td><td class='num'>0.0192</td><td class='num'>-2.005</td></tr><tr><td><code>F</code></td><td class='num'>7.538</td><td class='num'>4.920</td><td class='num'>0.0363</td><td class='num'>-2.006</td></tr><tr><td><code>G</code></td><td class='num'>7.765</td><td class='num'>3.150</td><td class='num'>0.0150</td><td class='num'>-2.057</td></tr></tbody>
+        <thead><tr><th>Variant</th><th>Code</th><th>RankMe</th><th>Within RankMe</th><th>Mean Cos</th><th>Uniformity</th></tr></thead>
+        <tbody><tr><td>MSE JEPA baseline</td><td><code>A</code></td><td class='num'>4.869</td><td class='num'>2.994</td><td class='num'>0.1169</td><td class='num'>-1.615</td></tr><tr><td>Cosine JEPA baseline</td><td><code>B</code></td><td class='num'>5.130</td><td class='num'>2.604</td><td class='num'>0.2271</td><td class='num'>-1.404</td></tr><tr><td>Co-trained self-anchor</td><td><code>C</code></td><td class='num'>1.589</td><td class='num'>1.174</td><td class='num'>1.0000</td><td class='num'>-3.87e-05</td></tr><tr><td>Detached self-anchor</td><td><code>C_detach</code></td><td class='num'>5.799</td><td class='num'>2.735</td><td class='num'>0.0309</td><td class='num'>-1.856</td></tr><tr><td>Momentum self-anchor</td><td><code>C_ema</code></td><td class='num'>6.799</td><td class='num'>2.770</td><td class='num'>7.36e-03</td><td class='num'>-1.968</td></tr><tr><td>Clean continuous anchor</td><td><code>D0a</code></td><td class='num'>5.627</td><td class='num'>3.135</td><td class='num'>0.2915</td><td class='num'>-1.566</td></tr><tr><td>Noisy continuous anchor</td><td><code>D1a</code></td><td class='num'>6.198</td><td class='num'>3.060</td><td class='num'>2.65e-03</td><td class='num'>-1.826</td></tr><tr><td>Clean RFF anchor</td><td><code>D0b</code></td><td class='num'>6.403</td><td class='num'>2.884</td><td class='num'>0.1009</td><td class='num'>-1.810</td></tr><tr><td>Noisy RFF anchor</td><td><code>D1b</code></td><td class='num'>6.362</td><td class='num'>2.889</td><td class='num'>0.1713</td><td class='num'>-1.785</td></tr><tr><td>Clean frozen-teacher anchor</td><td><code>D0c</code></td><td class='num'>6.429</td><td class='num'>3.088</td><td class='num'>0.2267</td><td class='num'>-1.642</td></tr><tr><td>Noisy frozen-teacher anchor</td><td><code>D1c</code></td><td class='num'>7.033</td><td class='num'>3.006</td><td class='num'>0.0480</td><td class='num'>-1.892</td></tr><tr><td>Class anchor</td><td><code>D3</code></td><td class='num'>7.056</td><td class='num'>3.221</td><td class='num'>0.0192</td><td class='num'>-2.005</td></tr><tr><td>VICReg baseline</td><td><code>F</code></td><td class='num'>7.538</td><td class='num'>4.920</td><td class='num'>0.0363</td><td class='num'>-2.006</td></tr><tr><td>SIGReg baseline</td><td><code>G</code></td><td class='num'>7.765</td><td class='num'>3.150</td><td class='num'>0.0150</td><td class='num'>-2.057</td></tr></tbody>
       </table>
     </div>
 
@@ -208,15 +218,16 @@
           <p class="eyebrow">Vision bridge</p>
           <h2>Exp1 CIFAR-10 Bridge</h2>
           <p>GPU sanity run on a 10k/2k CIFAR-10 subset with a frozen autoencoder teacher anchor.</p>
+          <p class="task-note"><strong>Task:</strong> CIFAR-10 bridge task. This checks whether geometry improvements survive contact with a simple image representation benchmark.</p>
         </div>
         <div class="links"><a href='json/exp1_cifar_gpu_summary.json'>summary JSON</a> / <a href='html/exp1_cifar_gpu.html'>old per-run HTML</a></div>
       </div>
       <div class="run-grid">
         <article class="text-card">
           <h3>What to Look For</h3>
-          <ul><li>Separate geometry from task usefulness. D1 can improve spread while still losing probe accuracy.</li><li>D2 is not a fair unsupervised win because it uses labels; use it to see what class-level anchoring can and cannot explain.</li></ul>
+          <ul><li>Separate geometry from task usefulness. The noisy frozen anchor can improve spread while still losing probe accuracy.</li><li>The class-anchor control is not a fair unsupervised win because it uses labels; use it to see what class-level anchoring can and cannot explain.</li></ul>
           <h3>Current Read</h3>
-          <ul><li>D1 improves spread over D0, but linear-probe accuracy drops in this pass.</li><li>D2 uses labels, so its high probe accuracy is a supervised control rather than evidence for the anchor mechanism.</li><li>Treat this as a bridge/sanity run, not the main downstream result.</li></ul>
+          <ul><li>The noisy frozen anchor improves spread over the clean frozen anchor, but linear-probe accuracy drops in this pass.</li><li>The class-anchor control uses labels, so its high probe accuracy is a supervised control rather than evidence for the anchor mechanism.</li><li>Treat this as a bridge/sanity run, not the main downstream result.</li></ul>
         </article>
         <article class="text-card">
           <h3>Headline Contrasts</h3>
@@ -224,7 +235,7 @@
     <div class="table-wrap">
       <table>
         <thead><tr><th>Question</th><th>Pair</th><th>Delta RankMe</th><th>Delta Cos</th><th>Delta Pred R@1</th><th>Delta EM</th></tr></thead>
-        <tbody><tr><td>Noise: frozen anchor</td><td><code>D1</code> - <code>D0</code></td><td class='num'>1.092</td><td class='num'>-0.0776</td><td class='num'>n/a</td><td class='num'>n/a</td></tr><tr><td>Frozen anchor vs co-trained target</td><td><code>D1</code> - <code>C</code></td><td class='num'>10.92</td><td class='num'>-0.1357</td><td class='num'>n/a</td><td class='num'>n/a</td></tr><tr><td>Sample-specific vs class-level</td><td><code>D1</code> - <code>D2</code></td><td class='num'>-6.936</td><td class='num'>0.3375</td><td class='num'>n/a</td><td class='num'>n/a</td></tr><tr><td>Exp3 EMA vs co-trained</td><td><code>C_ema</code> - <code>C</code></td><td class='num'>3.285</td><td class='num'>-5.18e-03</td><td class='num'>n/a</td><td class='num'>n/a</td></tr></tbody>
+        <tbody><tr><td>Sphere noise on frozen anchor</td><td>Noisy frozen anchor (D1) - Clean frozen anchor (D0)</td><td class='num'>1.092</td><td class='num'>-0.0776</td><td class='num'>n/a</td><td class='num'>n/a</td></tr><tr><td>Frozen anchor vs co-trained self-anchor</td><td>Noisy frozen anchor (D1) - Co-trained self-anchor (C)</td><td class='num'>10.92</td><td class='num'>-0.1357</td><td class='num'>n/a</td><td class='num'>n/a</td></tr><tr><td>Sample-specific vs class-level</td><td>Noisy frozen anchor (D1) - Class anchor (D2)</td><td class='num'>-6.936</td><td class='num'>0.3375</td><td class='num'>n/a</td><td class='num'>n/a</td></tr><tr><td>Momentum self-anchor vs co-trained self-anchor</td><td>Momentum self-anchor (C_ema) - Co-trained self-anchor (C)</td><td class='num'>3.285</td><td class='num'>-5.18e-03</td><td class='num'>n/a</td><td class='num'>n/a</td></tr></tbody>
       </table>
     </div>
 
@@ -272,8 +283,8 @@
 
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Variant</th><th>RankMe</th><th>Within RankMe</th><th>Mean Cos</th><th>Uniformity</th><th>Probe</th></tr></thead>
-        <tbody><tr><td><code>A</code></td><td class='num'>59.18</td><td class='num'>58.49</td><td class='num'>0.9999</td><td class='num'>-5.77e-04</td><td class='num'>9.9%</td></tr><tr><td><code>B</code></td><td class='num'>2.935</td><td class='num'>4.696</td><td class='num'>0.9950</td><td class='num'>-0.0192</td><td class='num'>10.8%</td></tr><tr><td><code>C</code></td><td class='num'>1.637</td><td class='num'>10.68</td><td class='num'>0.9998</td><td class='num'>-4.91e-04</td><td class='num'>9.8%</td></tr><tr><td><code>C_detach</code></td><td class='num'>1.770</td><td class='num'>1.804</td><td class='num'>0.6572</td><td class='num'>-0.6982</td><td class='num'>20.3%</td></tr><tr><td><code>C_ema</code></td><td class='num'>4.922</td><td class='num'>17.04</td><td class='num'>0.9946</td><td class='num'>-0.0176</td><td class='num'>20.2%</td></tr><tr><td><code>D0</code></td><td class='num'>11.46</td><td class='num'>16.14</td><td class='num'>0.9416</td><td class='num'>-0.2124</td><td class='num'>30.8%</td></tr><tr><td><code>D1</code></td><td class='num'>12.55</td><td class='num'>14.45</td><td class='num'>0.8641</td><td class='num'>-0.4740</td><td class='num'>26.9%</td></tr><tr><td><code>D2</code></td><td class='num'>19.49</td><td class='num'>20.59</td><td class='num'>0.5266</td><td class='num'>-1.485</td><td class='num'>53.8%</td></tr><tr><td><code>F</code></td><td class='num'>38.07</td><td class='num'>36.36</td><td class='num'>0.6478</td><td class='num'>-1.251</td><td class='num'>37.0%</td></tr><tr><td><code>G</code></td><td class='num'>3.577</td><td class='num'>10.70</td><td class='num'>0.9741</td><td class='num'>-0.0334</td><td class='num'>15.1%</td></tr></tbody>
+        <thead><tr><th>Variant</th><th>Code</th><th>RankMe</th><th>Within RankMe</th><th>Mean Cos</th><th>Uniformity</th><th>Probe</th></tr></thead>
+        <tbody><tr><td>MSE JEPA baseline</td><td><code>A</code></td><td class='num'>59.18</td><td class='num'>58.49</td><td class='num'>0.9999</td><td class='num'>-5.77e-04</td><td class='num'>9.9%</td></tr><tr><td>Cosine JEPA baseline</td><td><code>B</code></td><td class='num'>2.935</td><td class='num'>4.696</td><td class='num'>0.9950</td><td class='num'>-0.0192</td><td class='num'>10.8%</td></tr><tr><td>Co-trained self-anchor</td><td><code>C</code></td><td class='num'>1.637</td><td class='num'>10.68</td><td class='num'>0.9998</td><td class='num'>-4.91e-04</td><td class='num'>9.8%</td></tr><tr><td>Detached self-anchor</td><td><code>C_detach</code></td><td class='num'>1.770</td><td class='num'>1.804</td><td class='num'>0.6572</td><td class='num'>-0.6982</td><td class='num'>20.3%</td></tr><tr><td>Momentum self-anchor</td><td><code>C_ema</code></td><td class='num'>4.922</td><td class='num'>17.04</td><td class='num'>0.9946</td><td class='num'>-0.0176</td><td class='num'>20.2%</td></tr><tr><td>Clean frozen anchor</td><td><code>D0</code></td><td class='num'>11.46</td><td class='num'>16.14</td><td class='num'>0.9416</td><td class='num'>-0.2124</td><td class='num'>30.8%</td></tr><tr><td>Noisy frozen anchor</td><td><code>D1</code></td><td class='num'>12.55</td><td class='num'>14.45</td><td class='num'>0.8641</td><td class='num'>-0.4740</td><td class='num'>26.9%</td></tr><tr><td>Class anchor</td><td><code>D2</code></td><td class='num'>19.49</td><td class='num'>20.59</td><td class='num'>0.5266</td><td class='num'>-1.485</td><td class='num'>53.8%</td></tr><tr><td>VICReg baseline</td><td><code>F</code></td><td class='num'>38.07</td><td class='num'>36.36</td><td class='num'>0.6478</td><td class='num'>-1.251</td><td class='num'>37.0%</td></tr><tr><td>SIGReg baseline</td><td><code>G</code></td><td class='num'>3.577</td><td class='num'>10.70</td><td class='num'>0.9741</td><td class='num'>-0.0334</td><td class='num'>15.1%</td></tr></tbody>
       </table>
     </div>
 
@@ -286,15 +297,16 @@
           <p class="eyebrow">Frozen LLM</p>
           <h2>Exp2 Frozen LLM: Source + Anchor Whitening</h2>
           <p>The useful Pythia-160M diagnostic: source states and anchors are both whitened.</p>
+          <p class="task-note"><strong>Task:</strong> Frozen Pythia text/code head task. This is the cleanest geometry diagnostic for NL-to-regex pairs because both source and anchor states are whitened.</p>
         </div>
         <div class="links"><a href='json/exp2_pythia160m_synth_input_white_anchor_white_summary.json'>summary JSON</a> / <a href='html/exp2_pythia160m_synth_input_white_anchor_white.html'>old per-run HTML</a></div>
       </div>
       <div class="run-grid">
         <article class="text-card">
           <h3>What to Look For</h3>
-          <ul><li>This is the main frozen-LLM diagnostic. The headline read is D_own_1 &gt; D_own_0 and D_own_1 &gt;&gt; C on geometry and predicted-code retrieval.</li><li>Direct embedding retrieval is a different question. InfoNCE/VICReg can win there without disproving the cap-anchor geometry mechanism.</li></ul>
+          <ul><li>This is the main frozen-LLM diagnostic. The headline read is noisy frozen own-anchor beating clean frozen own-anchor, and strongly beating co-trained self-anchor, on geometry and predicted-code retrieval.</li><li>Direct embedding retrieval is a different question. InfoNCE/VICReg can win there without disproving the cap-anchor geometry mechanism.</li></ul>
           <h3>Current Read</h3>
-          <ul><li>D_own_1 beats D_own_0 on RankMe, mean cosine, and predicted-code retrieval.</li><li>D_own_1 is far stronger than co-trained C, so external anchoring matters.</li><li>InfoNCE and VICReg still dominate direct embedding retrieval, so retrieval-space choice matters.</li></ul>
+          <ul><li>Noisy frozen own-anchor beats clean frozen own-anchor on RankMe, mean cosine, and predicted-code retrieval.</li><li>Noisy frozen own-anchor is far stronger than co-trained self-anchor, so external anchoring matters.</li><li>InfoNCE and VICReg still dominate direct embedding retrieval, so retrieval-space choice matters.</li></ul>
         </article>
         <article class="text-card">
           <h3>Headline Contrasts</h3>
@@ -302,7 +314,7 @@
     <div class="table-wrap">
       <table>
         <thead><tr><th>Question</th><th>Pair</th><th>Delta RankMe</th><th>Delta Cos</th><th>Delta Pred R@1</th><th>Delta EM</th></tr></thead>
-        <tbody><tr><td>Noise: own-view anchor</td><td><code>D_own_1</code> - <code>D_own_0</code></td><td class='num'>4.589</td><td class='num'>-0.0224</td><td class='num'>6.1 pp</td><td class='num'>n/a</td></tr><tr><td>External anchor vs co-trained target</td><td><code>D_own_1</code> - <code>C</code></td><td class='num'>201.5</td><td class='num'>-0.9624</td><td class='num'>45.6 pp</td><td class='num'>n/a</td></tr><tr><td>External anchor vs EMA target</td><td><code>D_own_1</code> - <code>C_ema</code></td><td class='num'>20.45</td><td class='num'>-3.86e-03</td><td class='num'>13.8 pp</td><td class='num'>n/a</td></tr><tr><td>InfoNCE vs D_own_1</td><td><code>F</code> - <code>D_own_1</code></td><td class='num'>-88.17</td><td class='num'>-0.0346</td><td class='num'>-45.7 pp</td><td class='num'>n/a</td></tr><tr><td>VICReg vs D_own_1</td><td><code>G</code> - <code>D_own_1</code></td><td class='num'>-94.35</td><td class='num'>0.0410</td><td class='num'>-45.8 pp</td><td class='num'>n/a</td></tr><tr><td>SIGReg vs D_own_1</td><td><code>H</code> - <code>D_own_1</code></td><td class='num'>-97.13</td><td class='num'>-0.0193</td><td class='num'>-21.9 pp</td><td class='num'>n/a</td></tr><tr><td>Exp3 EMA vs co-trained</td><td><code>C_ema</code> - <code>C</code></td><td class='num'>181.0</td><td class='num'>-0.9585</td><td class='num'>31.8 pp</td><td class='num'>n/a</td></tr></tbody>
+        <tbody><tr><td>Sphere noise on frozen own-anchor</td><td>Noisy frozen own-anchor (D_own_1) - Clean frozen own-anchor (D_own_0)</td><td class='num'>4.589</td><td class='num'>-0.0224</td><td class='num'>6.1 pp</td><td class='num'>n/a</td></tr><tr><td>Frozen own-anchor vs co-trained self-anchor</td><td>Noisy frozen own-anchor (D_own_1) - Co-trained self-anchor (C)</td><td class='num'>201.5</td><td class='num'>-0.9624</td><td class='num'>45.6 pp</td><td class='num'>n/a</td></tr><tr><td>Frozen own-anchor vs momentum self-anchor</td><td>Noisy frozen own-anchor (D_own_1) - Momentum self-anchor (C_ema)</td><td class='num'>20.45</td><td class='num'>-3.86e-03</td><td class='num'>13.8 pp</td><td class='num'>n/a</td></tr><tr><td>Regularizer baseline vs noisy frozen own-anchor</td><td>InfoNCE baseline (F) - Noisy frozen own-anchor (D_own_1)</td><td class='num'>-88.17</td><td class='num'>-0.0346</td><td class='num'>-45.7 pp</td><td class='num'>n/a</td></tr><tr><td>Regularizer baseline vs noisy frozen own-anchor</td><td>VICReg baseline (G) - Noisy frozen own-anchor (D_own_1)</td><td class='num'>-94.35</td><td class='num'>0.0410</td><td class='num'>-45.8 pp</td><td class='num'>n/a</td></tr><tr><td>SIGReg baseline vs noisy frozen own-anchor</td><td>SIGReg baseline (H) - Noisy frozen own-anchor (D_own_1)</td><td class='num'>-97.13</td><td class='num'>-0.0193</td><td class='num'>-21.9 pp</td><td class='num'>n/a</td></tr><tr><td>Momentum self-anchor vs co-trained self-anchor</td><td>Momentum self-anchor (C_ema) - Co-trained self-anchor (C)</td><td class='num'>181.0</td><td class='num'>-0.9585</td><td class='num'>31.8 pp</td><td class='num'>n/a</td></tr></tbody>
       </table>
     </div>
 
@@ -362,8 +374,8 @@
 
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Variant</th><th>Text RankMe</th><th>Code RankMe</th><th>Text Cos</th><th>Code Cos</th><th>Direct R@1</th><th>Pred R@1</th></tr></thead>
-        <tbody><tr><td><code>D_own_0</code></td><td class='num'>229.0</td><td class='num'>232.6</td><td class='num'>0.0581</td><td class='num'>0.0715</td><td class='num'>0.0%</td><td class='num'>39.7%</td></tr><tr><td><code>D_own_1</code></td><td class='num'>233.6</td><td class='num'>242.9</td><td class='num'>0.0357</td><td class='num'>0.0196</td><td class='num'>0.2%</td><td class='num'>45.8%</td></tr><tr><td><code>C</code></td><td class='num'>32.15</td><td class='num'>6.510</td><td class='num'>0.9981</td><td class='num'>1.0000</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td><code>C_ema</code></td><td class='num'>213.2</td><td class='num'>205.6</td><td class='num'>0.0396</td><td class='num'>0.2923</td><td class='num'>0.1%</td><td class='num'>31.9%</td></tr><tr><td><code>F</code></td><td class='num'>145.4</td><td class='num'>146.1</td><td class='num'>1.09e-03</td><td class='num'>1.32e-04</td><td class='num'>67.6%</td><td class='num'>0.1%</td></tr><tr><td><code>G</code></td><td class='num'>139.3</td><td class='num'>139.6</td><td class='num'>0.0767</td><td class='num'>0.0722</td><td class='num'>60.5%</td><td class='num'>0.0%</td></tr><tr><td><code>H</code></td><td class='num'>136.5</td><td class='num'>132.5</td><td class='num'>0.0164</td><td class='num'>3.76e-03</td><td class='num'>0.1%</td><td class='num'>23.8%</td></tr></tbody>
+        <thead><tr><th>Variant</th><th>Code</th><th>Text RankMe</th><th>Code RankMe</th><th>Text Cos</th><th>Code Cos</th><th>Direct R@1</th><th>Pred R@1</th></tr></thead>
+        <tbody><tr><td>Clean frozen own-anchor</td><td><code>D_own_0</code></td><td class='num'>229.0</td><td class='num'>232.6</td><td class='num'>0.0581</td><td class='num'>0.0715</td><td class='num'>0.0%</td><td class='num'>39.7%</td></tr><tr><td>Noisy frozen own-anchor</td><td><code>D_own_1</code></td><td class='num'>233.6</td><td class='num'>242.9</td><td class='num'>0.0357</td><td class='num'>0.0196</td><td class='num'>0.2%</td><td class='num'>45.8%</td></tr><tr><td>Co-trained self-anchor</td><td><code>C</code></td><td class='num'>32.15</td><td class='num'>6.510</td><td class='num'>0.9981</td><td class='num'>1.0000</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td>Momentum self-anchor</td><td><code>C_ema</code></td><td class='num'>213.2</td><td class='num'>205.6</td><td class='num'>0.0396</td><td class='num'>0.2923</td><td class='num'>0.1%</td><td class='num'>31.9%</td></tr><tr><td>InfoNCE baseline</td><td><code>F</code></td><td class='num'>145.4</td><td class='num'>146.1</td><td class='num'>1.09e-03</td><td class='num'>1.32e-04</td><td class='num'>67.6%</td><td class='num'>0.1%</td></tr><tr><td>VICReg baseline</td><td><code>G</code></td><td class='num'>139.3</td><td class='num'>139.6</td><td class='num'>0.0767</td><td class='num'>0.0722</td><td class='num'>60.5%</td><td class='num'>0.0%</td></tr><tr><td>SIGReg baseline</td><td><code>H</code></td><td class='num'>136.5</td><td class='num'>132.5</td><td class='num'>0.0164</td><td class='num'>3.76e-03</td><td class='num'>0.1%</td><td class='num'>23.8%</td></tr></tbody>
       </table>
     </div>
 
@@ -376,13 +388,14 @@
           <p class="eyebrow">Frozen LLM</p>
           <h2>Exp2 Frozen LLM: Spherical Anchors</h2>
           <p>Pythia-160M synth projection-head run using spherified anchors on raw source states.</p>
+          <p class="task-note"><strong>Task:</strong> Frozen Pythia preprocessing control with spherical anchors on raw source states.</p>
         </div>
         <div class="links"><a href='json/exp2_pythia160m_synth_sphere_summary.json'>summary JSON</a> / <a href='html/exp2_pythia160m_synth_sphere.html'>old per-run HTML</a></div>
       </div>
       <div class="run-grid">
         <article class="text-card">
           <h3>What to Look For</h3>
-          <ul><li>Use this as a preprocessing control. Raw Pythia states are highly anisotropic, so failures here mostly tell us that the source geometry is hostile.</li><li>Compare D_own_1 to D_own_0 within the same preprocessing mode, then compare the whole mode against source+anchor whitening.</li></ul>
+          <ul><li>Use this as a preprocessing control. Raw Pythia states are highly anisotropic, so failures here mostly tell us that the source geometry is hostile.</li><li>Compare noisy frozen own-anchor to clean frozen own-anchor within the same preprocessing mode, then compare the whole mode against source+anchor whitening.</li></ul>
           <h3>Current Read</h3>
           <ul><li>Raw source hidden states remain highly anisotropic, so anchor spherification alone is not enough.</li><li>This run keeps the full ablation set, including cross-view cap reconstruction.</li><li>Use it mainly to compare own-view, cross-view, InfoNCE, VICReg, and SIGReg geometry controls.</li></ul>
         </article>
@@ -392,7 +405,7 @@
     <div class="table-wrap">
       <table>
         <thead><tr><th>Question</th><th>Pair</th><th>Delta RankMe</th><th>Delta Cos</th><th>Delta Pred R@1</th><th>Delta EM</th></tr></thead>
-        <tbody><tr><td>Noise: own-view anchor</td><td><code>D_own_1</code> - <code>D_own_0</code></td><td class='num'>-0.5482</td><td class='num'>0.00e+00</td><td class='num'>0.0 pp</td><td class='num'>n/a</td></tr><tr><td>External anchor vs co-trained target</td><td><code>D_own_1</code> - <code>C</code></td><td class='num'>0.0780</td><td class='num'>0.00e+00</td><td class='num'>-0.1 pp</td><td class='num'>n/a</td></tr><tr><td>External anchor vs EMA target</td><td><code>D_own_1</code> - <code>C_ema</code></td><td class='num'>0.0104</td><td class='num'>0.00e+00</td><td class='num'>0.0 pp</td><td class='num'>n/a</td></tr><tr><td>Noise: cross-view anchor</td><td><code>D_cross_1</code> - <code>D_cross_0</code></td><td class='num'>1.795</td><td class='num'>0.00e+00</td><td class='num'>0.0 pp</td><td class='num'>n/a</td></tr><tr><td>InfoNCE vs D_own_1</td><td><code>F</code> - <code>D_own_1</code></td><td class='num'>-4.406</td><td class='num'>-2.98e-06</td><td class='num'>0.0 pp</td><td class='num'>n/a</td></tr><tr><td>VICReg vs D_own_1</td><td><code>G</code> - <code>D_own_1</code></td><td class='num'>0.9226</td><td class='num'>-0.6142</td><td class='num'>-0.1 pp</td><td class='num'>n/a</td></tr><tr><td>SIGReg vs D_own_1</td><td><code>H</code> - <code>D_own_1</code></td><td class='num'>-4.628</td><td class='num'>0.00e+00</td><td class='num'>0.0 pp</td><td class='num'>n/a</td></tr><tr><td>Exp3 EMA vs co-trained</td><td><code>C_ema</code> - <code>C</code></td><td class='num'>0.0676</td><td class='num'>0.00e+00</td><td class='num'>-0.1 pp</td><td class='num'>n/a</td></tr></tbody>
+        <tbody><tr><td>Sphere noise on frozen own-anchor</td><td>Noisy frozen own-anchor (D_own_1) - Clean frozen own-anchor (D_own_0)</td><td class='num'>-0.5482</td><td class='num'>0.00e+00</td><td class='num'>0.0 pp</td><td class='num'>n/a</td></tr><tr><td>Frozen own-anchor vs co-trained self-anchor</td><td>Noisy frozen own-anchor (D_own_1) - Co-trained self-anchor (C)</td><td class='num'>0.0780</td><td class='num'>0.00e+00</td><td class='num'>-0.1 pp</td><td class='num'>n/a</td></tr><tr><td>Frozen own-anchor vs momentum self-anchor</td><td>Noisy frozen own-anchor (D_own_1) - Momentum self-anchor (C_ema)</td><td class='num'>0.0104</td><td class='num'>0.00e+00</td><td class='num'>0.0 pp</td><td class='num'>n/a</td></tr><tr><td>Sphere noise on cross-view anchor</td><td>Noisy frozen cross-anchor (D_cross_1) - Clean frozen cross-anchor (D_cross_0)</td><td class='num'>1.795</td><td class='num'>0.00e+00</td><td class='num'>0.0 pp</td><td class='num'>n/a</td></tr><tr><td>Regularizer baseline vs noisy frozen own-anchor</td><td>InfoNCE baseline (F) - Noisy frozen own-anchor (D_own_1)</td><td class='num'>-4.406</td><td class='num'>-2.98e-06</td><td class='num'>0.0 pp</td><td class='num'>n/a</td></tr><tr><td>Regularizer baseline vs noisy frozen own-anchor</td><td>VICReg baseline (G) - Noisy frozen own-anchor (D_own_1)</td><td class='num'>0.9226</td><td class='num'>-0.6142</td><td class='num'>-0.1 pp</td><td class='num'>n/a</td></tr><tr><td>SIGReg baseline vs noisy frozen own-anchor</td><td>SIGReg baseline (H) - Noisy frozen own-anchor (D_own_1)</td><td class='num'>-4.628</td><td class='num'>0.00e+00</td><td class='num'>0.0 pp</td><td class='num'>n/a</td></tr><tr><td>Momentum self-anchor vs co-trained self-anchor</td><td>Momentum self-anchor (C_ema) - Co-trained self-anchor (C)</td><td class='num'>0.0676</td><td class='num'>0.00e+00</td><td class='num'>-0.1 pp</td><td class='num'>n/a</td></tr></tbody>
       </table>
     </div>
 
@@ -452,8 +465,8 @@
 
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Variant</th><th>Text RankMe</th><th>Code RankMe</th><th>Text Cos</th><th>Code Cos</th><th>Direct R@1</th><th>Pred R@1</th></tr></thead>
-        <tbody><tr><td><code>A</code></td><td class='num'>24.66</td><td class='num'>114.9</td><td class='num'>0.9996</td><td class='num'>0.9945</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td><code>B</code></td><td class='num'>6.699</td><td class='num'>112.6</td><td class='num'>1.000</td><td class='num'>0.9927</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td><code>C</code></td><td class='num'>5.564</td><td class='num'>7.428</td><td class='num'>1.000</td><td class='num'>1.000</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td><code>C_detach</code></td><td class='num'>5.645</td><td class='num'>112.3</td><td class='num'>1.000</td><td class='num'>0.9936</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td><code>C_ema</code></td><td class='num'>5.631</td><td class='num'>110.5</td><td class='num'>1.000</td><td class='num'>0.9938</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td><code>D_own_0</code></td><td class='num'>6.190</td><td class='num'>8.692</td><td class='num'>1.000</td><td class='num'>1.000</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td><code>D_own_1</code></td><td class='num'>5.642</td><td class='num'>7.757</td><td class='num'>1.000</td><td class='num'>1.000</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td><code>D_cross_0</code></td><td class='num'>5.296</td><td class='num'>112.1</td><td class='num'>1.000</td><td class='num'>0.9916</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td><code>D_cross_1</code></td><td class='num'>7.091</td><td class='num'>111.4</td><td class='num'>1.000</td><td class='num'>0.9923</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td><code>D_cross_sym_0</code></td><td class='num'>5.845</td><td class='num'>7.534</td><td class='num'>1.000</td><td class='num'>1.000</td><td class='num'>0.1%</td><td class='num'>0.0%</td></tr><tr><td><code>D_cross_sym_1</code></td><td class='num'>5.358</td><td class='num'>7.438</td><td class='num'>1.000</td><td class='num'>1.000</td><td class='num'>0.1%</td><td class='num'>0.0%</td></tr><tr><td><code>F</code></td><td class='num'>1.236</td><td class='num'>1.812</td><td class='num'>1.0000</td><td class='num'>1.0000</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td><code>G</code></td><td class='num'>6.564</td><td class='num'>9.287</td><td class='num'>0.3858</td><td class='num'>0.3693</td><td class='num'>0.1%</td><td class='num'>0.0%</td></tr><tr><td><code>H</code></td><td class='num'>1.013</td><td class='num'>3.080</td><td class='num'>1.000</td><td class='num'>0.1471</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr></tbody>
+        <thead><tr><th>Variant</th><th>Code</th><th>Text RankMe</th><th>Code RankMe</th><th>Text Cos</th><th>Code Cos</th><th>Direct R@1</th><th>Pred R@1</th></tr></thead>
+        <tbody><tr><td>MSE JEPA baseline</td><td><code>A</code></td><td class='num'>24.66</td><td class='num'>114.9</td><td class='num'>0.9996</td><td class='num'>0.9945</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td>Cosine JEPA baseline</td><td><code>B</code></td><td class='num'>6.699</td><td class='num'>112.6</td><td class='num'>1.000</td><td class='num'>0.9927</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td>Co-trained self-anchor</td><td><code>C</code></td><td class='num'>5.564</td><td class='num'>7.428</td><td class='num'>1.000</td><td class='num'>1.000</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td>Detached self-anchor</td><td><code>C_detach</code></td><td class='num'>5.645</td><td class='num'>112.3</td><td class='num'>1.000</td><td class='num'>0.9936</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td>Momentum self-anchor</td><td><code>C_ema</code></td><td class='num'>5.631</td><td class='num'>110.5</td><td class='num'>1.000</td><td class='num'>0.9938</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td>Clean frozen own-anchor</td><td><code>D_own_0</code></td><td class='num'>6.190</td><td class='num'>8.692</td><td class='num'>1.000</td><td class='num'>1.000</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td>Noisy frozen own-anchor</td><td><code>D_own_1</code></td><td class='num'>5.642</td><td class='num'>7.757</td><td class='num'>1.000</td><td class='num'>1.000</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td>Clean frozen cross-anchor</td><td><code>D_cross_0</code></td><td class='num'>5.296</td><td class='num'>112.1</td><td class='num'>1.000</td><td class='num'>0.9916</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td>Noisy frozen cross-anchor</td><td><code>D_cross_1</code></td><td class='num'>7.091</td><td class='num'>111.4</td><td class='num'>1.000</td><td class='num'>0.9923</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td>Clean two-way cross-anchor</td><td><code>D_cross_sym_0</code></td><td class='num'>5.845</td><td class='num'>7.534</td><td class='num'>1.000</td><td class='num'>1.000</td><td class='num'>0.1%</td><td class='num'>0.0%</td></tr><tr><td>Noisy two-way cross-anchor</td><td><code>D_cross_sym_1</code></td><td class='num'>5.358</td><td class='num'>7.438</td><td class='num'>1.000</td><td class='num'>1.000</td><td class='num'>0.1%</td><td class='num'>0.0%</td></tr><tr><td>InfoNCE baseline</td><td><code>F</code></td><td class='num'>1.236</td><td class='num'>1.812</td><td class='num'>1.0000</td><td class='num'>1.0000</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td>VICReg baseline</td><td><code>G</code></td><td class='num'>6.564</td><td class='num'>9.287</td><td class='num'>0.3858</td><td class='num'>0.3693</td><td class='num'>0.1%</td><td class='num'>0.0%</td></tr><tr><td>SIGReg baseline</td><td><code>H</code></td><td class='num'>1.013</td><td class='num'>3.080</td><td class='num'>1.000</td><td class='num'>0.1471</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr></tbody>
       </table>
     </div>
 
@@ -466,13 +479,14 @@
           <p class="eyebrow">Frozen LLM</p>
           <h2>Exp2 Frozen LLM: Raw Anchors</h2>
           <p>D_own anchor preprocessing ablation with raw Pythia hidden states.</p>
+          <p class="task-note"><strong>Task:</strong> Frozen Pythia preprocessing control with raw anchors and raw source states.</p>
         </div>
         <div class="links"><a href='json/exp2_pythia160m_synth_raw_summary.json'>summary JSON</a> / <a href='html/exp2_pythia160m_synth_raw.html'>old per-run HTML</a></div>
       </div>
       <div class="run-grid">
         <article class="text-card">
           <h3>What to Look For</h3>
-          <ul><li>Use this as a preprocessing control. Raw Pythia states are highly anisotropic, so failures here mostly tell us that the source geometry is hostile.</li><li>Compare D_own_1 to D_own_0 within the same preprocessing mode, then compare the whole mode against source+anchor whitening.</li></ul>
+          <ul><li>Use this as a preprocessing control. Raw Pythia states are highly anisotropic, so failures here mostly tell us that the source geometry is hostile.</li><li>Compare noisy frozen own-anchor to clean frozen own-anchor within the same preprocessing mode, then compare the whole mode against source+anchor whitening.</li></ul>
           <h3>Current Read</h3>
           <ul><li>Raw anchors expose the source anisotropy problem directly.</li><li>This is a useful negative control, not the strongest preprocessing choice.</li></ul>
         </article>
@@ -482,7 +496,7 @@
     <div class="table-wrap">
       <table>
         <thead><tr><th>Question</th><th>Pair</th><th>Delta RankMe</th><th>Delta Cos</th><th>Delta Pred R@1</th><th>Delta EM</th></tr></thead>
-        <tbody><tr><td>Noise: own-view anchor</td><td><code>D_own_1</code> - <code>D_own_0</code></td><td class='num'>-0.3509</td><td class='num'>0.00e+00</td><td class='num'>0.0 pp</td><td class='num'>n/a</td></tr></tbody>
+        <tbody><tr><td>Sphere noise on frozen own-anchor</td><td>Noisy frozen own-anchor (D_own_1) - Clean frozen own-anchor (D_own_0)</td><td class='num'>-0.3509</td><td class='num'>0.00e+00</td><td class='num'>0.0 pp</td><td class='num'>n/a</td></tr></tbody>
       </table>
     </div>
 
@@ -542,8 +556,8 @@
 
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Variant</th><th>Text RankMe</th><th>Code RankMe</th><th>Text Cos</th><th>Code Cos</th><th>Direct R@1</th><th>Pred R@1</th></tr></thead>
-        <tbody><tr><td><code>D_own_0</code></td><td class='num'>3.261</td><td class='num'>1.628</td><td class='num'>1.000</td><td class='num'>0.9699</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td><code>D_own_1</code></td><td class='num'>2.910</td><td class='num'>4.304</td><td class='num'>1.000</td><td class='num'>1.000</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr></tbody>
+        <thead><tr><th>Variant</th><th>Code</th><th>Text RankMe</th><th>Code RankMe</th><th>Text Cos</th><th>Code Cos</th><th>Direct R@1</th><th>Pred R@1</th></tr></thead>
+        <tbody><tr><td>Clean frozen own-anchor</td><td><code>D_own_0</code></td><td class='num'>3.261</td><td class='num'>1.628</td><td class='num'>1.000</td><td class='num'>0.9699</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td>Noisy frozen own-anchor</td><td><code>D_own_1</code></td><td class='num'>2.910</td><td class='num'>4.304</td><td class='num'>1.000</td><td class='num'>1.000</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr></tbody>
       </table>
     </div>
 
@@ -556,13 +570,14 @@
           <p class="eyebrow">Frozen LLM</p>
           <h2>Exp2 Frozen LLM: Norm Anchors</h2>
           <p>D_own anchor preprocessing ablation with normalized Pythia hidden states.</p>
+          <p class="task-note"><strong>Task:</strong> Frozen Pythia preprocessing control with normalized anchors and raw source states.</p>
         </div>
         <div class="links"><a href='json/exp2_pythia160m_synth_norm_summary.json'>summary JSON</a> / <a href='html/exp2_pythia160m_synth_norm.html'>old per-run HTML</a></div>
       </div>
       <div class="run-grid">
         <article class="text-card">
           <h3>What to Look For</h3>
-          <ul><li>Use this as a preprocessing control. Raw Pythia states are highly anisotropic, so failures here mostly tell us that the source geometry is hostile.</li><li>Compare D_own_1 to D_own_0 within the same preprocessing mode, then compare the whole mode against source+anchor whitening.</li></ul>
+          <ul><li>Use this as a preprocessing control. Raw Pythia states are highly anisotropic, so failures here mostly tell us that the source geometry is hostile.</li><li>Compare noisy frozen own-anchor to clean frozen own-anchor within the same preprocessing mode, then compare the whole mode against source+anchor whitening.</li></ul>
           <h3>Current Read</h3>
           <ul><li>Norm-only preprocessing changes scale without fixing most anisotropy.</li><li>Compare it against raw, sphere, and white before drawing mechanism conclusions.</li></ul>
         </article>
@@ -572,7 +587,7 @@
     <div class="table-wrap">
       <table>
         <thead><tr><th>Question</th><th>Pair</th><th>Delta RankMe</th><th>Delta Cos</th><th>Delta Pred R@1</th><th>Delta EM</th></tr></thead>
-        <tbody><tr><td>Noise: own-view anchor</td><td><code>D_own_1</code> - <code>D_own_0</code></td><td class='num'>-0.6516</td><td class='num'>0.00e+00</td><td class='num'>-0.1 pp</td><td class='num'>n/a</td></tr></tbody>
+        <tbody><tr><td>Sphere noise on frozen own-anchor</td><td>Noisy frozen own-anchor (D_own_1) - Clean frozen own-anchor (D_own_0)</td><td class='num'>-0.6516</td><td class='num'>0.00e+00</td><td class='num'>-0.1 pp</td><td class='num'>n/a</td></tr></tbody>
       </table>
     </div>
 
@@ -632,8 +647,8 @@
 
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Variant</th><th>Text RankMe</th><th>Code RankMe</th><th>Text Cos</th><th>Code Cos</th><th>Direct R@1</th><th>Pred R@1</th></tr></thead>
-        <tbody><tr><td><code>D_own_0</code></td><td class='num'>6.153</td><td class='num'>11.01</td><td class='num'>1.000</td><td class='num'>1.000</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td><code>D_own_1</code></td><td class='num'>5.501</td><td class='num'>11.17</td><td class='num'>1.000</td><td class='num'>1.000</td><td class='num'>0.1%</td><td class='num'>0.0%</td></tr></tbody>
+        <thead><tr><th>Variant</th><th>Code</th><th>Text RankMe</th><th>Code RankMe</th><th>Text Cos</th><th>Code Cos</th><th>Direct R@1</th><th>Pred R@1</th></tr></thead>
+        <tbody><tr><td>Clean frozen own-anchor</td><td><code>D_own_0</code></td><td class='num'>6.153</td><td class='num'>11.01</td><td class='num'>1.000</td><td class='num'>1.000</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td>Noisy frozen own-anchor</td><td><code>D_own_1</code></td><td class='num'>5.501</td><td class='num'>11.17</td><td class='num'>1.000</td><td class='num'>1.000</td><td class='num'>0.1%</td><td class='num'>0.0%</td></tr></tbody>
       </table>
     </div>
 
@@ -646,13 +661,14 @@
           <p class="eyebrow">Frozen LLM</p>
           <h2>Exp2 Frozen LLM: White Anchors</h2>
           <p>D_own anchor preprocessing ablation with whitened anchors and raw source states.</p>
+          <p class="task-note"><strong>Task:</strong> Frozen Pythia preprocessing control with whitened anchors and raw source states.</p>
         </div>
         <div class="links"><a href='json/exp2_pythia160m_synth_white_summary.json'>summary JSON</a> / <a href='html/exp2_pythia160m_synth_white.html'>old per-run HTML</a></div>
       </div>
       <div class="run-grid">
         <article class="text-card">
           <h3>What to Look For</h3>
-          <ul><li>Use this as a preprocessing control. Raw Pythia states are highly anisotropic, so failures here mostly tell us that the source geometry is hostile.</li><li>Compare D_own_1 to D_own_0 within the same preprocessing mode, then compare the whole mode against source+anchor whitening.</li></ul>
+          <ul><li>Use this as a preprocessing control. Raw Pythia states are highly anisotropic, so failures here mostly tell us that the source geometry is hostile.</li><li>Compare noisy frozen own-anchor to clean frozen own-anchor within the same preprocessing mode, then compare the whole mode against source+anchor whitening.</li></ul>
           <h3>Current Read</h3>
           <ul><li>Whitened anchors are much more isotropic than raw anchors.</li><li>Source-side anisotropy still limits the projection-head run unless inputs are whitened too.</li></ul>
         </article>
@@ -662,7 +678,7 @@
     <div class="table-wrap">
       <table>
         <thead><tr><th>Question</th><th>Pair</th><th>Delta RankMe</th><th>Delta Cos</th><th>Delta Pred R@1</th><th>Delta EM</th></tr></thead>
-        <tbody><tr><td>Noise: own-view anchor</td><td><code>D_own_1</code> - <code>D_own_0</code></td><td class='num'>0.3230</td><td class='num'>0.00e+00</td><td class='num'>-0.1 pp</td><td class='num'>n/a</td></tr></tbody>
+        <tbody><tr><td>Sphere noise on frozen own-anchor</td><td>Noisy frozen own-anchor (D_own_1) - Clean frozen own-anchor (D_own_0)</td><td class='num'>0.3230</td><td class='num'>0.00e+00</td><td class='num'>-0.1 pp</td><td class='num'>n/a</td></tr></tbody>
       </table>
     </div>
 
@@ -722,8 +738,8 @@
 
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Variant</th><th>Text RankMe</th><th>Code RankMe</th><th>Text Cos</th><th>Code Cos</th><th>Direct R@1</th><th>Pred R@1</th></tr></thead>
-        <tbody><tr><td><code>D_own_0</code></td><td class='num'>4.860</td><td class='num'>5.498</td><td class='num'>1.000</td><td class='num'>1.000</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td><code>D_own_1</code></td><td class='num'>5.183</td><td class='num'>9.416</td><td class='num'>1.000</td><td class='num'>1.000</td><td class='num'>0.1%</td><td class='num'>0.0%</td></tr></tbody>
+        <thead><tr><th>Variant</th><th>Code</th><th>Text RankMe</th><th>Code RankMe</th><th>Text Cos</th><th>Code Cos</th><th>Direct R@1</th><th>Pred R@1</th></tr></thead>
+        <tbody><tr><td>Clean frozen own-anchor</td><td><code>D_own_0</code></td><td class='num'>4.860</td><td class='num'>5.498</td><td class='num'>1.000</td><td class='num'>1.000</td><td class='num'>0.1%</td><td class='num'>0.1%</td></tr><tr><td>Noisy frozen own-anchor</td><td><code>D_own_1</code></td><td class='num'>5.183</td><td class='num'>9.416</td><td class='num'>1.000</td><td class='num'>1.000</td><td class='num'>0.1%</td><td class='num'>0.0%</td></tr></tbody>
       </table>
     </div>
 
@@ -736,15 +752,16 @@
           <p class="eyebrow">Full LLM fine-tune</p>
           <h2>Exp3 Full LLM-JEPA: SmolLM2 Synth</h2>
           <p>Full 8k-example SmolLM2-135M synthetic NL-to-regex fine-tune sweep.</p>
+          <p class="task-note"><strong>Task:</strong> Full SmolLM2 fine-tune. This is the actual regex-generation task, scored by strict exact-match on held-out synthetic prompts.</p>
         </div>
         <div class="links"><a href='json/exp3_full_synth_summary.json'>summary JSON</a> / <a href='html/exp3_full_synth.html'>old per-run HTML</a></div>
       </div>
       <div class="run-grid">
         <article class="text-card">
           <h3>What to Look For</h3>
-          <ul><li>This is downstream task behavior, not a pure geometry diagnostic. Exact match answers whether the final generator got better.</li><li>D1-D0 is still the matched noise comparison. D1-Regular asks whether the cap objective helps beyond standard supervised fine-tuning.</li></ul>
+          <ul><li>This is downstream task behavior, not a pure geometry diagnostic. Exact match answers whether the final generator got better.</li><li>Noisy frozen anchor minus clean frozen anchor is the matched noise comparison. Noisy frozen anchor minus plain fine-tune asks whether the cap objective helps beyond standard supervised fine-tuning.</li></ul>
           <h3>Current Read</h3>
-          <ul><li>The downstream metric is strict exact-match string equality on synth_test.jsonl.</li><li>D1 versus D0 isolates the effect of noisy frozen anchors.</li><li>Training loss and exact match can move in different directions, so both are shown.</li></ul>
+          <ul><li>The downstream metric is strict exact-match string equality on synth_test.jsonl.</li><li>Noisy frozen anchor versus clean frozen anchor isolates the effect of sphere noise.</li><li>Training loss and exact match can move in different directions, so both are shown.</li></ul>
         </article>
         <article class="text-card">
           <h3>Headline Contrasts</h3>
@@ -752,7 +769,7 @@
     <div class="table-wrap">
       <table>
         <thead><tr><th>Question</th><th>Pair</th><th>Delta RankMe</th><th>Delta Cos</th><th>Delta Pred R@1</th><th>Delta EM</th></tr></thead>
-        <tbody><tr><td>Noise: frozen anchor</td><td><code>D1</code> - <code>D0</code></td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>0.0 pp</td></tr><tr><td>Frozen anchor vs co-trained target</td><td><code>D1</code> - <code>C</code></td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>0.0 pp</td></tr><tr><td>Exp3 D1 vs regular</td><td><code>D1</code> - <code>Regular</code></td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>0.0 pp</td></tr><tr><td>Exp3 co-trained vs regular</td><td><code>C</code> - <code>Regular</code></td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>0.0 pp</td></tr><tr><td>Exp3 EMA vs co-trained</td><td><code>C_ema</code> - <code>C</code></td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>0.0 pp</td></tr><tr><td>Exp3 both caps vs D1</td><td><code>Both</code> - <code>D1</code></td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>0.0 pp</td></tr><tr><td>Exp3 cross-view vs D1</td><td><code>Cross</code> - <code>D1</code></td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>0.0 pp</td></tr></tbody>
+        <tbody><tr><td>Sphere noise on frozen anchor</td><td>Noisy frozen anchor (D1) - Clean frozen anchor (D0)</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>0.0 pp</td></tr><tr><td>Frozen anchor vs co-trained self-anchor</td><td>Noisy frozen anchor (D1) - Co-trained self-anchor (C)</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>0.0 pp</td></tr><tr><td>Noisy frozen anchor vs plain fine-tune</td><td>Noisy frozen anchor (D1) - Plain fine-tune (Regular)</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>0.0 pp</td></tr><tr><td>Co-trained self-anchor vs plain fine-tune</td><td>Co-trained self-anchor (C) - Plain fine-tune (Regular)</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>0.0 pp</td></tr><tr><td>Momentum self-anchor vs co-trained self-anchor</td><td>Momentum self-anchor (C_ema) - Co-trained self-anchor (C)</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>0.0 pp</td></tr><tr><td>Combined anchors vs noisy own-anchor</td><td>Own + cross frozen anchors (Both) - Noisy frozen anchor (D1)</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>0.0 pp</td></tr><tr><td>Cross-view anchor vs noisy own-anchor</td><td>Frozen cross-view anchor (Cross) - Noisy frozen anchor (D1)</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>0.0 pp</td></tr></tbody>
       </table>
     </div>
 
@@ -776,8 +793,8 @@
 
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Variant</th><th>Exact Match</th></tr></thead>
-        <tbody><tr><td><code>Regular</code></td><td class='num'>0.0%</td></tr><tr><td><code>C</code></td><td class='num'>0.0%</td></tr><tr><td><code>C_ema</code></td><td class='num'>0.0%</td></tr><tr><td><code>D0</code></td><td class='num'>0.0%</td></tr><tr><td><code>D1</code></td><td class='num'>0.0%</td></tr><tr><td><code>Cross</code></td><td class='num'>0.0%</td></tr><tr><td><code>Both</code></td><td class='num'>0.0%</td></tr></tbody>
+        <thead><tr><th>Variant</th><th>Code</th><th>Exact Match</th></tr></thead>
+        <tbody><tr><td>Plain fine-tune</td><td><code>Regular</code></td><td class='num'>0.0%</td></tr><tr><td>Co-trained self-anchor</td><td><code>C</code></td><td class='num'>0.0%</td></tr><tr><td>Momentum self-anchor</td><td><code>C_ema</code></td><td class='num'>0.0%</td></tr><tr><td>Clean frozen anchor</td><td><code>D0</code></td><td class='num'>0.0%</td></tr><tr><td>Noisy frozen anchor</td><td><code>D1</code></td><td class='num'>0.0%</td></tr><tr><td>Frozen cross-view anchor</td><td><code>Cross</code></td><td class='num'>0.0%</td></tr><tr><td>Own + cross frozen anchors</td><td><code>Both</code></td><td class='num'>0.0%</td></tr></tbody>
       </table>
     </div>
 
