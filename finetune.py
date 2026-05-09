@@ -951,6 +951,7 @@ def main():
     parser.add_argument("--jepa_ratio", type=float, default=-1.0, help="When >0, randomly select this ratio of batches to apply JEPA. This implments Random JEPA-Loss Dropout (LD). If LD = alpha, jepa_ratio = 1 - alpha")
     parser.add_argument("--use_default_data_collator", action="store_true", help="When set, Use `default_data_collator`.")
     parser.add_argument("--unmask_assistant_special_tokens", action="store_true", help="When set, unmask assistant special tokens.")
+    parser.add_argument("--save_strategy", choices=["steps", "no"], default="steps", help="Checkpoint save strategy. Use 'no' for replication sweeps that only need the final model.")
     parser.add_argument("--anchor-type", choices=["none", "cotrained", "ema", "frozen"], default="none", help="Cap-anchor target source for sphere-constrained JEPA.")
     parser.add_argument("--sigma-max", type=float, default=0.5, help="Maximum spherical cap noise; use 0.0 for the sigma=0 control.")
     parser.add_argument("--sphere-radius", type=float, default=None, help="Optional fixed sphere radius. Defaults to sqrt(hidden_dim).")
@@ -1116,7 +1117,7 @@ def main():
         # eval_steps=eval_steps,
         
         # Saving
-        save_strategy="steps",
+        save_strategy=args.save_strategy,
         save_steps=save_steps,
         save_total_limit=args.num_epochs * 4,
 

@@ -115,6 +115,17 @@ EXPERIMENT_META = {
             "Read noisy frozen minus clean frozen as the sphere-noise contribution, and noisy frozen minus self-anchor as the external-anchor contribution.",
         ],
     },
+    "replicate_llm_jepa_synth": {
+        "title": "Original LLM-JEPA Replication: Llama 1B Synth",
+        "short_title": "LLM-JEPA Rep",
+        "group": "Replication",
+        "summary": "Paper-style NL-RX-SYNTH replication for regular SFT versus original LLM-JEPA on Llama-3.2-1B-Instruct.",
+        "takeaways": [
+            "This intentionally excludes the new sphere cap-anchor modifications.",
+            "The main comparison is original LLM-JEPA, lambda=1 and k=1, versus regular supervised fine-tuning.",
+            "Use the paired seed deltas to judge whether the paper result replicates before interpreting our later modifications.",
+        ],
+    },
 }
 
 
@@ -128,6 +139,7 @@ RUN_ORDER = [
     "exp2_pythia160m_synth_white",
     "exp3_full_synth",
     "exp3_llama1b_synth",
+    "replicate_llm_jepa_synth",
 ]
 
 
@@ -149,6 +161,7 @@ VARIANT_GLOSSARY = [
     ("G", "Regularizer baseline", "SIGReg in Exp0/Exp1; VICReg in Exp2."),
     ("H", "SIGReg baseline", "Exp2 only: cosine alignment plus SIGReg-style isotropic regularization."),
     ("Regular", "Plain fine-tune", "Exp3 only: supervised LLM fine-tuning without the cap-anchor objective."),
+    ("LLM_JEPA", "Original LLM-JEPA", "Paper objective with supervised fine-tuning plus JEPA predictor loss. No cap-anchor modifications."),
     ("Cross / Both", "Cross-view / combined frozen anchors", "Exp3 only: cross-view cap, or own-view plus cross-view cap."),
 ]
 
@@ -327,6 +340,7 @@ TASK_GLOSSARY = [
     ("CIFAR bridge", "Image augmentation representation learning", "Train image encoders on CIFAR-10 augmentations, then evaluate both geometry and linear-probe accuracy."),
     ("Frozen LLM heads", "Natural-language/regex pairs with a frozen Pythia backbone", "Cache frozen LLM hidden states, train only small projection/cap heads, and evaluate text-code geometry/retrieval without changing the LLM."),
     ("Full LLM fine-tune", "Generate a regex from a natural-language prompt", "Fine-tune the language model itself and score strict exact-match regex generation on held-out synthetic prompts."),
+    ("Original LLM-JEPA replication", "NL-RX-SYNTH regex generation", "Run the paper-style regular SFT and original LLM-JEPA baselines first, before evaluating new cap-anchor variants."),
 ]
 
 
@@ -340,6 +354,7 @@ RUN_TASK_NOTES = {
     "exp2_pythia160m_synth_white": "Frozen Pythia preprocessing control with whitened anchors and raw source states.",
     "exp3_full_synth": "Full SmolLM2 fine-tune. This is the actual regex-generation task, scored by strict exact-match on held-out synthetic prompts.",
     "exp3_llama1b_synth": "Full Llama 1B fine-tune. This repeats the actual regex-generation task with a stronger base model.",
+    "replicate_llm_jepa_synth": "Original LLM-JEPA replication. This checks the paper's regular SFT versus LLM-JEPA result before any sphere cap-anchor modifications.",
 }
 
 
@@ -367,6 +382,7 @@ BASE_VARIANT_NAMES = {
     "D_cross_sym_1": "Noisy two-way cross-anchor",
     "H": "SIGReg baseline",
     "Regular": "Plain fine-tune",
+    "LLM_JEPA": "Original LLM-JEPA",
     "Cross": "Frozen cross-view anchor",
     "Both": "Own + cross frozen anchors",
 }
@@ -396,6 +412,7 @@ BASE_VARIANT_SHORT_NAMES = {
     "D_cross_sym_1": "Noisy two-way cross",
     "H": "SIGReg",
     "Regular": "Plain fine-tune",
+    "LLM_JEPA": "Original LLM-JEPA",
     "Cross": "Cross-view anchor",
     "Both": "Own + cross anchors",
 }
@@ -416,6 +433,7 @@ METRIC_GLOSSARY = [
 FIGURE_NOTES = {
     "overview": "Start here. The upper-left area is best for geometry: high RankMe and low mean cosine. The key comparisons are noisy frozen anchor vs clean frozen anchor, and noisy frozen anchor vs self-anchor.",
     "preprocessing": "This explains why whitening matters. Source+anchor whitening is the cleanest Exp2 comparison because both the inputs and fixed targets have the worst common-direction bias removed.",
+    "replication": "For the replication, focus on paired seeds before the aggregate bar. Each line is one seed run as regular SFT and original LLM-JEPA; upward lines mean JEPA improved exact match for that seed.",
     "metrics": "Read RankMe and cosine together. A good geometry result has higher RankMe and lower cosine than its matched control; direct retrieval can favor InfoNCE because InfoNCE trains for direct retrieval.",
     "pca": "Each panel is a 2-D projection of a high-dimensional embedding. A tiny dot, line, or stacked classes suggest collapse; a broad cloud suggests spread. PCA is visual evidence, not the final metric.",
     "sphere": "This reprojects points into a unit disk to show angular spread. Healthy embeddings occupy many directions; collapsed embeddings clump in one region.",
@@ -569,6 +587,7 @@ def load_run(path: Path, report_dir: Path) -> dict[str, Any]:
         "cache_config": payload.get("cache_config", {}),
         "headline_contrasts": payload.get("headline_contrasts", {}),
         "anchor_geometry": payload.get("anchor_geometry", {}),
+        "result_summary": payload.get("summary", {}),
         "records": payload.get("records", []),
     }
 
@@ -671,6 +690,7 @@ def selected_variants(run: dict[str, Any], limit: int = 10) -> list[dict[str, An
         "G",
         "H",
         "Regular",
+        "LLM_JEPA",
         "Cross",
         "Both",
     ]
@@ -872,6 +892,8 @@ def plot_preprocessing(runs: list[dict[str, Any]], assets_dir: Path) -> str | No
 
 
 def plot_metrics(run: dict[str, Any], assets_dir: Path) -> str | None:
+    if run["slug"] == "replicate_llm_jepa_synth":
+        return plot_replication_metrics(run, assets_dir)
     rows = metric_rows(run)
     if not rows:
         return None
@@ -892,6 +914,81 @@ def plot_metrics(run: dict[str, Any], assets_dir: Path) -> str | None:
     for ax in axes[max_panels:]:
         ax.axis("off")
     fig.suptitle(f"{run['short_title']} Metrics", fontsize=22, fontweight="bold")
+    fig.tight_layout()
+    return save_fig(fig, assets_dir / f"{run['slug']}_metrics.png")
+
+
+def plot_replication_metrics(run: dict[str, Any], assets_dir: Path) -> str | None:
+    rows = []
+    for record in run.get("records", []):
+        exact = get_path(record, "eval_exact_match")
+        if finite(exact):
+            rows.append(
+                {
+                    "seed": str(record.get("seed")),
+                    "method": variant_name(record.get("variant"), run),
+                    "variant": str(record.get("variant")),
+                    "exact_match": exact,
+                }
+            )
+    summary = run.get("result_summary") or {}
+    paired = summary.get("paired") or []
+    if not rows and not paired:
+        return None
+
+    fig, axes = plt.subplots(1, 2, figsize=(15, 5.2))
+    if rows:
+        df = pd.DataFrame(rows)
+        order = ["Plain fine-tune", "Original LLM-JEPA"]
+        order = [item for item in order if item in set(df["method"])] or list(dict.fromkeys(df["method"]))
+        palette = dict(zip(order, ["#276a8c", "#c28a32", "#287c62", "#6957a8"]))
+        sns.barplot(data=df, x="method", y="exact_match", hue="method", order=order, hue_order=order, errorbar="sd", ax=axes[0], palette=palette, legend=False)
+        sns.stripplot(data=df, x="method", y="exact_match", order=order, ax=axes[0], color="#18231f", size=6, jitter=0.08)
+        methods = summary.get("methods") or {}
+        paper_points = {
+            "Plain fine-tune": get_path(methods.get("regular", {}), "paper_exact_match"),
+            "Original LLM-JEPA": get_path(methods.get("jepa_l1_p1", {}), "paper_exact_match"),
+        }
+        for idx, label in enumerate(order):
+            value = paper_points.get(label, math.nan)
+            if finite(value):
+                axes[0].scatter(idx, value, marker="D", s=72, color="#101916", label="paper mean" if idx == 0 else None, zorder=4)
+        axes[0].set_title("Observed Exact Match vs Paper Mean")
+        axes[0].set_xlabel("")
+        axes[0].set_ylabel("Exact match")
+        axes[0].set_ylim(0, max(0.85, float(df["exact_match"].max()) + 0.08))
+        axes[0].yaxis.set_major_formatter(plt.FuncFormatter(lambda value, _: f"{value * 100:.0f}%"))
+        axes[0].legend(frameon=False)
+    else:
+        axes[0].axis("off")
+
+    if paired:
+        pair_df = pd.DataFrame(paired)
+        long = pair_df.melt(id_vars=["seed"], value_vars=["regular", "jepa_l1_p1"], var_name="method", value_name="exact_match")
+        long["method"] = long["method"].map({"regular": "Plain fine-tune", "jepa_l1_p1": "Original LLM-JEPA"})
+        for seed, seed_df in long.groupby("seed"):
+            seed_df = seed_df.sort_values("method")
+            if {"Plain fine-tune", "Original LLM-JEPA"}.issubset(set(seed_df["method"])):
+                regular = float(seed_df.loc[seed_df["method"] == "Plain fine-tune", "exact_match"].iloc[0])
+                jepa = float(seed_df.loc[seed_df["method"] == "Original LLM-JEPA", "exact_match"].iloc[0])
+                axes[1].plot([0, 1], [regular, jepa], color="#8d9890", linewidth=1.7)
+                axes[1].scatter([0], [regular], color="#276a8c", s=48, zorder=3)
+                axes[1].scatter([1], [jepa], color="#c28a32", s=48, zorder=3)
+                axes[1].text(1.04, jepa, f"seed {seed}", va="center", fontsize=9)
+        mean_delta = get_path(summary, "mean_delta")
+        title = "Paired Seed Deltas"
+        if finite(mean_delta):
+            title += f" (mean {fmt(mean_delta, 'pp')})"
+        axes[1].set_title(title)
+        axes[1].set_xticks([0, 1], ["Plain fine-tune", "Original LLM-JEPA"])
+        axes[1].set_ylabel("Exact match")
+        axes[1].set_xlim(-0.15, 1.32)
+        axes[1].set_ylim(0, max(0.85, float(long["exact_match"].max()) + 0.08))
+        axes[1].yaxis.set_major_formatter(plt.FuncFormatter(lambda value, _: f"{value * 100:.0f}%"))
+    else:
+        axes[1].axis("off")
+
+    fig.suptitle(f"{run['short_title']} Replication Summary", fontsize=22, fontweight="bold")
     fig.tight_layout()
     return save_fig(fig, assets_dir / f"{run['slug']}_metrics.png")
 
@@ -1190,6 +1287,7 @@ def build_metric_table(run: dict[str, Any]) -> str:
     active = [(label, path) for label, path in columns if any(finite(get_path(record, path)) for record in run.get("records", []))]
     if not active:
         return ""
+    show_seed = any(record.get("seed") is not None for record in run.get("records", []))
     rows = []
     for record in run.get("records", []):
         code = str(record.get("variant"))
@@ -1197,14 +1295,17 @@ def build_metric_table(run: dict[str, Any]) -> str:
             f"<td>{html.escape(variant_name(code, run))}</td>",
             f"<td><code>{html.escape(code)}</code></td>",
         ]
+        if show_seed:
+            cells.append(f"<td class='num'>{html.escape(config_value(record.get('seed')))}</td>")
         for _, path in active:
             kind = "percent" if path in {"linear_probe_top1", "eval_exact_match"} or path.endswith("recall@1") else "number"
             cells.append(f"<td class='num'>{html.escape(fmt(get_path(record, path), kind))}</td>")
         rows.append(f"<tr>{''.join(cells)}</tr>")
+    seed_header = "<th>Seed</th>" if show_seed else ""
     return f"""
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Variant</th><th>Code</th>{''.join(f'<th>{html.escape(label)}</th>' for label, _ in active)}</tr></thead>
+        <thead><tr><th>Variant</th><th>Code</th>{seed_header}{''.join(f'<th>{html.escape(label)}</th>' for label, _ in active)}</tr></thead>
         <tbody>{''.join(rows)}</tbody>
       </table>
     </div>
@@ -1212,6 +1313,8 @@ def build_metric_table(run: dict[str, Any]) -> str:
 
 
 def contrast_rows(run: dict[str, Any]) -> str:
+    if run["slug"] == "replicate_llm_jepa_synth":
+        return replication_contrast_rows(run)
     records = by_variant(run)
     pairs = [
         ("D1a", "D0a", "Sphere noise on continuous anchor"),
@@ -1230,6 +1333,7 @@ def contrast_rows(run: dict[str, Any]) -> str:
         ("G", "D_own_1", "Regularizer baseline vs noisy frozen own-anchor"),
         ("H", "D_own_1", "SIGReg baseline vs noisy frozen own-anchor"),
         ("D1", "Regular", "Noisy frozen anchor vs plain fine-tune"),
+        ("LLM_JEPA", "Regular", "Original LLM-JEPA vs regular SFT"),
         ("C", "Regular", "Co-trained self-anchor vs plain fine-tune"),
         ("C_ema", "C", "Momentum self-anchor vs co-trained self-anchor"),
         ("Both", "D1", "Combined anchors vs noisy own-anchor"),
@@ -1253,6 +1357,45 @@ def contrast_rows(run: dict[str, Any]) -> str:
         )
     if not rows:
         return ""
+    return f"""
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Question</th><th>Pair</th><th>Delta RankMe</th><th>Delta Cos</th><th>Delta Pred R@1</th><th>Delta EM</th></tr></thead>
+        <tbody>{''.join(rows)}</tbody>
+      </table>
+    </div>
+    """
+
+
+def replication_contrast_rows(run: dict[str, Any]) -> str:
+    summary = run.get("result_summary") or {}
+    paired = summary.get("paired") or []
+    rows = []
+    for pair in paired:
+        rows.append(
+            "<tr>"
+            f"<td>Seed {html.escape(config_value(pair.get('seed')))}</td>"
+            "<td>Original LLM-JEPA - regular SFT</td>"
+            "<td class='num'>n/a</td>"
+            "<td class='num'>n/a</td>"
+            "<td class='num'>n/a</td>"
+            f"<td class='num'>{html.escape(fmt(pair.get('delta'), 'pp'))}</td>"
+            "</tr>"
+        )
+    mean_delta = get_path(summary, "mean_delta")
+    if finite(mean_delta):
+        rows.append(
+            "<tr>"
+            "<td><strong>Completed paired-seed mean</strong></td>"
+            "<td>Original LLM-JEPA - regular SFT</td>"
+            "<td class='num'>n/a</td>"
+            "<td class='num'>n/a</td>"
+            "<td class='num'>n/a</td>"
+            f"<td class='num'><strong>{html.escape(fmt(mean_delta, 'pp'))}</strong></td>"
+            "</tr>"
+        )
+    if not rows:
+        return "<p class='muted'>No completed paired replication seeds yet.</p>"
     return f"""
     <div class="table-wrap">
       <table>
@@ -1294,6 +1437,11 @@ def run_reading_notes(run: dict[str, Any]) -> list[str]:
         return [
             "Read this as the stronger-base full ablation. It checks whether the SmolLM2 downstream pattern changes when the base model is Llama 1B.",
             "Use noisy frozen anchor minus clean frozen anchor for the matched noise comparison, and noisy frozen anchor minus co-trained/momentum self-anchor for the external-anchor comparison.",
+        ]
+    if slug == "replicate_llm_jepa_synth":
+        return [
+            "This is the paper-style sanity check before our modifications. It compares regular SFT against the original LLM-JEPA objective, not the new cap-anchor variants.",
+            "Use paired seed deltas first. If LLM-JEPA beats SFT here, then a later cap-anchor loss underperforming SFT is a modification result, not a failed replication.",
         ]
     return ["Use matched pairs first, then compare against co-trained and regularizer baselines."]
 
@@ -1338,6 +1486,8 @@ def variant_method_description(code: str, run: dict[str, Any]) -> str:
         return "SIGReg baseline: JEPA alignment plus a centered, identity-covariance regularizer. No frozen anchor and no sphere-noise recovery."
     if code == "Regular":
         return "Plain supervised fine-tune. The model learns to generate regex strings without any cap-anchor objective."
+    if code == "LLM_JEPA":
+        return "Original LLM-JEPA objective: supervised fine-tuning plus the paper predictor loss with lambda=1 and one predictor. No cap-anchor additions."
     if code == "Cross":
         return "Full fine-tune with a frozen cross-view cap objective in addition to language-model training."
     if code == "Both":
@@ -1396,6 +1546,15 @@ def run_setup_rows(run: dict[str, Any]) -> list[tuple[str, str]]:
             ("Evaluation", config_value(cfg.get("eval_metric"))),
             ("Methods", variants),
         ]
+    if slug == "replicate_llm_jepa_synth":
+        return [
+            ("Task", "Natural-language-to-regex generation on NL-RX-SYNTH."),
+            ("Base model", config_value(cfg.get("base_model"))),
+            ("Data", "8k train prompts and 2k held-out prompts."),
+            ("Training", f"{config_value(cfg.get('epochs'))} epochs, learning rate {config_value(cfg.get('learning_rate'))}, lambda {config_value(cfg.get('jepa_lambda'))}, predictors {config_value(cfg.get('predictors'))}."),
+            ("Seeds", ", ".join(str(seed) for seed in cfg.get("seeds", []))),
+            ("Methods", variants),
+        ]
     return [("Methods", variants)]
 
 
@@ -1431,6 +1590,12 @@ def run_expected_patterns(run: dict[str, Any]) -> list[str]:
             "Plain fine-tune is the baseline to beat for downstream generation.",
             "Noisy frozen anchor minus clean frozen anchor isolates the sphere-noise contribution.",
             "Exact match matters more than training loss because cap objectives change the loss scale across variants.",
+        ]
+    if slug == "replicate_llm_jepa_synth":
+        return [
+            "Original LLM-JEPA should beat regular SFT on the NL-RX-SYNTH exact-match metric if the paper result replicates.",
+            "Seed-to-seed variation matters, so paired deltas are more informative than a single run.",
+            "This result should be established before judging the new cap-anchor modifications.",
         ]
     return ["Use matched controls first; absolute metric values are secondary."]
 
@@ -1473,6 +1638,12 @@ def run_paper_review(run: dict[str, Any]) -> list[str]:
             "This repeats the full fine-tuning setup with Llama-3.2-1B, a stronger base model. This matters because the plain fine-tune baseline is now capable of the task, making downstream comparisons meaningful.",
             "The decisive paper-level comparisons are plain fine-tune versus each cap-anchor variant, noisy frozen anchor versus clean frozen anchor, and noisy frozen anchor versus co-trained/momentum self-anchor.",
             "If a cap-anchor variant improves exact match over plain fine-tune, that supports downstream usefulness. If it only improves geometry or training loss, it remains a representation result rather than a generation result.",
+        ]
+    if slug == "replicate_llm_jepa_synth":
+        return [
+            "This is the replication gate for the original LLM-JEPA claim. It uses the paper objective and excludes the sphere cap-anchor modifications that were tested in the later full sweep.",
+            "A win for original LLM-JEPA here means the earlier cap-anchor sweep should be read as a failed or immature modification, not as evidence against the paper's baseline result.",
+            "The paper reports a large regular SFT to LLM-JEPA gain on NL-RX-SYNTH for this model family, so the right comparison is the multi-seed mean and paired seed deltas.",
         ]
     return ["This section should be read through matched controls, not just absolute metrics."]
 
@@ -1534,6 +1705,79 @@ def fig_card(src: str | None, title: str, note_key: str) -> str:
       </a>
       <p><strong>How to read:</strong> {html.escape(FIGURE_NOTES[note_key])}</p>
     </article>
+    """
+
+
+def render_replication_summary(run: dict[str, Any]) -> str:
+    if run["slug"] != "replicate_llm_jepa_synth":
+        return ""
+    summary = run.get("result_summary") or {}
+    methods = summary.get("methods") or {}
+    regular = methods.get("regular", {})
+    jepa = methods.get("jepa_l1_p1", {})
+    paired = summary.get("paired") or []
+    seed_count = len(run.get("config", {}).get("seeds", []))
+    completed_records = [record for record in run.get("records", []) if finite(get_path(record, "eval_exact_match"))]
+    cards = [
+        ("Completed paired seeds", f"{len(paired)} / {seed_count or 'n/a'}", "Only seeds with both regular SFT and LLM-JEPA evals count for the paired delta."),
+        ("Regular SFT mean", fmt(regular.get("mean_exact_match"), "percent"), f"Paper mean: {fmt(regular.get('paper_exact_match'), 'percent')}."),
+        ("Original LLM-JEPA mean", fmt(jepa.get("mean_exact_match"), "percent"), f"Paper mean: {fmt(jepa.get('paper_exact_match'), 'percent')}."),
+        ("Paired JEPA delta", fmt(summary.get("mean_delta"), "pp"), "Positive means original LLM-JEPA beat regular SFT on the same seeds."),
+    ]
+    card_html = "".join(
+        f"<article class='stat-card'><p>{html.escape(label)}</p><strong>{html.escape(value)}</strong><span>{html.escape(note)}</span></article>"
+        for label, value, note in cards
+    )
+    pair_rows = "".join(
+        "<tr>"
+        f"<td>{html.escape(config_value(row.get('seed')))}</td>"
+        f"<td class='num'>{html.escape(fmt(row.get('regular'), 'percent'))}</td>"
+        f"<td class='num'>{html.escape(fmt(row.get('jepa_l1_p1'), 'percent'))}</td>"
+        f"<td class='num'>{html.escape(fmt(row.get('delta'), 'pp'))}</td>"
+        "</tr>"
+        for row in paired
+    )
+    if not pair_rows:
+        pair_rows = "<tr><td colspan='4' class='muted'>No completed paired seeds yet.</td></tr>"
+    status_rows = []
+    for record in run.get("records", []):
+        status_rows.append(
+            "<tr>"
+            f"<td>{html.escape(config_value(record.get('seed')))}</td>"
+            f"<td>{html.escape(variant_name(record.get('variant'), run))}</td>"
+            f"<td class='num'>{html.escape(fmt(record.get('eval_exact_match'), 'percent'))}</td>"
+            f"<td class='num'>{html.escape(config_value(record.get('eval_matches')))}/{html.escape(config_value(record.get('eval_count')))}</td>"
+            f"<td>{html.escape(config_value(record.get('train_status')))}</td>"
+            f"<td>{html.escape(config_value(record.get('eval_status')))}</td>"
+            "</tr>"
+        )
+    return f"""
+    <section class="replication-panel">
+      <h3>Replication Status And Seed Pairing</h3>
+      <p>This section is a gate before interpreting the new cap-anchor variants. It asks whether the original LLM-JEPA objective itself reproduces the paper-style gain over regular supervised fine-tuning on the same synthetic regex task.</p>
+      <div class="stat-grid">{card_html}</div>
+      <div class="two-col">
+        <div>
+          <h4>Paired Seed Deltas</h4>
+          <div class="table-wrap small">
+            <table>
+              <thead><tr><th>Seed</th><th>Regular SFT</th><th>Original LLM-JEPA</th><th>JEPA - Regular</th></tr></thead>
+              <tbody>{pair_rows}</tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <h4>Run Completion</h4>
+          <p class="muted">{len(completed_records)} evaluated rows are currently included. Rows marked missing are expected while the sweep is still running.</p>
+          <div class="table-wrap small">
+            <table>
+              <thead><tr><th>Seed</th><th>Method</th><th>Exact</th><th>Matches</th><th>Train</th><th>Eval</th></tr></thead>
+              <tbody>{''.join(status_rows)}</tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
     """
 
 
@@ -1621,9 +1865,11 @@ def render_run(run: dict[str, Any], figures: dict[str, str | None]) -> str:
         links.append(f"<a href='{html.escape(run['json_path'])}'>summary JSON</a>")
     if run.get("html_path"):
         links.append(f"<a href='{html.escape(run['html_path'])}'>old per-run HTML</a>")
+    metric_title = "Replication Summary" if run["slug"] == "replicate_llm_jepa_synth" else "Metric Overview"
+    metric_note = "replication" if run["slug"] == "replicate_llm_jepa_synth" else "metrics"
     fig_html = "".join(
         [
-            fig_card(figures.get("metrics"), "Metric Overview", "metrics"),
+            fig_card(figures.get("metrics"), metric_title, metric_note),
             fig_card(figures.get("anchors"), "Anchor Geometry", "anchors"),
             fig_card(figures.get("pca"), "PCA Maps", "pca"),
             fig_card(figures.get("sphere"), "Hypersphere Proxy", "sphere"),
@@ -1673,6 +1919,7 @@ def render_run(run: dict[str, Any], figures: dict[str, str | None]) -> str:
           {contrast_rows(run) or '<p class="muted">No matched contrast pairs found for this run.</p>'}
         </article>
       </div>
+      {render_replication_summary(run)}
       <div class="fig-grid">{fig_html}</div>
       <details>
         <summary>Metrics table</summary>
@@ -1753,6 +2000,12 @@ def build_html(runs: list[dict[str, Any]], overview: dict[str, str | None], per_
     .task-note {{ margin-top: 8px; color: #405047; }}
     .eyebrow {{ margin: 0 0 4px; color: var(--green); font-size: 12px; font-weight: 750; text-transform: uppercase; letter-spacing: 0; }}
     .figure-card, .text-card, .review-card {{ background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 13px; min-width: 0; }}
+    .replication-panel {{ margin: 14px 0; background: #f6faf4; border: 1px solid var(--line); border-radius: 8px; padding: 14px; }}
+    .stat-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin: 12px 0 14px; }}
+    .stat-card {{ background: white; border: 1px solid var(--line); border-radius: 8px; padding: 12px; }}
+    .stat-card p {{ margin: 0 0 5px; color: var(--muted); font-size: 12px; text-transform: uppercase; font-weight: 740; }}
+    .stat-card strong {{ display: block; font-size: 24px; line-height: 1.1; }}
+    .stat-card span {{ display: block; margin-top: 6px; color: var(--muted); font-size: 12px; line-height: 1.35; }}
     .figure-head {{ display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 9px; }}
     .figure-head h4 {{ margin: 0; }}
     .figure-head a {{ flex: 0 0 auto; font-size: 12px; font-weight: 700; border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; background: #fff; color: var(--accent); }}

@@ -1,0 +1,1525 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Original LLM-JEPA NL-RX-SYNTH Replication</title>
+  <style>
+    :root {
+      --bg: #f6f7f2;
+      --panel: #fff;
+      --ink: #1e2723;
+      --muted: #65716c;
+      --line: #dfe5dc;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); }
+    header, main { max-width: 1280px; margin: 0 auto; padding: 18px; }
+    h1 { margin: 0 0 8px; font-size: 24px; }
+    h2 { font-size: 18px; margin: 24px 0 10px; }
+    p { color: var(--muted); line-height: 1.45; max-width: 900px; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+    .stat, .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
+    .label { color: var(--muted); font-size: 12px; text-transform: uppercase; }
+    .value { margin-top: 7px; font-size: 28px; font-weight: 760; }
+    .note { color: var(--muted); font-size: 12px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 12px; }
+    img { width: 100%; display: block; }
+    .table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+    table { width: 100%; border-collapse: collapse; min-width: 780px; font-size: 13px; }
+    th, td { border-bottom: 1px solid var(--line); padding: 8px 9px; text-align: left; }
+    th { background: #eef3ec; color: #405047; font-size: 11px; text-transform: uppercase; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    pre { white-space: pre-wrap; word-break: break-word; font-size: 12px; line-height: 1.45; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Original LLM-JEPA NL-RX-SYNTH Replication</h1>
+    <p>Faithful NL-RX-SYNTH replication pass for Llama-3.2-1B-Instruct: original regular SFT versus original LLM-JEPA, lambda=1, k=1, lr=2e-5, four epochs, large effective batch. This intentionally excludes the new cap-anchor variants.</p>
+  </header>
+  <main>
+    <section class="stats"><article class='stat'><div class='label'>Completed pairs</div><div class='value'>4</div><div class='note'>Seeds with both methods evaluated.</div></article><article class='stat'><div class='label'>Regular mean</div><div class='value'>52.94%</div><div class='note'>Paper: 57.29%.</div></article><article class='stat'><div class='label'>LLM-JEPA mean</div><div class='value'>71.11%</div><div class='note'>Paper: 71.46%.</div></article><article class='stat'><div class='label'>JEPA - Regular</div><div class='value'>18.18%</div><div class='note'>Mean paired exact-match delta.</div></article></section>
+    <h2>Plots</h2>
+    <section class="grid"><article class='card'><a href='../assets/replication/replicate_llm_jepa_synth_means.png'><img src='../assets/replication/replicate_llm_jepa_synth_means.png' alt='means plot'></a></article><article class='card'><a href='../assets/replication/replicate_llm_jepa_synth_paired.png'><img src='../assets/replication/replicate_llm_jepa_synth_paired.png' alt='paired plot'></a></article></section>
+    <h2>Runs</h2>
+    <div class='table-wrap'><table><thead><tr><th>Seed</th><th>Method</th><th>Exact</th><th>Contains Target</th><th>Matches</th><th>Train Loss</th><th>Runtime</th><th>Status</th></tr></thead><tbody><tr><td>82</td><td>Regular SFT</td><td class='num'>49.60%</td><td class='num'>84.55%</td><td class='num'>992/2000</td><td class='num'>0.271</td><td class='num'>407.76 s</td><td>trained/evaluated</td></tr><tr><td>82</td><td>Original LLM-JEPA</td><td class='num'>69.45%</td><td class='num'>84.95%</td><td class='num'>1389/2000</td><td class='num'>2.252</td><td class='num'>690.64 s</td><td>trained/evaluated</td></tr><tr><td>23</td><td>Regular SFT</td><td class='num'>56.60%</td><td class='num'>84.50%</td><td class='num'>1132/2000</td><td class='num'>0.271</td><td class='num'>341.27 s</td><td>trained/evaluated</td></tr><tr><td>23</td><td>Original LLM-JEPA</td><td class='num'>69.85%</td><td class='num'>85.35%</td><td class='num'>1397/2000</td><td class='num'>2.253</td><td class='num'>617.77 s</td><td>trained/evaluated</td></tr><tr><td>37</td><td>Regular SFT</td><td class='num'>59.30%</td><td class='num'>84.95%</td><td class='num'>1186/2000</td><td class='num'>0.271</td><td class='num'>322.23 s</td><td>trained/evaluated</td></tr><tr><td>37</td><td>Original LLM-JEPA</td><td class='num'>70.80%</td><td class='num'>84.75%</td><td class='num'>1416/2000</td><td class='num'>2.261</td><td class='num'>612.27 s</td><td>trained/evaluated</td></tr><tr><td>84</td><td>Regular SFT</td><td class='num'>46.25%</td><td class='num'>84.70%</td><td class='num'>925/2000</td><td class='num'>0.270</td><td class='num'>330.77 s</td><td>trained/evaluated</td></tr><tr><td>84</td><td>Original LLM-JEPA</td><td class='num'>74.35%</td><td class='num'>84.90%</td><td class='num'>1487/2000</td><td class='num'>2.251</td><td class='num'>612.85 s</td><td>trained/evaluated</td></tr><tr><td>4</td><td>Regular SFT</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>0/0</td><td class='num'>n/a</td><td class='num'>n/a s</td><td>missing/missing</td></tr><tr><td>4</td><td>Original LLM-JEPA</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>0/0</td><td class='num'>n/a</td><td class='num'>n/a s</td><td>missing/missing</td></tr></tbody></table></div>
+    <h2>Embedded JSON</h2>
+    <article class="card"><pre>{
+  &quot;summary&quot;: {
+    &quot;methods&quot;: {
+      &quot;regular&quot;: {
+        &quot;label&quot;: &quot;Regular SFT&quot;,
+        &quot;paper_exact_match&quot;: 0.5729,
+        &quot;paper_std&quot;: 0.0532,
+        &quot;n&quot;: 4,
+        &quot;mean_exact_match&quot;: 0.5293749999999999,
+        &quot;std_exact_match&quot;: 0.06048605211120987,
+        &quot;values&quot;: [
+          0.496,
+          0.566,
+          0.593,
+          0.4625
+        ]
+      },
+      &quot;jepa_l1_p1&quot;: {
+        &quot;label&quot;: &quot;Original LLM-JEPA&quot;,
+        &quot;paper_exact_match&quot;: 0.7146,
+        &quot;paper_std&quot;: 0.0134,
+        &quot;n&quot;: 4,
+        &quot;mean_exact_match&quot;: 0.711125,
+        &quot;std_exact_match&quot;: 0.02231357957238897,
+        &quot;values&quot;: [
+          0.6945,
+          0.6985,
+          0.708,
+          0.7435
+        ]
+      }
+    },
+    &quot;paired&quot;: [
+      {
+        &quot;seed&quot;: 23,
+        &quot;regular&quot;: 0.566,
+        &quot;jepa_l1_p1&quot;: 0.6985,
+        &quot;delta&quot;: 0.13250000000000006
+      },
+      {
+        &quot;seed&quot;: 37,
+        &quot;regular&quot;: 0.593,
+        &quot;jepa_l1_p1&quot;: 0.708,
+        &quot;delta&quot;: 0.11499999999999999
+      },
+      {
+        &quot;seed&quot;: 82,
+        &quot;regular&quot;: 0.496,
+        &quot;jepa_l1_p1&quot;: 0.6945,
+        &quot;delta&quot;: 0.1985
+      },
+      {
+        &quot;seed&quot;: 84,
+        &quot;regular&quot;: 0.4625,
+        &quot;jepa_l1_p1&quot;: 0.7435,
+        &quot;delta&quot;: 0.281
+      }
+    ],
+    &quot;mean_delta&quot;: 0.18175000000000002,
+    &quot;std_delta&quot;: 0.07530438234259677
+  },
+  &quot;records&quot;: [
+    {
+      &quot;seed&quot;: 82,
+      &quot;method&quot;: &quot;regular&quot;,
+      &quot;variant&quot;: &quot;Regular&quot;,
+      &quot;label&quot;: &quot;Regular SFT&quot;,
+      &quot;short&quot;: &quot;SFT&quot;,
+      &quot;description&quot;: &quot;Original next-token fine-tuning baseline.&quot;,
+      &quot;model_dir&quot;: &quot;results/replicate_llm_jepa_synth/seed82_regular&quot;,
+      &quot;eval_file&quot;: &quot;results/replicate_llm_jepa_synth/eval/seed82_regular.jsonl&quot;,
+      &quot;train_status&quot;: &quot;trained&quot;,
+      &quot;global_step&quot;: 252,
+      &quot;history&quot;: [
+        {
+          &quot;step&quot;: 10,
+          &quot;epoch&quot;: 0.16,
+          &quot;loss&quot;: 1.5206,
+          &quot;learning_rate&quot;: 1.928571428571429e-05
+        },
+        {
+          &quot;step&quot;: 20,
+          &quot;epoch&quot;: 0.32,
+          &quot;loss&quot;: 0.6062,
+          &quot;learning_rate&quot;: 1.8492063492063493e-05
+        },
+        {
+          &quot;step&quot;: 30,
+          &quot;epoch&quot;: 0.48,
+          &quot;loss&quot;: 0.4877,
+          &quot;learning_rate&quot;: 1.7698412698412698e-05
+        },
+        {
+          &quot;step&quot;: 40,
+          &quot;epoch&quot;: 0.64,
+          &quot;loss&quot;: 0.3386,
+          &quot;learning_rate&quot;: 1.6904761904761906e-05
+        },
+        {
+          &quot;step&quot;: 50,
+          &quot;epoch&quot;: 0.8,
+          &quot;loss&quot;: 0.2418,
+          &quot;learning_rate&quot;: 1.6111111111111115e-05
+        },
+        {
+          &quot;step&quot;: 60,
+          &quot;epoch&quot;: 0.96,
+          &quot;loss&quot;: 0.2094,
+          &quot;learning_rate&quot;: 1.531746031746032e-05
+        },
+        {
+          &quot;step&quot;: 70,
+          &quot;epoch&quot;: 1.112,
+          &quot;loss&quot;: 0.1982,
+          &quot;learning_rate&quot;: 1.4523809523809524e-05
+        },
+        {
+          &quot;step&quot;: 80,
+          &quot;epoch&quot;: 1.272,
+          &quot;loss&quot;: 0.1941,
+          &quot;learning_rate&quot;: 1.3730158730158731e-05
+        },
+        {
+          &quot;step&quot;: 90,
+          &quot;epoch&quot;: 1.432,
+          &quot;loss&quot;: 0.1872,
+          &quot;learning_rate&quot;: 1.2936507936507937e-05
+        },
+        {
+          &quot;step&quot;: 100,
+          &quot;epoch&quot;: 1.592,
+          &quot;loss&quot;: 0.1831,
+          &quot;learning_rate&quot;: 1.2142857142857142e-05
+        },
+        {
+          &quot;step&quot;: 110,
+          &quot;epoch&quot;: 1.752,
+          &quot;loss&quot;: 0.1848,
+          &quot;learning_rate&quot;: 1.134920634920635e-05
+        },
+        {
+          &quot;step&quot;: 120,
+          &quot;epoch&quot;: 1.912,
+          &quot;loss&quot;: 0.1832,
+          &quot;learning_rate&quot;: 1.0555555555555557e-05
+        },
+        {
+          &quot;step&quot;: 130,
+          &quot;epoch&quot;: 2.064,
+          &quot;loss&quot;: 0.1776,
+          &quot;learning_rate&quot;: 9.761904761904762e-06
+        },
+        {
+          &quot;step&quot;: 140,
+          &quot;epoch&quot;: 2.224,
+          &quot;loss&quot;: 0.1761,
+          &quot;learning_rate&quot;: 8.968253968253968e-06
+        },
+        {
+          &quot;step&quot;: 150,
+          &quot;epoch&quot;: 2.384,
+          &quot;loss&quot;: 0.1753,
+          &quot;learning_rate&quot;: 8.174603174603175e-06
+        },
+        {
+          &quot;step&quot;: 160,
+          &quot;epoch&quot;: 2.544,
+          &quot;loss&quot;: 0.1752,
+          &quot;learning_rate&quot;: 7.380952380952382e-06
+        },
+        {
+          &quot;step&quot;: 170,
+          &quot;epoch&quot;: 2.7039999999999997,
+          &quot;loss&quot;: 0.176,
+          &quot;learning_rate&quot;: 6.587301587301588e-06
+        },
+        {
+          &quot;step&quot;: 180,
+          &quot;epoch&quot;: 2.864,
+          &quot;loss&quot;: 0.1737,
+          &quot;learning_rate&quot;: 5.793650793650795e-06
+        },
+        {
+          &quot;step&quot;: 190,
+          &quot;epoch&quot;: 3.016,
+          &quot;loss&quot;: 0.1739,
+          &quot;learning_rate&quot;: 5e-06
+        },
+        {
+          &quot;step&quot;: 200,
+          &quot;epoch&quot;: 3.176,
+          &quot;loss&quot;: 0.1726,
+          &quot;learning_rate&quot;: 4.206349206349207e-06
+        },
+        {
+          &quot;step&quot;: 210,
+          &quot;epoch&quot;: 3.336,
+          &quot;loss&quot;: 0.1701,
+          &quot;learning_rate&quot;: 3.412698412698413e-06
+        },
+        {
+          &quot;step&quot;: 220,
+          &quot;epoch&quot;: 3.496,
+          &quot;loss&quot;: 0.1707,
+          &quot;learning_rate&quot;: 2.6190476190476192e-06
+        },
+        {
+          &quot;step&quot;: 230,
+          &quot;epoch&quot;: 3.656,
+          &quot;loss&quot;: 0.1716,
+          &quot;learning_rate&quot;: 1.8253968253968254e-06
+        },
+        {
+          &quot;step&quot;: 240,
+          &quot;epoch&quot;: 3.816,
+          &quot;loss&quot;: 0.1717,
+          &quot;learning_rate&quot;: 1.0317460317460317e-06
+        },
+        {
+          &quot;step&quot;: 250,
+          &quot;epoch&quot;: 3.976,
+          &quot;loss&quot;: 0.1715,
+          &quot;learning_rate&quot;: 2.3809523809523811e-07
+        }
+      ],
+      &quot;train_loss&quot;: 0.2708210596253002,
+      &quot;train_runtime&quot;: 407.7581,
+      &quot;train_samples_per_second&quot;: 78.478,
+      &quot;eval_status&quot;: &quot;evaluated&quot;,
+      &quot;eval_count&quot;: 2000,
+      &quot;eval_matches&quot;: 992,
+      &quot;eval_exact_match&quot;: 0.496,
+      &quot;eval_first_line_exact&quot;: 0.496,
+      &quot;eval_contains_target&quot;: 0.8455
+    },
+    {
+      &quot;seed&quot;: 82,
+      &quot;method&quot;: &quot;jepa_l1_p1&quot;,
+      &quot;variant&quot;: &quot;LLM_JEPA&quot;,
+      &quot;label&quot;: &quot;Original LLM-JEPA&quot;,
+      &quot;short&quot;: &quot;JEPA&quot;,
+      &quot;description&quot;: &quot;Original LLM-JEPA with lambda=1, k=1, no cap-anchor modifications.&quot;,
+      &quot;model_dir&quot;: &quot;results/replicate_llm_jepa_synth/seed82_jepa_l1_p1&quot;,
+      &quot;eval_file&quot;: &quot;results/replicate_llm_jepa_synth/eval/seed82_jepa_l1_p1.jsonl&quot;,
+      &quot;train_status&quot;: &quot;trained&quot;,
+      &quot;global_step&quot;: 252,
+      &quot;history&quot;: [
+        {
+          &quot;step&quot;: 10,
+          &quot;epoch&quot;: 0.16,
+          &quot;loss&quot;: 13.7728,
+          &quot;learning_rate&quot;: 1.928571428571429e-05
+        },
+        {
+          &quot;step&quot;: 20,
+          &quot;epoch&quot;: 0.32,
+          &quot;loss&quot;: 4.9806,
+          &quot;learning_rate&quot;: 1.8492063492063493e-05
+        },
+        {
+          &quot;step&quot;: 30,
+          &quot;epoch&quot;: 0.48,
+          &quot;loss&quot;: 3.9857,
+          &quot;learning_rate&quot;: 1.7698412698412698e-05
+        },
+        {
+          &quot;step&quot;: 40,
+          &quot;epoch&quot;: 0.64,
+          &quot;loss&quot;: 2.7626,
+          &quot;learning_rate&quot;: 1.6904761904761906e-05
+        },
+        {
+          &quot;step&quot;: 50,
+          &quot;epoch&quot;: 0.8,
+          &quot;loss&quot;: 1.974,
+          &quot;learning_rate&quot;: 1.6111111111111115e-05
+        },
+        {
+          &quot;step&quot;: 60,
+          &quot;epoch&quot;: 0.96,
+          &quot;loss&quot;: 1.7114,
+          &quot;learning_rate&quot;: 1.531746031746032e-05
+        },
+        {
+          &quot;step&quot;: 70,
+          &quot;epoch&quot;: 1.112,
+          &quot;loss&quot;: 1.5416,
+          &quot;learning_rate&quot;: 1.4523809523809524e-05
+        },
+        {
+          &quot;step&quot;: 80,
+          &quot;epoch&quot;: 1.272,
+          &quot;loss&quot;: 1.5816,
+          &quot;learning_rate&quot;: 1.3730158730158731e-05
+        },
+        {
+          &quot;step&quot;: 90,
+          &quot;epoch&quot;: 1.432,
+          &quot;loss&quot;: 1.5233,
+          &quot;learning_rate&quot;: 1.2936507936507937e-05
+        },
+        {
+          &quot;step&quot;: 100,
+          &quot;epoch&quot;: 1.592,
+          &quot;loss&quot;: 1.4925,
+          &quot;learning_rate&quot;: 1.2142857142857142e-05
+        },
+        {
+          &quot;step&quot;: 110,
+          &quot;epoch&quot;: 1.752,
+          &quot;loss&quot;: 1.5008,
+          &quot;learning_rate&quot;: 1.134920634920635e-05
+        },
+        {
+          &quot;step&quot;: 120,
+          &quot;epoch&quot;: 1.912,
+          &quot;loss&quot;: 1.4917,
+          &quot;learning_rate&quot;: 1.0555555555555557e-05
+        },
+        {
+          &quot;step&quot;: 130,
+          &quot;epoch&quot;: 2.064,
+          &quot;loss&quot;: 1.3742,
+          &quot;learning_rate&quot;: 9.761904761904762e-06
+        },
+        {
+          &quot;step&quot;: 140,
+          &quot;epoch&quot;: 2.224,
+          &quot;loss&quot;: 1.433,
+          &quot;learning_rate&quot;: 8.968253968253968e-06
+        },
+        {
+          &quot;step&quot;: 150,
+          &quot;epoch&quot;: 2.384,
+          &quot;loss&quot;: 1.4242,
+          &quot;learning_rate&quot;: 8.174603174603175e-06
+        },
+        {
+          &quot;step&quot;: 160,
+          &quot;epoch&quot;: 2.544,
+          &quot;loss&quot;: 1.4266,
+          &quot;learning_rate&quot;: 7.380952380952382e-06
+        },
+        {
+          &quot;step&quot;: 170,
+          &quot;epoch&quot;: 2.7039999999999997,
+          &quot;loss&quot;: 1.431,
+          &quot;learning_rate&quot;: 6.587301587301588e-06
+        },
+        {
+          &quot;step&quot;: 180,
+          &quot;epoch&quot;: 2.864,
+          &quot;loss&quot;: 1.4139,
+          &quot;learning_rate&quot;: 5.793650793650795e-06
+        },
+        {
+          &quot;step&quot;: 190,
+          &quot;epoch&quot;: 3.016,
+          &quot;loss&quot;: 1.3428,
+          &quot;learning_rate&quot;: 5e-06
+        },
+        {
+          &quot;step&quot;: 200,
+          &quot;epoch&quot;: 3.176,
+          &quot;loss&quot;: 1.4055,
+          &quot;learning_rate&quot;: 4.206349206349207e-06
+        },
+        {
+          &quot;step&quot;: 210,
+          &quot;epoch&quot;: 3.336,
+          &quot;loss&quot;: 1.3868,
+          &quot;learning_rate&quot;: 3.412698412698413e-06
+        },
+        {
+          &quot;step&quot;: 220,
+          &quot;epoch&quot;: 3.496,
+          &quot;loss&quot;: 1.3901,
+          &quot;learning_rate&quot;: 2.6190476190476192e-06
+        },
+        {
+          &quot;step&quot;: 230,
+          &quot;epoch&quot;: 3.656,
+          &quot;loss&quot;: 1.3967,
+          &quot;learning_rate&quot;: 1.8253968253968254e-06
+        },
+        {
+          &quot;step&quot;: 240,
+          &quot;epoch&quot;: 3.816,
+          &quot;loss&quot;: 1.3982,
+          &quot;learning_rate&quot;: 1.0317460317460317e-06
+        },
+        {
+          &quot;step&quot;: 250,
+          &quot;epoch&quot;: 3.976,
+          &quot;loss&quot;: 1.3963,
+          &quot;learning_rate&quot;: 2.3809523809523811e-07
+        }
+      ],
+      &quot;train_loss&quot;: 2.2517999694460915,
+      &quot;train_runtime&quot;: 690.6384,
+      &quot;train_samples_per_second&quot;: 46.334,
+      &quot;eval_status&quot;: &quot;evaluated&quot;,
+      &quot;eval_count&quot;: 2000,
+      &quot;eval_matches&quot;: 1389,
+      &quot;eval_exact_match&quot;: 0.6945,
+      &quot;eval_first_line_exact&quot;: 0.6945,
+      &quot;eval_contains_target&quot;: 0.8495
+    },
+    {
+      &quot;seed&quot;: 23,
+      &quot;method&quot;: &quot;regular&quot;,
+      &quot;variant&quot;: &quot;Regular&quot;,
+      &quot;label&quot;: &quot;Regular SFT&quot;,
+      &quot;short&quot;: &quot;SFT&quot;,
+      &quot;description&quot;: &quot;Original next-token fine-tuning baseline.&quot;,
+      &quot;model_dir&quot;: &quot;results/replicate_llm_jepa_synth/seed23_regular&quot;,
+      &quot;eval_file&quot;: &quot;results/replicate_llm_jepa_synth/eval/seed23_regular.jsonl&quot;,
+      &quot;train_status&quot;: &quot;trained&quot;,
+      &quot;global_step&quot;: 252,
+      &quot;history&quot;: [
+        {
+          &quot;step&quot;: 10,
+          &quot;epoch&quot;: 0.16,
+          &quot;loss&quot;: 1.5273,
+          &quot;learning_rate&quot;: 1.928571428571429e-05
+        },
+        {
+          &quot;step&quot;: 20,
+          &quot;epoch&quot;: 0.32,
+          &quot;loss&quot;: 0.6014,
+          &quot;learning_rate&quot;: 1.8492063492063493e-05
+        },
+        {
+          &quot;step&quot;: 30,
+          &quot;epoch&quot;: 0.48,
+          &quot;loss&quot;: 0.4835,
+          &quot;learning_rate&quot;: 1.7698412698412698e-05
+        },
+        {
+          &quot;step&quot;: 40,
+          &quot;epoch&quot;: 0.64,
+          &quot;loss&quot;: 0.3392,
+          &quot;learning_rate&quot;: 1.6904761904761906e-05
+        },
+        {
+          &quot;step&quot;: 50,
+          &quot;epoch&quot;: 0.8,
+          &quot;loss&quot;: 0.2399,
+          &quot;learning_rate&quot;: 1.6111111111111115e-05
+        },
+        {
+          &quot;step&quot;: 60,
+          &quot;epoch&quot;: 0.96,
+          &quot;loss&quot;: 0.2103,
+          &quot;learning_rate&quot;: 1.531746031746032e-05
+        },
+        {
+          &quot;step&quot;: 70,
+          &quot;epoch&quot;: 1.112,
+          &quot;loss&quot;: 0.1981,
+          &quot;learning_rate&quot;: 1.4523809523809524e-05
+        },
+        {
+          &quot;step&quot;: 80,
+          &quot;epoch&quot;: 1.272,
+          &quot;loss&quot;: 0.193,
+          &quot;learning_rate&quot;: 1.3730158730158731e-05
+        },
+        {
+          &quot;step&quot;: 90,
+          &quot;epoch&quot;: 1.432,
+          &quot;loss&quot;: 0.1878,
+          &quot;learning_rate&quot;: 1.2936507936507937e-05
+        },
+        {
+          &quot;step&quot;: 100,
+          &quot;epoch&quot;: 1.592,
+          &quot;loss&quot;: 0.1862,
+          &quot;learning_rate&quot;: 1.2142857142857142e-05
+        },
+        {
+          &quot;step&quot;: 110,
+          &quot;epoch&quot;: 1.752,
+          &quot;loss&quot;: 0.1835,
+          &quot;learning_rate&quot;: 1.134920634920635e-05
+        },
+        {
+          &quot;step&quot;: 120,
+          &quot;epoch&quot;: 1.912,
+          &quot;loss&quot;: 0.182,
+          &quot;learning_rate&quot;: 1.0555555555555557e-05
+        },
+        {
+          &quot;step&quot;: 130,
+          &quot;epoch&quot;: 2.064,
+          &quot;loss&quot;: 0.1794,
+          &quot;learning_rate&quot;: 9.761904761904762e-06
+        },
+        {
+          &quot;step&quot;: 140,
+          &quot;epoch&quot;: 2.224,
+          &quot;loss&quot;: 0.1778,
+          &quot;learning_rate&quot;: 8.968253968253968e-06
+        },
+        {
+          &quot;step&quot;: 150,
+          &quot;epoch&quot;: 2.384,
+          &quot;loss&quot;: 0.175,
+          &quot;learning_rate&quot;: 8.174603174603175e-06
+        },
+        {
+          &quot;step&quot;: 160,
+          &quot;epoch&quot;: 2.544,
+          &quot;loss&quot;: 0.1742,
+          &quot;learning_rate&quot;: 7.380952380952382e-06
+        },
+        {
+          &quot;step&quot;: 170,
+          &quot;epoch&quot;: 2.7039999999999997,
+          &quot;loss&quot;: 0.1747,
+          &quot;learning_rate&quot;: 6.587301587301588e-06
+        },
+        {
+          &quot;step&quot;: 180,
+          &quot;epoch&quot;: 2.864,
+          &quot;loss&quot;: 0.1749,
+          &quot;learning_rate&quot;: 5.793650793650795e-06
+        },
+        {
+          &quot;step&quot;: 190,
+          &quot;epoch&quot;: 3.016,
+          &quot;loss&quot;: 0.1736,
+          &quot;learning_rate&quot;: 5e-06
+        },
+        {
+          &quot;step&quot;: 200,
+          &quot;epoch&quot;: 3.176,
+          &quot;loss&quot;: 0.1728,
+          &quot;learning_rate&quot;: 4.206349206349207e-06
+        },
+        {
+          &quot;step&quot;: 210,
+          &quot;epoch&quot;: 3.336,
+          &quot;loss&quot;: 0.1719,
+          &quot;learning_rate&quot;: 3.412698412698413e-06
+        },
+        {
+          &quot;step&quot;: 220,
+          &quot;epoch&quot;: 3.496,
+          &quot;loss&quot;: 0.1707,
+          &quot;learning_rate&quot;: 2.6190476190476192e-06
+        },
+        {
+          &quot;step&quot;: 230,
+          &quot;epoch&quot;: 3.656,
+          &quot;loss&quot;: 0.1717,
+          &quot;learning_rate&quot;: 1.8253968253968254e-06
+        },
+        {
+          &quot;step&quot;: 240,
+          &quot;epoch&quot;: 3.816,
+          &quot;loss&quot;: 0.1719,
+          &quot;learning_rate&quot;: 1.0317460317460317e-06
+        },
+        {
+          &quot;step&quot;: 250,
+          &quot;epoch&quot;: 3.976,
+          &quot;loss&quot;: 0.1702,
+          &quot;learning_rate&quot;: 2.3809523809523811e-07
+        }
+      ],
+      &quot;train_loss&quot;: 0.2708583911733022,
+      &quot;train_runtime&quot;: 341.2717,
+      &quot;train_samples_per_second&quot;: 93.767,
+      &quot;eval_status&quot;: &quot;evaluated&quot;,
+      &quot;eval_count&quot;: 2000,
+      &quot;eval_matches&quot;: 1132,
+      &quot;eval_exact_match&quot;: 0.566,
+      &quot;eval_first_line_exact&quot;: 0.566,
+      &quot;eval_contains_target&quot;: 0.845
+    },
+    {
+      &quot;seed&quot;: 23,
+      &quot;method&quot;: &quot;jepa_l1_p1&quot;,
+      &quot;variant&quot;: &quot;LLM_JEPA&quot;,
+      &quot;label&quot;: &quot;Original LLM-JEPA&quot;,
+      &quot;short&quot;: &quot;JEPA&quot;,
+      &quot;description&quot;: &quot;Original LLM-JEPA with lambda=1, k=1, no cap-anchor modifications.&quot;,
+      &quot;model_dir&quot;: &quot;results/replicate_llm_jepa_synth/seed23_jepa_l1_p1&quot;,
+      &quot;eval_file&quot;: &quot;results/replicate_llm_jepa_synth/eval/seed23_jepa_l1_p1.jsonl&quot;,
+      &quot;train_status&quot;: &quot;trained&quot;,
+      &quot;global_step&quot;: 252,
+      &quot;history&quot;: [
+        {
+          &quot;step&quot;: 10,
+          &quot;epoch&quot;: 0.16,
+          &quot;loss&quot;: 13.8249,
+          &quot;learning_rate&quot;: 1.928571428571429e-05
+        },
+        {
+          &quot;step&quot;: 20,
+          &quot;epoch&quot;: 0.32,
+          &quot;loss&quot;: 4.9423,
+          &quot;learning_rate&quot;: 1.8492063492063493e-05
+        },
+        {
+          &quot;step&quot;: 30,
+          &quot;epoch&quot;: 0.48,
+          &quot;loss&quot;: 3.9503,
+          &quot;learning_rate&quot;: 1.7698412698412698e-05
+        },
+        {
+          &quot;step&quot;: 40,
+          &quot;epoch&quot;: 0.64,
+          &quot;loss&quot;: 2.7582,
+          &quot;learning_rate&quot;: 1.6904761904761906e-05
+        },
+        {
+          &quot;step&quot;: 50,
+          &quot;epoch&quot;: 0.8,
+          &quot;loss&quot;: 1.9629,
+          &quot;learning_rate&quot;: 1.6111111111111115e-05
+        },
+        {
+          &quot;step&quot;: 60,
+          &quot;epoch&quot;: 0.96,
+          &quot;loss&quot;: 1.728,
+          &quot;learning_rate&quot;: 1.531746031746032e-05
+        },
+        {
+          &quot;step&quot;: 70,
+          &quot;epoch&quot;: 1.112,
+          &quot;loss&quot;: 1.5399,
+          &quot;learning_rate&quot;: 1.4523809523809524e-05
+        },
+        {
+          &quot;step&quot;: 80,
+          &quot;epoch&quot;: 1.272,
+          &quot;loss&quot;: 1.5805,
+          &quot;learning_rate&quot;: 1.3730158730158731e-05
+        },
+        {
+          &quot;step&quot;: 90,
+          &quot;epoch&quot;: 1.432,
+          &quot;loss&quot;: 1.5336,
+          &quot;learning_rate&quot;: 1.2936507936507937e-05
+        },
+        {
+          &quot;step&quot;: 100,
+          &quot;epoch&quot;: 1.592,
+          &quot;loss&quot;: 1.5153,
+          &quot;learning_rate&quot;: 1.2142857142857142e-05
+        },
+        {
+          &quot;step&quot;: 110,
+          &quot;epoch&quot;: 1.752,
+          &quot;loss&quot;: 1.497,
+          &quot;learning_rate&quot;: 1.134920634920635e-05
+        },
+        {
+          &quot;step&quot;: 120,
+          &quot;epoch&quot;: 1.912,
+          &quot;loss&quot;: 1.483,
+          &quot;learning_rate&quot;: 1.0555555555555557e-05
+        },
+        {
+          &quot;step&quot;: 130,
+          &quot;epoch&quot;: 2.064,
+          &quot;loss&quot;: 1.3894,
+          &quot;learning_rate&quot;: 9.761904761904762e-06
+        },
+        {
+          &quot;step&quot;: 140,
+          &quot;epoch&quot;: 2.224,
+          &quot;loss&quot;: 1.4487,
+          &quot;learning_rate&quot;: 8.968253968253968e-06
+        },
+        {
+          &quot;step&quot;: 150,
+          &quot;epoch&quot;: 2.384,
+          &quot;loss&quot;: 1.4252,
+          &quot;learning_rate&quot;: 8.174603174603175e-06
+        },
+        {
+          &quot;step&quot;: 160,
+          &quot;epoch&quot;: 2.544,
+          &quot;loss&quot;: 1.419,
+          &quot;learning_rate&quot;: 7.380952380952382e-06
+        },
+        {
+          &quot;step&quot;: 170,
+          &quot;epoch&quot;: 2.7039999999999997,
+          &quot;loss&quot;: 1.4216,
+          &quot;learning_rate&quot;: 6.587301587301588e-06
+        },
+        {
+          &quot;step&quot;: 180,
+          &quot;epoch&quot;: 2.864,
+          &quot;loss&quot;: 1.4241,
+          &quot;learning_rate&quot;: 5.793650793650795e-06
+        },
+        {
+          &quot;step&quot;: 190,
+          &quot;epoch&quot;: 3.016,
+          &quot;loss&quot;: 1.3437,
+          &quot;learning_rate&quot;: 5e-06
+        },
+        {
+          &quot;step&quot;: 200,
+          &quot;epoch&quot;: 3.176,
+          &quot;loss&quot;: 1.4078,
+          &quot;learning_rate&quot;: 4.206349206349207e-06
+        },
+        {
+          &quot;step&quot;: 210,
+          &quot;epoch&quot;: 3.336,
+          &quot;loss&quot;: 1.3993,
+          &quot;learning_rate&quot;: 3.412698412698413e-06
+        },
+        {
+          &quot;step&quot;: 220,
+          &quot;epoch&quot;: 3.496,
+          &quot;loss&quot;: 1.3893,
+          &quot;learning_rate&quot;: 2.6190476190476192e-06
+        },
+        {
+          &quot;step&quot;: 230,
+          &quot;epoch&quot;: 3.656,
+          &quot;loss&quot;: 1.3969,
+          &quot;learning_rate&quot;: 1.8253968253968254e-06
+        },
+        {
+          &quot;step&quot;: 240,
+          &quot;epoch&quot;: 3.816,
+          &quot;loss&quot;: 1.3989,
+          &quot;learning_rate&quot;: 1.0317460317460317e-06
+        },
+        {
+          &quot;step&quot;: 250,
+          &quot;epoch&quot;: 3.976,
+          &quot;loss&quot;: 1.3845,
+          &quot;learning_rate&quot;: 2.3809523809523811e-07
+        }
+      ],
+      &quot;train_loss&quot;: 2.2530305754570734,
+      &quot;train_runtime&quot;: 617.769,
+      &quot;train_samples_per_second&quot;: 51.799,
+      &quot;eval_status&quot;: &quot;evaluated&quot;,
+      &quot;eval_count&quot;: 2000,
+      &quot;eval_matches&quot;: 1397,
+      &quot;eval_exact_match&quot;: 0.6985,
+      &quot;eval_first_line_exact&quot;: 0.6985,
+      &quot;eval_contains_target&quot;: 0.8535
+    },
+    {
+      &quot;seed&quot;: 37,
+      &quot;method&quot;: &quot;regular&quot;,
+      &quot;variant&quot;: &quot;Regular&quot;,
+      &quot;label&quot;: &quot;Regular SFT&quot;,
+      &quot;short&quot;: &quot;SFT&quot;,
+      &quot;description&quot;: &quot;Original next-token fine-tuning baseline.&quot;,
+      &quot;model_dir&quot;: &quot;results/replicate_llm_jepa_synth/seed37_regular&quot;,
+      &quot;eval_file&quot;: &quot;results/replicate_llm_jepa_synth/eval/seed37_regular.jsonl&quot;,
+      &quot;train_status&quot;: &quot;trained&quot;,
+      &quot;global_step&quot;: 252,
+      &quot;history&quot;: [
+        {
+          &quot;step&quot;: 10,
+          &quot;epoch&quot;: 0.16,
+          &quot;loss&quot;: 1.5301,
+          &quot;learning_rate&quot;: 1.928571428571429e-05
+        },
+        {
+          &quot;step&quot;: 20,
+          &quot;epoch&quot;: 0.32,
+          &quot;loss&quot;: 0.6068,
+          &quot;learning_rate&quot;: 1.8492063492063493e-05
+        },
+        {
+          &quot;step&quot;: 30,
+          &quot;epoch&quot;: 0.48,
+          &quot;loss&quot;: 0.4888,
+          &quot;learning_rate&quot;: 1.7698412698412698e-05
+        },
+        {
+          &quot;step&quot;: 40,
+          &quot;epoch&quot;: 0.64,
+          &quot;loss&quot;: 0.338,
+          &quot;learning_rate&quot;: 1.6904761904761906e-05
+        },
+        {
+          &quot;step&quot;: 50,
+          &quot;epoch&quot;: 0.8,
+          &quot;loss&quot;: 0.2451,
+          &quot;learning_rate&quot;: 1.6111111111111115e-05
+        },
+        {
+          &quot;step&quot;: 60,
+          &quot;epoch&quot;: 0.96,
+          &quot;loss&quot;: 0.2089,
+          &quot;learning_rate&quot;: 1.531746031746032e-05
+        },
+        {
+          &quot;step&quot;: 70,
+          &quot;epoch&quot;: 1.112,
+          &quot;loss&quot;: 0.198,
+          &quot;learning_rate&quot;: 1.4523809523809524e-05
+        },
+        {
+          &quot;step&quot;: 80,
+          &quot;epoch&quot;: 1.272,
+          &quot;loss&quot;: 0.1923,
+          &quot;learning_rate&quot;: 1.3730158730158731e-05
+        },
+        {
+          &quot;step&quot;: 90,
+          &quot;epoch&quot;: 1.432,
+          &quot;loss&quot;: 0.1884,
+          &quot;learning_rate&quot;: 1.2936507936507937e-05
+        },
+        {
+          &quot;step&quot;: 100,
+          &quot;epoch&quot;: 1.592,
+          &quot;loss&quot;: 0.1847,
+          &quot;learning_rate&quot;: 1.2142857142857142e-05
+        },
+        {
+          &quot;step&quot;: 110,
+          &quot;epoch&quot;: 1.752,
+          &quot;loss&quot;: 0.1822,
+          &quot;learning_rate&quot;: 1.134920634920635e-05
+        },
+        {
+          &quot;step&quot;: 120,
+          &quot;epoch&quot;: 1.912,
+          &quot;loss&quot;: 0.1819,
+          &quot;learning_rate&quot;: 1.0555555555555557e-05
+        },
+        {
+          &quot;step&quot;: 130,
+          &quot;epoch&quot;: 2.064,
+          &quot;loss&quot;: 0.1806,
+          &quot;learning_rate&quot;: 9.761904761904762e-06
+        },
+        {
+          &quot;step&quot;: 140,
+          &quot;epoch&quot;: 2.224,
+          &quot;loss&quot;: 0.1763,
+          &quot;learning_rate&quot;: 8.968253968253968e-06
+        },
+        {
+          &quot;step&quot;: 150,
+          &quot;epoch&quot;: 2.384,
+          &quot;loss&quot;: 0.1755,
+          &quot;learning_rate&quot;: 8.174603174603175e-06
+        },
+        {
+          &quot;step&quot;: 160,
+          &quot;epoch&quot;: 2.544,
+          &quot;loss&quot;: 0.1749,
+          &quot;learning_rate&quot;: 7.380952380952382e-06
+        },
+        {
+          &quot;step&quot;: 170,
+          &quot;epoch&quot;: 2.7039999999999997,
+          &quot;loss&quot;: 0.1741,
+          &quot;learning_rate&quot;: 6.587301587301588e-06
+        },
+        {
+          &quot;step&quot;: 180,
+          &quot;epoch&quot;: 2.864,
+          &quot;loss&quot;: 0.1752,
+          &quot;learning_rate&quot;: 5.793650793650795e-06
+        },
+        {
+          &quot;step&quot;: 190,
+          &quot;epoch&quot;: 3.016,
+          &quot;loss&quot;: 0.1729,
+          &quot;learning_rate&quot;: 5e-06
+        },
+        {
+          &quot;step&quot;: 200,
+          &quot;epoch&quot;: 3.176,
+          &quot;loss&quot;: 0.1727,
+          &quot;learning_rate&quot;: 4.206349206349207e-06
+        },
+        {
+          &quot;step&quot;: 210,
+          &quot;epoch&quot;: 3.336,
+          &quot;loss&quot;: 0.1715,
+          &quot;learning_rate&quot;: 3.412698412698413e-06
+        },
+        {
+          &quot;step&quot;: 220,
+          &quot;epoch&quot;: 3.496,
+          &quot;loss&quot;: 0.1715,
+          &quot;learning_rate&quot;: 2.6190476190476192e-06
+        },
+        {
+          &quot;step&quot;: 230,
+          &quot;epoch&quot;: 3.656,
+          &quot;loss&quot;: 0.17,
+          &quot;learning_rate&quot;: 1.8253968253968254e-06
+        },
+        {
+          &quot;step&quot;: 240,
+          &quot;epoch&quot;: 3.816,
+          &quot;loss&quot;: 0.172,
+          &quot;learning_rate&quot;: 1.0317460317460317e-06
+        },
+        {
+          &quot;step&quot;: 250,
+          &quot;epoch&quot;: 3.976,
+          &quot;loss&quot;: 0.1717,
+          &quot;learning_rate&quot;: 2.3809523809523811e-07
+        }
+      ],
+      &quot;train_loss&quot;: 0.27138687918583554,
+      &quot;train_runtime&quot;: 322.2296,
+      &quot;train_samples_per_second&quot;: 99.308,
+      &quot;eval_status&quot;: &quot;evaluated&quot;,
+      &quot;eval_count&quot;: 2000,
+      &quot;eval_matches&quot;: 1186,
+      &quot;eval_exact_match&quot;: 0.593,
+      &quot;eval_first_line_exact&quot;: 0.593,
+      &quot;eval_contains_target&quot;: 0.8495
+    },
+    {
+      &quot;seed&quot;: 37,
+      &quot;method&quot;: &quot;jepa_l1_p1&quot;,
+      &quot;variant&quot;: &quot;LLM_JEPA&quot;,
+      &quot;label&quot;: &quot;Original LLM-JEPA&quot;,
+      &quot;short&quot;: &quot;JEPA&quot;,
+      &quot;description&quot;: &quot;Original LLM-JEPA with lambda=1, k=1, no cap-anchor modifications.&quot;,
+      &quot;model_dir&quot;: &quot;results/replicate_llm_jepa_synth/seed37_jepa_l1_p1&quot;,
+      &quot;eval_file&quot;: &quot;results/replicate_llm_jepa_synth/eval/seed37_jepa_l1_p1.jsonl&quot;,
+      &quot;train_status&quot;: &quot;trained&quot;,
+      &quot;global_step&quot;: 252,
+      &quot;history&quot;: [
+        {
+          &quot;step&quot;: 10,
+          &quot;epoch&quot;: 0.16,
+          &quot;loss&quot;: 13.8675,
+          &quot;learning_rate&quot;: 1.928571428571429e-05
+        },
+        {
+          &quot;step&quot;: 20,
+          &quot;epoch&quot;: 0.32,
+          &quot;loss&quot;: 5.0056,
+          &quot;learning_rate&quot;: 1.8492063492063493e-05
+        },
+        {
+          &quot;step&quot;: 30,
+          &quot;epoch&quot;: 0.48,
+          &quot;loss&quot;: 4.0079,
+          &quot;learning_rate&quot;: 1.7698412698412698e-05
+        },
+        {
+          &quot;step&quot;: 40,
+          &quot;epoch&quot;: 0.64,
+          &quot;loss&quot;: 2.7659,
+          &quot;learning_rate&quot;: 1.6904761904761906e-05
+        },
+        {
+          &quot;step&quot;: 50,
+          &quot;epoch&quot;: 0.8,
+          &quot;loss&quot;: 2.0089,
+          &quot;learning_rate&quot;: 1.6111111111111115e-05
+        },
+        {
+          &quot;step&quot;: 60,
+          &quot;epoch&quot;: 0.96,
+          &quot;loss&quot;: 1.7095,
+          &quot;learning_rate&quot;: 1.531746031746032e-05
+        },
+        {
+          &quot;step&quot;: 70,
+          &quot;epoch&quot;: 1.112,
+          &quot;loss&quot;: 1.5359,
+          &quot;learning_rate&quot;: 1.4523809523809524e-05
+        },
+        {
+          &quot;step&quot;: 80,
+          &quot;epoch&quot;: 1.272,
+          &quot;loss&quot;: 1.5681,
+          &quot;learning_rate&quot;: 1.3730158730158731e-05
+        },
+        {
+          &quot;step&quot;: 90,
+          &quot;epoch&quot;: 1.432,
+          &quot;loss&quot;: 1.5365,
+          &quot;learning_rate&quot;: 1.2936507936507937e-05
+        },
+        {
+          &quot;step&quot;: 100,
+          &quot;epoch&quot;: 1.592,
+          &quot;loss&quot;: 1.515,
+          &quot;learning_rate&quot;: 1.2142857142857142e-05
+        },
+        {
+          &quot;step&quot;: 110,
+          &quot;epoch&quot;: 1.752,
+          &quot;loss&quot;: 1.4911,
+          &quot;learning_rate&quot;: 1.134920634920635e-05
+        },
+        {
+          &quot;step&quot;: 120,
+          &quot;epoch&quot;: 1.912,
+          &quot;loss&quot;: 1.4863,
+          &quot;learning_rate&quot;: 1.0555555555555557e-05
+        },
+        {
+          &quot;step&quot;: 130,
+          &quot;epoch&quot;: 2.064,
+          &quot;loss&quot;: 1.4018,
+          &quot;learning_rate&quot;: 9.761904761904762e-06
+        },
+        {
+          &quot;step&quot;: 140,
+          &quot;epoch&quot;: 2.224,
+          &quot;loss&quot;: 1.4391,
+          &quot;learning_rate&quot;: 8.968253968253968e-06
+        },
+        {
+          &quot;step&quot;: 150,
+          &quot;epoch&quot;: 2.384,
+          &quot;loss&quot;: 1.4322,
+          &quot;learning_rate&quot;: 8.174603174603175e-06
+        },
+        {
+          &quot;step&quot;: 160,
+          &quot;epoch&quot;: 2.544,
+          &quot;loss&quot;: 1.4248,
+          &quot;learning_rate&quot;: 7.380952380952382e-06
+        },
+        {
+          &quot;step&quot;: 170,
+          &quot;epoch&quot;: 2.7039999999999997,
+          &quot;loss&quot;: 1.4179,
+          &quot;learning_rate&quot;: 6.587301587301588e-06
+        },
+        {
+          &quot;step&quot;: 180,
+          &quot;epoch&quot;: 2.864,
+          &quot;loss&quot;: 1.4242,
+          &quot;learning_rate&quot;: 5.793650793650795e-06
+        },
+        {
+          &quot;step&quot;: 190,
+          &quot;epoch&quot;: 3.016,
+          &quot;loss&quot;: 1.337,
+          &quot;learning_rate&quot;: 5e-06
+        },
+        {
+          &quot;step&quot;: 200,
+          &quot;epoch&quot;: 3.176,
+          &quot;loss&quot;: 1.4062,
+          &quot;learning_rate&quot;: 4.206349206349207e-06
+        },
+        {
+          &quot;step&quot;: 210,
+          &quot;epoch&quot;: 3.336,
+          &quot;loss&quot;: 1.3972,
+          &quot;learning_rate&quot;: 3.412698412698413e-06
+        },
+        {
+          &quot;step&quot;: 220,
+          &quot;epoch&quot;: 3.496,
+          &quot;loss&quot;: 1.3961,
+          &quot;learning_rate&quot;: 2.6190476190476192e-06
+        },
+        {
+          &quot;step&quot;: 230,
+          &quot;epoch&quot;: 3.656,
+          &quot;loss&quot;: 1.3843,
+          &quot;learning_rate&quot;: 1.8253968253968254e-06
+        },
+        {
+          &quot;step&quot;: 240,
+          &quot;epoch&quot;: 3.816,
+          &quot;loss&quot;: 1.4007,
+          &quot;learning_rate&quot;: 1.0317460317460317e-06
+        },
+        {
+          &quot;step&quot;: 250,
+          &quot;epoch&quot;: 3.976,
+          &quot;loss&quot;: 1.3982,
+          &quot;learning_rate&quot;: 2.3809523809523811e-07
+        }
+      ],
+      &quot;train_loss&quot;: 2.260580515104627,
+      &quot;train_runtime&quot;: 612.275,
+      &quot;train_samples_per_second&quot;: 52.264,
+      &quot;eval_status&quot;: &quot;evaluated&quot;,
+      &quot;eval_count&quot;: 2000,
+      &quot;eval_matches&quot;: 1416,
+      &quot;eval_exact_match&quot;: 0.708,
+      &quot;eval_first_line_exact&quot;: 0.708,
+      &quot;eval_contains_target&quot;: 0.8475
+    },
+    {
+      &quot;seed&quot;: 84,
+      &quot;method&quot;: &quot;regular&quot;,
+      &quot;variant&quot;: &quot;Regular&quot;,
+      &quot;label&quot;: &quot;Regular SFT&quot;,
+      &quot;short&quot;: &quot;SFT&quot;,
+      &quot;description&quot;: &quot;Original next-token fine-tuning baseline.&quot;,
+      &quot;model_dir&quot;: &quot;results/replicate_llm_jepa_synth/seed84_regular&quot;,
+      &quot;eval_file&quot;: &quot;results/replicate_llm_jepa_synth/eval/seed84_regular.jsonl&quot;,
+      &quot;train_status&quot;: &quot;trained&quot;,
+      &quot;global_step&quot;: 252,
+      &quot;history&quot;: [
+        {
+          &quot;step&quot;: 10,
+          &quot;epoch&quot;: 0.16,
+          &quot;loss&quot;: 1.5183,
+          &quot;learning_rate&quot;: 1.928571428571429e-05
+        },
+        {
+          &quot;step&quot;: 20,
+          &quot;epoch&quot;: 0.32,
+          &quot;loss&quot;: 0.6014,
+          &quot;learning_rate&quot;: 1.8492063492063493e-05
+        },
+        {
+          &quot;step&quot;: 30,
+          &quot;epoch&quot;: 0.48,
+          &quot;loss&quot;: 0.4858,
+          &quot;learning_rate&quot;: 1.7698412698412698e-05
+        },
+        {
+          &quot;step&quot;: 40,
+          &quot;epoch&quot;: 0.64,
+          &quot;loss&quot;: 0.339,
+          &quot;learning_rate&quot;: 1.6904761904761906e-05
+        },
+        {
+          &quot;step&quot;: 50,
+          &quot;epoch&quot;: 0.8,
+          &quot;loss&quot;: 0.2425,
+          &quot;learning_rate&quot;: 1.6111111111111115e-05
+        },
+        {
+          &quot;step&quot;: 60,
+          &quot;epoch&quot;: 0.96,
+          &quot;loss&quot;: 0.2097,
+          &quot;learning_rate&quot;: 1.531746031746032e-05
+        },
+        {
+          &quot;step&quot;: 70,
+          &quot;epoch&quot;: 1.112,
+          &quot;loss&quot;: 0.1983,
+          &quot;learning_rate&quot;: 1.4523809523809524e-05
+        },
+        {
+          &quot;step&quot;: 80,
+          &quot;epoch&quot;: 1.272,
+          &quot;loss&quot;: 0.1907,
+          &quot;learning_rate&quot;: 1.3730158730158731e-05
+        },
+        {
+          &quot;step&quot;: 90,
+          &quot;epoch&quot;: 1.432,
+          &quot;loss&quot;: 0.187,
+          &quot;learning_rate&quot;: 1.2936507936507937e-05
+        },
+        {
+          &quot;step&quot;: 100,
+          &quot;epoch&quot;: 1.592,
+          &quot;loss&quot;: 0.1843,
+          &quot;learning_rate&quot;: 1.2142857142857142e-05
+        },
+        {
+          &quot;step&quot;: 110,
+          &quot;epoch&quot;: 1.752,
+          &quot;loss&quot;: 0.1837,
+          &quot;learning_rate&quot;: 1.134920634920635e-05
+        },
+        {
+          &quot;step&quot;: 120,
+          &quot;epoch&quot;: 1.912,
+          &quot;loss&quot;: 0.1836,
+          &quot;learning_rate&quot;: 1.0555555555555557e-05
+        },
+        {
+          &quot;step&quot;: 130,
+          &quot;epoch&quot;: 2.064,
+          &quot;loss&quot;: 0.179,
+          &quot;learning_rate&quot;: 9.761904761904762e-06
+        },
+        {
+          &quot;step&quot;: 140,
+          &quot;epoch&quot;: 2.224,
+          &quot;loss&quot;: 0.1774,
+          &quot;learning_rate&quot;: 8.968253968253968e-06
+        },
+        {
+          &quot;step&quot;: 150,
+          &quot;epoch&quot;: 2.384,
+          &quot;loss&quot;: 0.1742,
+          &quot;learning_rate&quot;: 8.174603174603175e-06
+        },
+        {
+          &quot;step&quot;: 160,
+          &quot;epoch&quot;: 2.544,
+          &quot;loss&quot;: 0.1752,
+          &quot;learning_rate&quot;: 7.380952380952382e-06
+        },
+        {
+          &quot;step&quot;: 170,
+          &quot;epoch&quot;: 2.7039999999999997,
+          &quot;loss&quot;: 0.1752,
+          &quot;learning_rate&quot;: 6.587301587301588e-06
+        },
+        {
+          &quot;step&quot;: 180,
+          &quot;epoch&quot;: 2.864,
+          &quot;loss&quot;: 0.1751,
+          &quot;learning_rate&quot;: 5.793650793650795e-06
+        },
+        {
+          &quot;step&quot;: 190,
+          &quot;epoch&quot;: 3.016,
+          &quot;loss&quot;: 0.1734,
+          &quot;learning_rate&quot;: 5e-06
+        },
+        {
+          &quot;step&quot;: 200,
+          &quot;epoch&quot;: 3.176,
+          &quot;loss&quot;: 0.1726,
+          &quot;learning_rate&quot;: 4.206349206349207e-06
+        },
+        {
+          &quot;step&quot;: 210,
+          &quot;epoch&quot;: 3.336,
+          &quot;loss&quot;: 0.1705,
+          &quot;learning_rate&quot;: 3.412698412698413e-06
+        },
+        {
+          &quot;step&quot;: 220,
+          &quot;epoch&quot;: 3.496,
+          &quot;loss&quot;: 0.1728,
+          &quot;learning_rate&quot;: 2.6190476190476192e-06
+        },
+        {
+          &quot;step&quot;: 230,
+          &quot;epoch&quot;: 3.656,
+          &quot;loss&quot;: 0.1711,
+          &quot;learning_rate&quot;: 1.8253968253968254e-06
+        },
+        {
+          &quot;step&quot;: 240,
+          &quot;epoch&quot;: 3.816,
+          &quot;loss&quot;: 0.1713,
+          &quot;learning_rate&quot;: 1.0317460317460317e-06
+        },
+        {
+          &quot;step&quot;: 250,
+          &quot;epoch&quot;: 3.976,
+          &quot;loss&quot;: 0.1712,
+          &quot;learning_rate&quot;: 2.3809523809523811e-07
+        }
+      ],
+      &quot;train_loss&quot;: 0.2704970466475638,
+      &quot;train_runtime&quot;: 330.7736,
+      &quot;train_samples_per_second&quot;: 96.743,
+      &quot;eval_status&quot;: &quot;evaluated&quot;,
+      &quot;eval_count&quot;: 2000,
+      &quot;eval_matches&quot;: 925,
+      &quot;eval_exact_match&quot;: 0.4625,
+      &quot;eval_first_line_exact&quot;: 0.4625,
+      &quot;eval_contains_target&quot;: 0.847
+    },
+    {
+      &quot;seed&quot;: 84,
+      &quot;method&quot;: &quot;jepa_l1_p1&quot;,
+      &quot;variant&quot;: &quot;LLM_JEPA&quot;,
+      &quot;label&quot;: &quot;Original LLM-JEPA&quot;,
+      &quot;short&quot;: &quot;JEPA&quot;,
+      &quot;description&quot;: &quot;Original LLM-JEPA with lambda=1, k=1, no cap-anchor modifications.&quot;,
+      &quot;model_dir&quot;: &quot;results/replicate_llm_jepa_synth/seed84_jepa_l1_p1&quot;,
+      &quot;eval_file&quot;: &quot;results/replicate_llm_jepa_synth/eval/seed84_jepa_l1_p1.jsonl&quot;,
+      &quot;train_status&quot;: &quot;trained&quot;,
+      &quot;global_step&quot;: 252,
+      &quot;history&quot;: [
+        {
+          &quot;step&quot;: 10,
+          &quot;epoch&quot;: 0.16,
+          &quot;loss&quot;: 13.7729,
+          &quot;learning_rate&quot;: 1.928571428571429e-05
+        },
+        {
+          &quot;step&quot;: 20,
+          &quot;epoch&quot;: 0.32,
+          &quot;loss&quot;: 4.9525,
+          &quot;learning_rate&quot;: 1.8492063492063493e-05
+        },
+        {
+          &quot;step&quot;: 30,
+          &quot;epoch&quot;: 0.48,
+          &quot;loss&quot;: 3.9792,
+          &quot;learning_rate&quot;: 1.7698412698412698e-05
+        },
+        {
+          &quot;step&quot;: 40,
+          &quot;epoch&quot;: 0.64,
+          &quot;loss&quot;: 2.766,
+          &quot;learning_rate&quot;: 1.6904761904761906e-05
+        },
+        {
+          &quot;step&quot;: 50,
+          &quot;epoch&quot;: 0.8,
+          &quot;loss&quot;: 1.9822,
+          &quot;learning_rate&quot;: 1.6111111111111115e-05
+        },
+        {
+          &quot;step&quot;: 60,
+          &quot;epoch&quot;: 0.96,
+          &quot;loss&quot;: 1.7205,
+          &quot;learning_rate&quot;: 1.531746031746032e-05
+        },
+        {
+          &quot;step&quot;: 70,
+          &quot;epoch&quot;: 1.112,
+          &quot;loss&quot;: 1.5357,
+          &quot;learning_rate&quot;: 1.4523809523809524e-05
+        },
+        {
+          &quot;step&quot;: 80,
+          &quot;epoch&quot;: 1.272,
+          &quot;loss&quot;: 1.5621,
+          &quot;learning_rate&quot;: 1.3730158730158731e-05
+        },
+        {
+          &quot;step&quot;: 90,
+          &quot;epoch&quot;: 1.432,
+          &quot;loss&quot;: 1.526,
+          &quot;learning_rate&quot;: 1.2936507936507937e-05
+        },
+        {
+          &quot;step&quot;: 100,
+          &quot;epoch&quot;: 1.592,
+          &quot;loss&quot;: 1.4993,
+          &quot;learning_rate&quot;: 1.2142857142857142e-05
+        },
+        {
+          &quot;step&quot;: 110,
+          &quot;epoch&quot;: 1.752,
+          &quot;loss&quot;: 1.4923,
+          &quot;learning_rate&quot;: 1.134920634920635e-05
+        },
+        {
+          &quot;step&quot;: 120,
+          &quot;epoch&quot;: 1.912,
+          &quot;loss&quot;: 1.4933,
+          &quot;learning_rate&quot;: 1.0555555555555557e-05
+        },
+        {
+          &quot;step&quot;: 130,
+          &quot;epoch&quot;: 2.064,
+          &quot;loss&quot;: 1.3814,
+          &quot;learning_rate&quot;: 9.761904761904762e-06
+        },
+        {
+          &quot;step&quot;: 140,
+          &quot;epoch&quot;: 2.224,
+          &quot;loss&quot;: 1.4439,
+          &quot;learning_rate&quot;: 8.968253968253968e-06
+        },
+        {
+          &quot;step&quot;: 150,
+          &quot;epoch&quot;: 2.384,
+          &quot;loss&quot;: 1.417,
+          &quot;learning_rate&quot;: 8.174603174603175e-06
+        },
+        {
+          &quot;step&quot;: 160,
+          &quot;epoch&quot;: 2.544,
+          &quot;loss&quot;: 1.4241,
+          &quot;learning_rate&quot;: 7.380952380952382e-06
+        },
+        {
+          &quot;step&quot;: 170,
+          &quot;epoch&quot;: 2.7039999999999997,
+          &quot;loss&quot;: 1.4237,
+          &quot;learning_rate&quot;: 6.587301587301588e-06
+        },
+        {
+          &quot;step&quot;: 180,
+          &quot;epoch&quot;: 2.864,
+          &quot;loss&quot;: 1.4244,
+          &quot;learning_rate&quot;: 5.793650793650795e-06
+        },
+        {
+          &quot;step&quot;: 190,
+          &quot;epoch&quot;: 3.016,
+          &quot;loss&quot;: 1.3394,
+          &quot;learning_rate&quot;: 5e-06
+        },
+        {
+          &quot;step&quot;: 200,
+          &quot;epoch&quot;: 3.176,
+          &quot;loss&quot;: 1.4046,
+          &quot;learning_rate&quot;: 4.206349206349207e-06
+        },
+        {
+          &quot;step&quot;: 210,
+          &quot;epoch&quot;: 3.336,
+          &quot;loss&quot;: 1.39,
+          &quot;learning_rate&quot;: 3.412698412698413e-06
+        },
+        {
+          &quot;step&quot;: 220,
+          &quot;epoch&quot;: 3.496,
+          &quot;loss&quot;: 1.4073,
+          &quot;learning_rate&quot;: 2.6190476190476192e-06
+        },
+        {
+          &quot;step&quot;: 230,
+          &quot;epoch&quot;: 3.656,
+          &quot;loss&quot;: 1.3922,
+          &quot;learning_rate&quot;: 1.8253968253968254e-06
+        },
+        {
+          &quot;step&quot;: 240,
+          &quot;epoch&quot;: 3.816,
+          &quot;loss&quot;: 1.3945,
+          &quot;learning_rate&quot;: 1.0317460317460317e-06
+        },
+        {
+          &quot;step&quot;: 250,
+          &quot;epoch&quot;: 3.976,
+          &quot;loss&quot;: 1.3928,
+          &quot;learning_rate&quot;: 2.3809523809523811e-07
+        }
+      ],
+      &quot;train_loss&quot;: 2.2508606853939237,
+      &quot;train_runtime&quot;: 612.8503,
+      &quot;train_samples_per_second&quot;: 52.215,
+      &quot;eval_status&quot;: &quot;evaluated&quot;,
+      &quot;eval_count&quot;: 2000,
+      &quot;eval_matches&quot;: 1487,
+      &quot;eval_exact_match&quot;: 0.7435,
+      &quot;eval_first_line_exact&quot;: 0.7435,
+      &quot;eval_contains_target&quot;: 0.849
+    },
+    {
+      &quot;seed&quot;: 4,
+      &quot;method&quot;: &quot;regular&quot;,
+      &quot;variant&quot;: &quot;Regular&quot;,
+      &quot;label&quot;: &quot;Regular SFT&quot;,
+      &quot;short&quot;: &quot;SFT&quot;,
+      &quot;description&quot;: &quot;Original next-token fine-tuning baseline.&quot;,
+      &quot;model_dir&quot;: &quot;results/replicate_llm_jepa_synth/seed4_regular&quot;,
+      &quot;eval_file&quot;: &quot;results/replicate_llm_jepa_synth/eval/seed4_regular.jsonl&quot;,
+      &quot;train_status&quot;: &quot;missing&quot;,
+      &quot;eval_status&quot;: &quot;missing&quot;,
+      &quot;eval_count&quot;: 0
+    },
+    {
+      &quot;seed&quot;: 4,
+      &quot;method&quot;: &quot;jepa_l1_p1&quot;,
+      &quot;variant&quot;: &quot;LLM_JEPA&quot;,
+      &quot;label&quot;: &quot;Original LLM-JEPA&quot;,
+      &quot;short&quot;: &quot;JEPA&quot;,
+      &quot;description&quot;: &quot;Original LLM-JEPA with lambda=1, k=1, no cap-anchor modifications.&quot;,
+      &quot;model_dir&quot;: &quot;results/replicate_llm_jepa_synth/seed4_jepa_l1_p1&quot;,
+      &quot;eval_file&quot;: &quot;results/replicate_llm_jepa_synth/eval/seed4_jepa_l1_p1.jsonl&quot;,
+      &quot;train_status&quot;: &quot;missing&quot;,
+      &quot;eval_status&quot;: &quot;missing&quot;,
+      &quot;eval_count&quot;: 0
+    }
+  ]
+}</pre></article>
+  </main>
+</body>
+</html>
