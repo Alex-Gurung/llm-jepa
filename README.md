@@ -29,11 +29,11 @@ uv run --no-sync python experiments/exp0_toy/run.py --preset smoke --output-dir 
 uv run --no-sync python experiments/viewer/build_viewer.py results/exp0_smoke/summary.json --out results/exp0_smoke/index.html
 ```
 
-To build an aggregate static dashboard from a report directory containing
-`json/*_summary.json` files:
+To build an aggregate matplotlib/seaborn dashboard from a report directory
+containing `json/*_summary.json` files:
 
 ```bash
-uv run --no-sync python experiments/viewer/build_dashboard.py --report-dir reports/gpu_2026-05-09 --out reports/gpu_2026-05-09/index.html
+uv run --extra experiments python experiments/viewer/build_dashboard.py --report-dir reports/gpu_2026-05-09 --out reports/gpu_2026-05-09/index.html
 ```
 
 The full LLM-JEPA cap-anchor path is wired into `finetune.py`:

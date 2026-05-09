@@ -4,34 +4,57 @@ import argparse
 import html
 import json
 import math
-import re
+import textwrap
 from pathlib import Path
 from typing import Any
+
+import matplotlib
+
+matplotlib.use("Agg")
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
 
 
 EXPERIMENT_META = {
     "exp0_full": {
         "title": "Exp0 Toy Geometry",
+        "short_title": "E0 Toy",
         "group": "Toy",
         "summary": "Synthetic paired-view run with continuous, RFF, and frozen-teacher sample-specific anchors.",
         "takeaways": [
-            "Co-trained targets collapse in C: RankMe is low and off-diagonal cosine is near 1.",
-            "Frozen or external anchors restore spread; D1a and D1c improve over matched sigma=0 controls.",
-            "Within-class RankMe is useful here because global spread can hide class-level shortcuts.",
+            "C is the intentionally dangerous co-trained target. It collapses hard: low RankMe and cosine near 1.",
+            "D1a and D1c improve over their matched D0 controls, which is the cleanest evidence that noise can help.",
+            "D3 uses class labels. It can look good globally while missing sample-level spread, so within-class RankMe matters.",
         ],
     },
     "exp1_cifar_gpu": {
         "title": "Exp1 CIFAR-10 Bridge",
+        "short_title": "E1 CIFAR",
         "group": "Vision bridge",
         "summary": "GPU sanity run on a 10k/2k CIFAR-10 subset with a frozen autoencoder teacher anchor.",
         "takeaways": [
-            "D1 improves representation spread over D0, but the linear probe is lower in this pass.",
-            "D2 uses class labels and should be treated as a supervised cardinality control.",
-            "This validates the bridge machinery more than it establishes a final task-accuracy claim.",
+            "D1 improves spread over D0, but linear-probe accuracy drops in this pass.",
+            "D2 uses labels, so its high probe accuracy is a supervised control rather than evidence for the anchor mechanism.",
+            "Treat this as a bridge/sanity run, not the main downstream result.",
+        ],
+    },
+    "exp2_pythia160m_synth_input_white_anchor_white": {
+        "title": "Exp2 Frozen LLM: Source + Anchor Whitening",
+        "short_title": "E2 White+White",
+        "group": "Frozen LLM",
+        "summary": "The useful Pythia-160M diagnostic: source states and anchors are both whitened.",
+        "takeaways": [
+            "D_own_1 beats D_own_0 on RankMe, mean cosine, and predicted-code retrieval.",
+            "D_own_1 is far stronger than co-trained C, so external anchoring matters.",
+            "InfoNCE and VICReg still dominate direct embedding retrieval, so retrieval-space choice matters.",
         ],
     },
     "exp2_pythia160m_synth_sphere": {
         "title": "Exp2 Frozen LLM: Spherical Anchors",
+        "short_title": "E2 Sphere",
         "group": "Frozen LLM",
         "summary": "Pythia-160M synth projection-head run using spherified anchors on raw source states.",
         "takeaways": [
@@ -42,15 +65,17 @@ EXPERIMENT_META = {
     },
     "exp2_pythia160m_synth_raw": {
         "title": "Exp2 Frozen LLM: Raw Anchors",
+        "short_title": "E2 Raw",
         "group": "Frozen LLM",
         "summary": "D_own anchor preprocessing ablation with raw Pythia hidden states.",
         "takeaways": [
             "Raw anchors expose the source anisotropy problem directly.",
-            "The D1-vs-D0 contrast is present, but this is not the strongest preprocessing choice.",
+            "This is a useful negative control, not the strongest preprocessing choice.",
         ],
     },
     "exp2_pythia160m_synth_norm": {
         "title": "Exp2 Frozen LLM: Norm Anchors",
+        "short_title": "E2 Norm",
         "group": "Frozen LLM",
         "summary": "D_own anchor preprocessing ablation with normalized Pythia hidden states.",
         "takeaways": [
@@ -60,6 +85,7 @@ EXPERIMENT_META = {
     },
     "exp2_pythia160m_synth_white": {
         "title": "Exp2 Frozen LLM: White Anchors",
+        "short_title": "E2 White",
         "group": "Frozen LLM",
         "summary": "D_own anchor preprocessing ablation with whitened anchors and raw source states.",
         "takeaways": [
@@ -67,14 +93,26 @@ EXPERIMENT_META = {
             "Source-side anisotropy still limits the projection-head run unless inputs are whitened too.",
         ],
     },
-    "exp2_pythia160m_synth_input_white_anchor_white": {
-        "title": "Exp2 Frozen LLM: Source + Anchor Whitening",
-        "group": "Frozen LLM",
-        "summary": "The useful Pythia-160M diagnostic: source states and anchors are both whitened.",
+    "exp3_full_synth": {
+        "title": "Exp3 Full LLM-JEPA: SmolLM2 Synth",
+        "short_title": "E3 Synth",
+        "group": "Full LLM fine-tune",
+        "summary": "Full 8k-example SmolLM2-135M synthetic NL-to-regex fine-tune sweep.",
         "takeaways": [
-            "D_own_1 beats D_own_0 on RankMe, mean cosine, and predicted-code retrieval.",
-            "D_own_1 is far stronger than co-trained C, so external anchoring matters.",
-            "InfoNCE and VICReg still dominate direct embedding retrieval, so retrieval-space choice matters.",
+            "The downstream metric is strict exact-match string equality on synth_test.jsonl.",
+            "D1 versus D0 isolates the effect of noisy frozen anchors.",
+            "Training loss and exact match can move in different directions, so both are shown.",
+        ],
+    },
+    "exp3_llama1b_synth": {
+        "title": "Exp3 LLM-JEPA: Llama 1B Controls",
+        "short_title": "E3 Llama",
+        "group": "Full LLM fine-tune",
+        "summary": "Primary Llama-3.2-1B synthetic NL-to-regex controls: regular, co-trained cap, D0, and D1.",
+        "takeaways": [
+            "This is the larger-model sanity pass for the full fine-tuning path.",
+            "Regular, C, D0, and D1 isolate the main questions without waiting on every secondary ablation.",
+            "Use the SmolLM2 full sweep for ablation breadth and Llama 1B for a stronger-base check.",
         ],
     },
 }
@@ -88,1416 +126,131 @@ RUN_ORDER = [
     "exp2_pythia160m_synth_raw",
     "exp2_pythia160m_synth_norm",
     "exp2_pythia160m_synth_white",
+    "exp3_full_synth",
+    "exp3_llama1b_synth",
 ]
 
 
-HTML_TEMPLATE = r"""<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sphere-JEPA Results Dashboard</title>
-  <style>
-    :root {
-      color-scheme: light;
-      --bg: #f6f7f2;
-      --panel: #ffffff;
-      --panel-soft: #fbfcf8;
-      --ink: #1e2723;
-      --muted: #65716c;
-      --line: #dfe5dc;
-      --line-strong: #c8d2c8;
-      --blue: #246a8f;
-      --green: #1f7a63;
-      --red: #b94e4e;
-      --amber: #bd812d;
-      --purple: #6654a2;
-      --teal: #188092;
-      --shadow: 0 8px 24px rgba(31, 39, 35, 0.08);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--ink);
-    }
-    a { color: var(--blue); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    .topbar {
-      position: sticky;
-      top: 0;
-      z-index: 20;
-      background: rgba(246, 247, 242, 0.94);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--line);
-    }
-    .topbar-inner {
-      max-width: 1520px;
-      margin: 0 auto;
-      padding: 12px 18px;
-      display: grid;
-      grid-template-columns: minmax(240px, 1fr) auto;
-      gap: 18px;
-      align-items: center;
-    }
-    .brand h1 {
-      margin: 0;
-      font-size: 19px;
-      line-height: 1.2;
-      font-weight: 760;
-    }
-    .brand p {
-      margin: 3px 0 0;
-      color: var(--muted);
-      font-size: 13px;
-    }
-    .navlinks {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-    }
-    .navlinks a,
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      min-height: 30px;
-      padding: 5px 9px;
-      border: 1px solid var(--line-strong);
-      border-radius: 8px;
-      background: var(--panel);
-      color: var(--ink);
-      font-size: 12px;
-      line-height: 1.2;
-      white-space: nowrap;
-    }
-    .shell {
-      max-width: 1520px;
-      margin: 0 auto;
-      padding: 18px;
-    }
-    .section {
-      margin: 0 0 18px;
-    }
-    .section-title {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      gap: 16px;
-      margin: 0 0 10px;
-    }
-    .section-title h2 {
-      margin: 0;
-      font-size: 19px;
-      font-weight: 760;
-    }
-    .section-title p {
-      margin: 0;
-      color: var(--muted);
-      font-size: 13px;
-    }
-    .panel {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      box-shadow: var(--shadow);
-    }
-    .panel-pad { padding: 16px; }
-    .grid {
-      display: grid;
-      gap: 12px;
-    }
-    .stats {
-      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-    }
-    .stat {
-      padding: 14px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--panel-soft);
-      min-height: 98px;
-    }
-    .stat .label {
-      color: var(--muted);
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0;
-    }
-    .stat .value {
-      margin-top: 7px;
-      font-size: 26px;
-      line-height: 1;
-      font-weight: 780;
-    }
-    .stat .note {
-      margin-top: 8px;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.35;
-    }
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
-      gap: 12px;
-    }
-    .run-card {
-      padding: 14px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--panel);
-    }
-    .run-card h3,
-    .chart-card h3,
-    .table-card h3 {
-      margin: 0 0 8px;
-      font-size: 15px;
-      font-weight: 730;
-    }
-    .run-card p,
-    .chart-card p {
-      margin: 0;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.45;
-    }
-    .takeaways {
-      margin: 10px 0 0;
-      padding: 0;
-      list-style: none;
-      display: grid;
-      gap: 6px;
-    }
-    .takeaways li {
-      position: relative;
-      padding-left: 14px;
-      color: #3d4742;
-      font-size: 13px;
-      line-height: 1.35;
-    }
-    .takeaways li::before {
-      content: "";
-      position: absolute;
-      left: 0;
-      top: 0.62em;
-      width: 6px;
-      height: 6px;
-      border-radius: 999px;
-      background: var(--green);
-    }
-    .chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 10px;
-    }
-    .chip {
-      display: inline-flex;
-      align-items: center;
-      min-height: 24px;
-      padding: 3px 7px;
-      border-radius: 7px;
-      background: #eef3ed;
-      border: 1px solid var(--line);
-      color: #33413b;
-      font-size: 12px;
-      line-height: 1.2;
-    }
-    .run {
-      margin-top: 18px;
-      overflow: clip;
-    }
-    .run-head {
-      display: grid;
-      grid-template-columns: minmax(260px, 1fr) auto;
-      gap: 16px;
-      padding: 16px;
-      border-bottom: 1px solid var(--line);
-      background: linear-gradient(90deg, #ffffff, #f9fbf7);
-    }
-    .run-title h2 {
-      margin: 0;
-      font-size: 20px;
-      font-weight: 780;
-    }
-    .run-title p {
-      margin: 6px 0 0;
-      color: var(--muted);
-      line-height: 1.45;
-      font-size: 13px;
-      max-width: 860px;
-    }
-    .run-actions {
-      display: flex;
-      align-items: flex-start;
-      justify-content: flex-end;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-    .run-body {
-      padding: 16px;
-      display: grid;
-      gap: 16px;
-    }
-    details {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--panel-soft);
-    }
-    summary {
-      cursor: pointer;
-      padding: 11px 13px;
-      font-weight: 710;
-      color: #26302b;
-    }
-    details .details-body {
-      padding: 0 13px 13px;
-    }
-    .chart-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 12px;
-    }
-    .wide-chart-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-      gap: 12px;
-    }
-    .chart-card,
-    .table-card {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--panel);
-      padding: 12px;
-      min-width: 0;
-    }
-    .bar-list {
-      display: grid;
-      gap: 8px;
-    }
-    .bar-row {
-      display: grid;
-      grid-template-columns: minmax(72px, 110px) 1fr minmax(56px, auto);
-      gap: 8px;
-      align-items: center;
-      font-size: 12px;
-    }
-    .bar-name {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      color: #2d3833;
-    }
-    .bar-track {
-      position: relative;
-      height: 12px;
-      border-radius: 999px;
-      background: #edf1eb;
-      overflow: hidden;
-      border: 1px solid #d9e1d6;
-    }
-    .bar-fill {
-      position: absolute;
-      inset: 0 auto 0 0;
-      min-width: 2px;
-      border-radius: 999px;
-    }
-    .bar-value {
-      color: var(--muted);
-      text-align: right;
-      font-variant-numeric: tabular-nums;
-    }
-    .canvas-card canvas {
-      display: block;
-      width: 100%;
-      height: auto;
-      border-radius: 7px;
-      border: 1px solid var(--line);
-      background: #fbfcf8;
-    }
-    .canvas-caption {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      margin: 8px 0 0;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.3;
-    }
-    .legend {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 8px;
-      color: var(--muted);
-      font-size: 12px;
-    }
-    .legend span {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-    }
-    .swatch {
-      width: 9px;
-      height: 9px;
-      border-radius: 999px;
-      display: inline-block;
-    }
-    .table-wrap {
-      overflow: auto;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-      min-width: 760px;
-      background: var(--panel);
-    }
-    th,
-    td {
-      padding: 8px 9px;
-      border-bottom: 1px solid var(--line);
-      text-align: left;
-      vertical-align: top;
-    }
-    th {
-      position: sticky;
-      top: 0;
-      z-index: 1;
-      background: #f2f5ef;
-      color: #405047;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0;
-      white-space: nowrap;
-    }
-    tr:last-child td { border-bottom: 0; }
-    td.num {
-      text-align: right;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-    }
-    .delta-up { color: var(--green); font-weight: 690; }
-    .delta-down { color: var(--red); font-weight: 690; }
-    .muted { color: var(--muted); }
-    .subtle {
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.4;
-    }
-    pre {
-      white-space: pre-wrap;
-      word-break: break-word;
-      margin: 0;
-      color: #34413c;
-      font-size: 12px;
-      line-height: 1.45;
-    }
-    code {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-      font-size: 0.94em;
-    }
-    .empty {
-      color: var(--muted);
-      padding: 10px;
-      border: 1px dashed var(--line-strong);
-      border-radius: 8px;
-      background: var(--panel-soft);
-      font-size: 13px;
-    }
-    @media (max-width: 760px) {
-      .topbar-inner,
-      .run-head {
-        grid-template-columns: 1fr;
-      }
-      .navlinks,
-      .run-actions {
-        justify-content: flex-start;
-      }
-      .shell {
-        padding: 12px;
-      }
-      .bar-row {
-        grid-template-columns: minmax(58px, 86px) 1fr minmax(48px, auto);
-      }
-      table {
-        min-width: 680px;
-      }
-    }
-  </style>
-</head>
-<body>
-  <header class="topbar">
-    <div class="topbar-inner">
-      <div class="brand">
-        <h1>Sphere-JEPA Results Dashboard</h1>
-        <p>Static aggregate viewer for the GPU reports generated on 2026-05-09.</p>
-      </div>
-      <nav class="navlinks" id="top-nav"></nav>
-    </div>
-  </header>
-  <main class="shell">
-    <section class="section" id="overview"></section>
-    <section class="section" id="preprocessing"></section>
-    <section class="section" id="runs"></section>
-  </main>
-  <script id="report-data" type="application/json">__REPORT_DATA__</script>
-  <script>
-    const REPORT = JSON.parse(document.getElementById("report-data").textContent);
-    const PALETTE = ["#246a8f", "#b94e4e", "#1f7a63", "#bd812d", "#6654a2", "#188092", "#8d5a2b", "#5c7a24", "#c15b7a", "#4d6fb3"];
-    let drawQueue = [];
-    let canvasId = 0;
+VARIANT_GLOSSARY = [
+    ("A", "MSE JEPA baseline", "Predict paired-view embedding with MSE. Mostly a baseline, not the sphere mechanism."),
+    ("B", "Cosine JEPA baseline", "Predict paired-view embedding with cosine loss, matching the LLM-JEPA default metric."),
+    ("C", "Co-trained cap target", "The cap reconstructs a target produced by the same moving encoder. This is collapse-prone and is the anchor-failure control."),
+    ("C_detach", "Detached co-trained target", "Like C, but the current target is detached from gradient flow."),
+    ("C_ema", "EMA moving target", "The target comes from an exponential moving-average copy of the encoder."),
+    ("D0 / D_own_0", "Frozen own-view anchor, no noise", "Same external anchor as D1, but sigma=0. This isolates the value of anchoring alone."),
+    ("D1 / D_own_1", "Frozen own-view anchor, noisy cap", "The main sphere-encoder-style test: noisy spherical cap must recover a sample-specific external anchor."),
+    ("D0a/D1a", "Toy continuous anchor", "Toy run only: target is the original continuous 2-D sample."),
+    ("D0b/D1b", "Toy RFF anchor", "Toy run only: target is a random Fourier feature anchor."),
+    ("D0c/D1c", "Toy frozen-teacher anchor", "Toy run only: target is a frozen teacher/autoencoder feature."),
+    ("D2 / D3", "Class-level anchor", "Supervised class-label target. Useful as a cardinality warning: class spread is not sample spread."),
+    ("D_cross_*", "Cross-view anchor", "Noisy cap from one view reconstructs the paired view's anchor."),
+    ("D_cross_sym_*", "Symmetric cross-view anchor", "Cross-view cap reconstruction in both text-to-code and code-to-text directions."),
+    ("F", "Regularizer baseline", "VICReg in Exp0/Exp1; InfoNCE in Exp2. Read in the context of each run."),
+    ("G", "Regularizer baseline", "SIGReg in Exp0/Exp1; VICReg in Exp2."),
+    ("H", "SIGReg baseline", "Exp2 only: cosine alignment plus SIGReg-style isotropic regularization."),
+    ("Regular", "Standard fine-tune", "Exp3 only: supervised LLM fine-tuning without the cap-anchor objective."),
+    ("Cross / Both", "Full LLM cap variants", "Exp3 only: cross-view cap, or own-view plus cross-view cap."),
+]
 
-    function esc(value) {
-      return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      }[ch]));
-    }
 
-    function finite(value) {
-      return Number.isFinite(value);
-    }
+METRIC_GLOSSARY = [
+    ("RankMe", "Higher is better. Effective embedding dimensionality. Collapse usually means very low RankMe."),
+    ("Mean off-diagonal cosine", "Lower is better. Near 1 means most samples point in the same direction."),
+    ("Uniformity", "More negative is better. It measures how evenly normalized points spread on the hypersphere."),
+    ("Top eig mass", "Lower is better. High mass means one principal direction dominates."),
+    ("PCA maps", "A 2-D diagnostic only. Broad clouds are healthier than dots or thin lines, but use metrics for claims."),
+    ("Hypersphere maps", "A normalized PCA disk. It shows whether points occupy many angular directions or clump at a pole."),
+    ("Retrieval heatmaps", "A bright diagonal means the intended pair ranks highly. Bands or blocks indicate hubness/collapse."),
+]
 
-    function asNumber(value) {
-      const n = Number(value);
-      return Number.isFinite(n) ? n : NaN;
-    }
 
-    function getPath(obj, path) {
-      let cur = obj;
-      for (const part of path.split(".")) {
-        if (cur == null || typeof cur !== "object" || !(part in cur)) return NaN;
-        cur = cur[part];
-      }
-      return asNumber(cur);
-    }
+FIGURE_NOTES = {
+    "overview": "Read this first. The desired pattern is high RankMe and low mean cosine for D1-style external-anchor variants, especially when compared with C and D0 controls.",
+    "preprocessing": "For the frozen LLM run, whitening the source states matters. The best mechanism comparison is inside the source+anchor whitened run.",
+    "metrics": "Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.",
+    "pca": "Look for collapse as a tight dot, a thin line, or all classes stacked together. PCA is qualitative: it helps spot failure modes but does not prove success.",
+    "sphere": "This remaps the stored PCA coordinates into a unit disk. A healthy run should use many directions instead of forming one clump.",
+    "hist": "Cosine histograms should move away from 1. A spike near 1 means many embeddings are almost identical.",
+    "spectrum": "A flatter eigenspectrum is healthier. A huge first component means anisotropy.",
+    "heatmap": "For retrieval-like figures, a strong diagonal is good. Uniform vertical or horizontal bands mean a small number of embeddings act as hubs.",
+    "anchors": "Anchor diagnostics tell whether the target itself is usable. If anchors are anisotropic, the model can inherit that anisotropy.",
+}
 
-    function fmt(value, kind = "number") {
-      const n = asNumber(value);
-      if (!Number.isFinite(n)) return "n/a";
-      if (kind === "percent") return `${(n * 100).toFixed(Math.abs(n) < 0.1 ? 1 : 0)}%`;
-      if (kind === "pp") return `${(n * 100).toFixed(1)} pp`;
-      if (Math.abs(n) >= 1000) return n.toFixed(0);
-      if (Math.abs(n) >= 100) return n.toFixed(1);
-      if (Math.abs(n) >= 10) return n.toFixed(2);
-      if (Math.abs(n) >= 1) return n.toFixed(3);
-      if (Math.abs(n) >= 0.01) return n.toFixed(4);
-      return n.toExponential(2);
-    }
 
-    function rankValue(record, space = "auto") {
-      if (space === "text") return getPath(record, "text_rankme");
-      if (space === "code") return getPath(record, "code_rankme");
-      const own = getPath(record, "rankme");
-      if (finite(own)) return own;
-      return getPath(record, "text_rankme");
-    }
-
-    function meanCosine(record, space = "auto") {
-      if (space === "text") return getPath(record, "text_cosine.mean");
-      if (space === "code") return getPath(record, "code_cosine.mean");
-      const own = getPath(record, "cosine.mean");
-      if (finite(own)) return own;
-      return getPath(record, "text_cosine.mean");
-    }
-
-    function withinRank(record) {
-      return getPath(record, "within_class_rankme._mean_within_class");
-    }
-
-    function recordsByVariant(run) {
-      const out = new Map();
-      for (const record of run.records || []) out.set(record.variant, record);
-      return out;
-    }
-
-    function variant(record) {
-      return String(record.variant ?? "");
-    }
-
-    function configChips(run) {
-      const cfg = run.config || {};
-      const cache = run.cache_config || {};
-      const parts = [];
-      if (Array.isArray(cfg.variants)) parts.push(`${cfg.variants.length} variants`);
-      if (cfg.emb_dim) parts.push(`emb dim ${cfg.emb_dim}`);
-      if (cfg.epochs) parts.push(`${cfg.epochs} epochs`);
-      if (cfg.steps) parts.push(`${cfg.steps} steps`);
-      if (cfg.anchor_preprocess) parts.push(`anchor ${cfg.anchor_preprocess}`);
-      if (cfg.input_preprocess) parts.push(`input ${cfg.input_preprocess}`);
-      if (cfg.sigma_max != null) parts.push(`sigma max ${cfg.sigma_max}`);
-      if (cache.model_name) parts.push(cache.model_name);
-      if (cache.pooling) parts.push(`${cache.pooling} pooling`);
-      if (cfg.train_limit) parts.push(`train ${cfg.train_limit}`);
-      if (cfg.test_limit) parts.push(`test ${cfg.test_limit}`);
-      return parts;
-    }
-
-    function htmlLink(path, label) {
-      return path ? `<a class="pill" href="${esc(path)}">${esc(label)}</a>` : "";
-    }
-
-    function renderTopNav() {
-      const nav = document.getElementById("top-nav");
-      nav.innerHTML = [
-        `<a href="#overview">Overview</a>`,
-        `<a href="#preprocessing">Preprocessing</a>`,
-        ...REPORT.runs.map((run) => `<a href="#${esc(run.slug)}">${esc(run.short_title)}</a>`),
-      ].join("");
-    }
-
-    function allRecords() {
-      return REPORT.runs.flatMap((run) => run.records || []);
-    }
-
-    function bestBy(records, path, larger = true) {
-      let best = null;
-      for (const record of records) {
-        const value = getPath(record, path);
-        if (!finite(value)) continue;
-        if (!best || (larger ? value > best.value : value < best.value)) {
-          best = { record, value };
+def setup_theme() -> None:
+    sns.set_theme(
+        context="talk",
+        style="whitegrid",
+        palette=["#276a8c", "#c1564f", "#287c62", "#c28a32", "#6957a8", "#1b8594", "#8c5d2f"],
+    )
+    plt.rcParams.update(
+        {
+            "figure.facecolor": "#f8faf6",
+            "axes.facecolor": "#ffffff",
+            "savefig.facecolor": "#f8faf6",
+            "axes.edgecolor": "#cbd6ca",
+            "grid.color": "#e6ece3",
+            "axes.titleweight": "bold",
+            "axes.labelcolor": "#27332e",
+            "xtick.color": "#4b5952",
+            "ytick.color": "#4b5952",
+            "font.family": "DejaVu Sans",
         }
-      }
-      return best;
-    }
+    )
 
-    function overviewStats() {
-      const runs = REPORT.runs;
-      const records = allRecords();
-      const anchorCount = runs.reduce((sum, run) => sum + Object.keys(run.anchor_geometry || {}).length, 0);
-      const heatmapCount = records.reduce((sum, record) => {
-        return sum + ["embedding_similarity_heatmap", "text_cap_to_text_anchor_heatmap", "code_cap_to_code_anchor_heatmap", "text_cap_to_code_anchor_heatmap"].filter((key) => record[key]).length;
-      }, 0);
-      const focusRun = runs.find((run) => run.slug === "exp2_pythia160m_synth_input_white_anchor_white");
-      const focusBy = focusRun ? recordsByVariant(focusRun) : new Map();
-      const d1 = focusBy.get("D_own_1");
-      const d0 = focusBy.get("D_own_0");
-      const c = focusBy.get("C");
-      const predGain = d1 && d0 ? getPath(d1, "retrieval_predicted_code_embedding.recall@1") - getPath(d0, "retrieval_predicted_code_embedding.recall@1") : NaN;
-      const codeRankGain = d1 && d0 ? getPath(d1, "code_rankme") - getPath(d0, "code_rankme") : NaN;
-      const anchorGain = d1 && c ? getPath(d1, "code_rankme") - getPath(c, "code_rankme") : NaN;
-      return [
-        { label: "Runs", value: String(runs.length), note: "Exp0 toy, Exp1 CIFAR bridge, and five Exp2 frozen-LLM sweeps." },
-        { label: "Variants", value: String(records.length), note: "Every record in the GPU summary JSON is represented in tables and charts." },
-        { label: "Anchor diagnostics", value: String(anchorCount), note: "RankMe, top eig mass, norm, uniformity, cosine histograms, and spectra." },
-        { label: "Heatmaps", value: String(heatmapCount), note: "Retrieval and cap-to-anchor similarity matrices rendered on canvas." },
-        { label: "D1 pred-code gain", value: finite(predGain) ? fmt(predGain, "pp") : "n/a", note: "Source+anchor whitening, D_own_1 minus D_own_0 recall@1." },
-        { label: "D1 code RankMe gain", value: finite(codeRankGain) ? fmt(codeRankGain) : "n/a", note: "Source+anchor whitening, D_own_1 minus D_own_0." },
-        { label: "Anchor over C", value: finite(anchorGain) ? fmt(anchorGain) : "n/a", note: "Source+anchor whitening, D_own_1 code RankMe minus co-trained C." },
-      ];
-    }
 
-    function renderOverview() {
-      const el = document.getElementById("overview");
-      const statHtml = overviewStats().map((item) => `
-        <article class="stat">
-          <div class="label">${esc(item.label)}</div>
-          <div class="value">${esc(item.value)}</div>
-          <div class="note">${esc(item.note)}</div>
-        </article>
-      `).join("");
-      const cards = REPORT.runs.map((run) => `
-        <article class="run-card">
-          <h3>${esc(run.title)}</h3>
-          <p>${esc(run.summary)}</p>
-          <div class="chips">${configChips(run).slice(0, 7).map((chip) => `<span class="chip">${esc(chip)}</span>`).join("")}</div>
-          <ul class="takeaways">${(run.takeaways || []).map((item) => `<li>${esc(item)}</li>`).join("")}</ul>
-        </article>
-      `).join("");
-      el.innerHTML = `
-        <div class="section-title">
-          <h2>Overview</h2>
-          <p>All summary JSON files are embedded in this page; no server is required.</p>
-        </div>
-        <div class="grid stats">${statHtml}</div>
-        <div class="section-title" style="margin-top: 18px;">
-          <h2>Run Notes</h2>
-          <p>Interpretation cues from the handoff and report README.</p>
-        </div>
-        <div class="cards">${cards}</div>
-      `;
-    }
+def get_path(row: dict[str, Any], path: str) -> float:
+    cur: Any = row
+    for part in path.split("."):
+        if not isinstance(cur, dict) or part not in cur:
+            return math.nan
+        cur = cur[part]
+    try:
+        value = float(cur)
+    except (TypeError, ValueError):
+        return math.nan
+    return value if math.isfinite(value) else math.nan
 
-    function renderPreprocessing() {
-      const exp2Runs = REPORT.runs.filter((run) => run.slug.startsWith("exp2_pythia160m"));
-      const rows = [];
-      for (const run of exp2Runs) {
-        const by = recordsByVariant(run);
-        const d1 = by.get("D_own_1");
-        const d0 = by.get("D_own_0");
-        if (!d1) continue;
-        const cfg = run.config || {};
-        rows.push({
-          run,
-          input: cfg.input_preprocess || "raw",
-          anchor: cfg.anchor_preprocess || "raw",
-          textRank: getPath(d1, "text_rankme"),
-          codeRank: getPath(d1, "code_rankme"),
-          textCos: getPath(d1, "text_cosine.mean"),
-          codeCos: getPath(d1, "code_cosine.mean"),
-          predR1: getPath(d1, "retrieval_predicted_code_embedding.recall@1"),
-          dTextRank: d0 ? getPath(d1, "text_rankme") - getPath(d0, "text_rankme") : NaN,
-          dCodeRank: d0 ? getPath(d1, "code_rankme") - getPath(d0, "code_rankme") : NaN,
-          dPredR1: d0 ? getPath(d1, "retrieval_predicted_code_embedding.recall@1") - getPath(d0, "retrieval_predicted_code_embedding.recall@1") : NaN,
-        });
-      }
-      const tableRows = rows.map((row) => `
-        <tr>
-          <td><a href="#${esc(row.run.slug)}">${esc(row.run.title)}</a></td>
-          <td>${esc(row.input)}</td>
-          <td>${esc(row.anchor)}</td>
-          <td class="num">${fmt(row.textRank)}</td>
-          <td class="num">${fmt(row.codeRank)}</td>
-          <td class="num">${fmt(row.textCos)}</td>
-          <td class="num">${fmt(row.codeCos)}</td>
-          <td class="num">${fmt(row.predR1, "percent")}</td>
-          <td class="num ${row.dTextRank >= 0 ? "delta-up" : "delta-down"}">${fmt(row.dTextRank)}</td>
-          <td class="num ${row.dCodeRank >= 0 ? "delta-up" : "delta-down"}">${fmt(row.dCodeRank)}</td>
-          <td class="num ${row.dPredR1 >= 0 ? "delta-up" : "delta-down"}">${fmt(row.dPredR1, "pp")}</td>
-        </tr>
-      `).join("");
-      const chart = barChart(rows.map((row) => ({
-        variant: `${row.input}/${row.anchor}`,
-        text_rankme: row.textRank,
-        code_rankme: row.codeRank,
-        pred_r1: row.predR1,
-      })), [
-        { label: "D_own_1 text RankMe", path: "text_rankme", color: "#246a8f" },
-        { label: "D_own_1 code RankMe", path: "code_rankme", color: "#1f7a63" },
-        { label: "Predicted-code R@1", path: "pred_r1", color: "#bd812d", kind: "percent" },
-      ]);
-      document.getElementById("preprocessing").innerHTML = `
-        <div class="section-title">
-          <h2>Exp2 Preprocessing Sweep</h2>
-          <p>D_own_1 rows compare raw, normalized, spherified, whitened, and source-whitened setups.</p>
-        </div>
-        <div class="panel panel-pad">
-          <div class="wide-chart-grid">
-            ${chart}
-            <div class="table-card">
-              <h3>D_own_1 Across Preprocessing Modes</h3>
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Run</th><th>Input</th><th>Anchor</th><th>Text RankMe</th><th>Code RankMe</th>
-                      <th>Text Cos</th><th>Code Cos</th><th>Pred R@1</th><th>Delta Text Rank</th><th>Delta Code Rank</th><th>Delta Pred R@1</th>
-                    </tr>
-                  </thead>
-                  <tbody>${tableRows}</tbody>
-                </table>
-              </div>
-              <p class="subtle" style="margin: 9px 0 0;">Deltas are D_own_1 minus D_own_0 inside each preprocessing run.</p>
-            </div>
-          </div>
-        </div>
-      `;
-    }
 
-    function metricSpecs(run) {
-      const records = run.records || [];
-      const has = (path) => records.some((record) => finite(getPath(record, path)));
-      if (has("text_rankme")) {
-        const specs = [
-          { label: "Text RankMe", path: "text_rankme", color: "#246a8f" },
-          { label: "Code RankMe", path: "code_rankme", color: "#1f7a63" },
-          { label: "Text mean cosine", path: "text_cosine.mean", color: "#b94e4e" },
-          { label: "Code mean cosine", path: "code_cosine.mean", color: "#bd812d" },
-        ];
-        if (has("retrieval_predicted_code_embedding.recall@1")) specs.push({ label: "Pred-code R@1", path: "retrieval_predicted_code_embedding.recall@1", color: "#6654a2", kind: "percent" });
-        if (has("retrieval_embedding.recall@1")) specs.push({ label: "Direct emb R@1", path: "retrieval_embedding.recall@1", color: "#188092", kind: "percent" });
-        return specs;
-      }
-      const specs = [
-        { label: "RankMe", path: "rankme", color: "#246a8f" },
-        { label: "Within-class RankMe", path: "within_class_rankme._mean_within_class", color: "#1f7a63" },
-        { label: "Mean cosine", path: "cosine.mean", color: "#b94e4e" },
-        { label: "Uniformity", path: "uniformity", color: "#bd812d" },
-      ];
-      if (has("linear_probe_top1")) specs.unshift({ label: "Linear probe top-1", path: "linear_probe_top1", color: "#6654a2", kind: "percent" });
-      if (has("alignment_view_ab")) specs.push({ label: "View alignment", path: "alignment_view_ab", color: "#188092" });
-      return specs;
-    }
+def finite(value: Any) -> bool:
+    try:
+        return math.isfinite(float(value))
+    except (TypeError, ValueError):
+        return False
 
-    function barChart(records, specs) {
-      return specs.map((spec) => {
-        const values = records.map((record) => getPath(record, spec.path)).filter(finite);
-        if (!values.length) return "";
-        const minValue = Math.min(...values, 0);
-        const maxValue = Math.max(...values);
-        const span = Math.max(maxValue - minValue, 1e-9);
-        const rows = records.map((record) => {
-          const value = getPath(record, spec.path);
-          if (!finite(value)) return "";
-          const width = Math.max(2, ((value - minValue) / span) * 100);
-          return `
-            <div class="bar-row">
-              <div class="bar-name" title="${esc(variant(record))}">${esc(variant(record))}</div>
-              <div class="bar-track"><div class="bar-fill" style="width: ${width.toFixed(2)}%; background: ${spec.color};"></div></div>
-              <div class="bar-value">${fmt(value, spec.kind)}</div>
-            </div>
-          `;
-        }).join("");
-        return `
-          <div class="chart-card">
-            <h3>${esc(spec.label)}</h3>
-            <div class="bar-list">${rows}</div>
-          </div>
-        `;
-      }).join("");
-    }
 
-    function signedClass(value, largerBetter = true) {
-      const n = asNumber(value);
-      if (!finite(n) || Math.abs(n) < 1e-12) return "";
-      const good = largerBetter ? n > 0 : n < 0;
-      return good ? "delta-up" : "delta-down";
-    }
-
-    function contrastPairs(run) {
-      const names = new Set((run.records || []).map((record) => variant(record)));
-      const candidates = [
-        ["D1a", "D0a", "Noise: continuous anchor"],
-        ["D1b", "D0b", "Noise: RFF anchor"],
-        ["D1c", "D0c", "Noise: frozen teacher anchor"],
-        ["D1a", "C", "Anchor: D1a vs co-trained"],
-        ["D1b", "C", "Anchor: D1b vs co-trained"],
-        ["D1c", "C", "Anchor: D1c vs co-trained"],
-        ["D1a", "D3", "Sample-specific vs class-level"],
-        ["D1", "D0", "Noise: frozen anchor"],
-        ["D1", "C", "Anchor: D1 vs co-trained"],
-        ["D1", "C_ema", "Anchor: D1 vs EMA"],
-        ["D1", "D2", "Sample-specific vs class-level"],
-        ["D_own_1", "D_own_0", "Noise: own-view anchor"],
-        ["D_own_1", "C", "Anchor: own-view vs co-trained"],
-        ["D_own_1", "C_ema", "Anchor: own-view vs EMA"],
-        ["D_cross_1", "D_cross_0", "Noise: cross-view anchor"],
-        ["D_cross_sym_1", "D_cross_sym_0", "Noise: symmetric cross-view anchor"],
-        ["F", "D_own_1", "InfoNCE vs D_own_1"],
-        ["G", "D_own_1", "VICReg vs D_own_1"],
-        ["H", "D_own_1", "SIGReg vs D_own_1"],
-      ];
-      return candidates.filter(([left, right]) => names.has(left) && names.has(right));
-    }
-
-    function contrastTable(run) {
-      const by = recordsByVariant(run);
-      const rows = contrastPairs(run).map(([leftName, rightName, label]) => {
-        const left = by.get(leftName);
-        const right = by.get(rightName);
-        const dRank = rankValue(left) - rankValue(right);
-        const dCodeRank = getPath(left, "code_rankme") - getPath(right, "code_rankme");
-        const dCos = meanCosine(left) - meanCosine(right);
-        const dProbe = getPath(left, "linear_probe_top1") - getPath(right, "linear_probe_top1");
-        const dPred = getPath(left, "retrieval_predicted_code_embedding.recall@1") - getPath(right, "retrieval_predicted_code_embedding.recall@1");
-        return `
-          <tr>
-            <td>${esc(label)}</td>
-            <td><code>${esc(leftName)}</code> - <code>${esc(rightName)}</code></td>
-            <td class="num ${signedClass(dRank)}">${fmt(dRank)}</td>
-            <td class="num ${signedClass(dCodeRank)}">${fmt(dCodeRank)}</td>
-            <td class="num ${signedClass(dCos, false)}">${fmt(dCos)}</td>
-            <td class="num ${signedClass(dProbe)}">${fmt(dProbe, "pp")}</td>
-            <td class="num ${signedClass(dPred)}">${fmt(dPred, "pp")}</td>
-          </tr>
-        `;
-      }).join("");
-      if (!rows) return "";
-      return `
-        <div class="table-card">
-          <h3>Headline Contrasts</h3>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Question</th><th>Pair</th><th>Delta RankMe</th><th>Delta Code RankMe</th><th>Delta Mean Cos</th><th>Delta Probe</th><th>Delta Pred R@1</th></tr></thead>
-              <tbody>${rows}</tbody>
-            </table>
-          </div>
-        </div>
-      `;
-    }
-
-    function metricTable(run) {
-      const records = run.records || [];
-      const columns = [
-        { label: "RankMe", path: "rankme" },
-        { label: "Text RankMe", path: "text_rankme" },
-        { label: "Code RankMe", path: "code_rankme" },
-        { label: "Within RankMe", path: "within_class_rankme._mean_within_class" },
-        { label: "Uniformity", path: "uniformity" },
-        { label: "Text Uniformity", path: "text_uniformity" },
-        { label: "Code Uniformity", path: "code_uniformity" },
-        { label: "Mean Cos", path: "cosine.mean" },
-        { label: "Text Cos", path: "text_cosine.mean" },
-        { label: "Code Cos", path: "code_cosine.mean" },
-        { label: "P95 Cos", path: "cosine.p95" },
-        { label: "Probe Top-1", path: "linear_probe_top1", kind: "percent" },
-        { label: "View Align", path: "alignment_view_ab" },
-        { label: "Direct R@1", path: "retrieval_embedding.recall@1", kind: "percent" },
-        { label: "Pred-Code R@1", path: "retrieval_predicted_code_embedding.recall@1", kind: "percent" },
-        { label: "Text Cap R@1", path: "retrieval_text_cap_to_text_anchor.recall@1", kind: "percent" },
-        { label: "Code Cap R@1", path: "retrieval_code_cap_to_code_anchor.recall@1", kind: "percent" },
-      ].filter((col) => records.some((record) => finite(getPath(record, col.path))));
-      const rows = records.map((record) => `
-        <tr>
-          <td><code>${esc(variant(record))}</code></td>
-          ${columns.map((col) => `<td class="num">${fmt(getPath(record, col.path), col.kind)}</td>`).join("")}
-        </tr>
-      `).join("");
-      return `
-        <div class="table-card">
-          <h3>Metrics Table</h3>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Variant</th>${columns.map((col) => `<th>${esc(col.label)}</th>`).join("")}</tr></thead>
-              <tbody>${rows}</tbody>
-            </table>
-          </div>
-        </div>
-      `;
-    }
-
-    function retrievalTable(run) {
-      const rows = [];
-      for (const record of run.records || []) {
-        for (const [key, value] of Object.entries(record)) {
-          if (!key.startsWith("retrieval") || !value || typeof value !== "object") continue;
-          rows.push(`
-            <tr>
-              <td><code>${esc(variant(record))}</code></td>
-              <td>${esc(key.replace(/^retrieval_/, "").replaceAll("_", " "))}</td>
-              <td class="num">${fmt(value["recall@1"], "percent")}</td>
-              <td class="num">${fmt(value["recall@10"], "percent")}</td>
-              <td class="num">${fmt(value.mean_rank)}</td>
-            </tr>
-          `);
-        }
-      }
-      if (!rows.length) return "";
-      return `
-        <div class="table-card">
-          <h3>Retrieval Spaces</h3>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Variant</th><th>Space</th><th>R@1</th><th>R@10</th><th>Mean Rank</th></tr></thead>
-              <tbody>${rows.join("")}</tbody>
-            </table>
-          </div>
-        </div>
-      `;
-    }
-
-    function anchorTable(run) {
-      const anchors = run.anchor_geometry || {};
-      const names = Object.keys(anchors);
-      if (!names.length) return "";
-      const rows = names.map((name) => {
-        const diag = anchors[name] || {};
-        return `
-          <tr>
-            <td><code>${esc(name)}</code></td>
-            <td class="num">${fmt(diag.rankme)}</td>
-            <td class="num">${fmt(diag.top_eig_mass_ratio)}</td>
-            <td class="num">${fmt(diag.mean_norm)}</td>
-            <td class="num">${fmt(diag.uniformity_after_normalize)}</td>
-            <td class="num">${fmt(getPath(diag, "cosine_stats.mean"))}</td>
-            <td class="num">${fmt(getPath(diag, "cosine_stats.p95"))}</td>
-          </tr>
-        `;
-      }).join("");
-      return `
-        <div class="table-card">
-          <h3>Anchor Geometry</h3>
-          <div class="table-wrap">
-            <table>
-              <thead><tr><th>Anchor</th><th>RankMe</th><th>Top Eig Mass</th><th>Mean Norm</th><th>Uniformity</th><th>Mean Cos</th><th>P95 Cos</th></tr></thead>
-              <tbody>${rows}</tbody>
-            </table>
-          </div>
-        </div>
-      `;
-    }
-
-    function canvasTask(task, width = 520, height = 320) {
-      const id = `chart-${canvasId++}`;
-      drawQueue.push({ ...task, id });
-      return `<canvas id="${id}" width="${width}" height="${height}" aria-label="${esc(task.title || task.type)}"></canvas>`;
-    }
-
-    function scatterKeys(record) {
-      return [
-        ["scatter", "Embedding"],
-        ["pca_scatter", "PCA"],
-        ["text_pca_scatter", "Text"],
-        ["code_pca_scatter", "Code"],
-      ].filter(([key]) => Array.isArray(record[key]) && record[key].length);
-    }
-
-    function sphereCards(run) {
-      const cards = [];
-      for (const record of run.records || []) {
-        for (const [key, label] of scatterKeys(record)) {
-          const isCode = key.startsWith("code");
-          const isText = key.startsWith("text");
-          const space = isCode ? "code" : isText ? "text" : "auto";
-          const rank = rankValue(record, space);
-          const meanCos = meanCosine(record, space);
-          const dim = Number(run.config?.emb_dim || run.config?.teacher_dim || 0);
-          const occupancy = finite(rank) && dim > 0 ? Math.min(1, rank / dim) : NaN;
-          cards.push(`
-            <article class="chart-card canvas-card">
-              <h3>${esc(variant(record))} ${esc(label)} Hypersphere</h3>
-              ${canvasTask({ type: "sphere", points: record[key], title: `${variant(record)} ${label}` }, 360, 300)}
-              <div class="canvas-caption">
-                <span>RankMe ${fmt(rank)}${finite(occupancy) ? ` / ${fmt(occupancy, "percent")} occupancy` : ""}</span>
-                <span>mean cos ${fmt(meanCos)}</span>
-              </div>
-            </article>
-          `);
-        }
-      }
-      return cards.join("");
-    }
-
-    function pcaCards(run) {
-      const cards = [];
-      for (const record of run.records || []) {
-        for (const [key, label] of scatterKeys(record)) {
-          cards.push(`
-            <article class="chart-card canvas-card">
-              <h3>${esc(variant(record))} ${esc(label)} Map</h3>
-              ${canvasTask({ type: "scatter", points: record[key], title: `${variant(record)} ${label}` }, 520, 340)}
-              <div class="canvas-caption"><span>2-D projection of stored embedding samples</span><span>${record[key].length} points</span></div>
-            </article>
-          `);
-        }
-      }
-      return cards.join("");
-    }
-
-    function diagnosticsCards(run) {
-      const cards = [];
-      for (const [name, diag] of Object.entries(run.anchor_geometry || {})) {
-        if (diag.cosine_histogram) {
-          cards.push(`
-            <article class="chart-card canvas-card">
-              <h3>${esc(name)} Anchor Cosines</h3>
-              ${canvasTask({ type: "histogram", hist: diag.cosine_histogram, title: `${name} cosines` }, 420, 260)}
-              <div class="canvas-caption"><span>Pairwise cosine distribution</span><span>mean ${fmt(getPath(diag, "cosine_stats.mean"))}</span></div>
-            </article>
-          `);
-        }
-        if (diag.eigen_spectrum) {
-          cards.push(`
-            <article class="chart-card canvas-card">
-              <h3>${esc(name)} Anchor Spectrum</h3>
-              ${canvasTask({ type: "spectrum", spectrum: diag.eigen_spectrum, title: `${name} spectrum` }, 420, 260)}
-              <div class="canvas-caption"><span>Eigenvalue mass</span><span>top mass ${fmt(diag.top_eig_mass_ratio)}</span></div>
-            </article>
-          `);
-        }
-      }
-      for (const record of run.records || []) {
-        for (const [key, label] of [
-          ["cosine_histogram", "Embedding Cosines"],
-          ["text_cosine_histogram", "Text Cosines"],
-          ["code_cosine_histogram", "Code Cosines"],
-          ["eigen_spectrum", "Embedding Spectrum"],
-          ["text_eigen_spectrum", "Text Spectrum"],
-          ["code_eigen_spectrum", "Code Spectrum"],
-        ]) {
-          if (!record[key]) continue;
-          const type = key.includes("histogram") ? "histogram" : "spectrum";
-          cards.push(`
-            <article class="chart-card canvas-card">
-              <h3>${esc(variant(record))} ${esc(label)}</h3>
-              ${canvasTask({ type, hist: record[key], spectrum: record[key], title: `${variant(record)} ${label}` }, 420, 260)}
-              <div class="canvas-caption"><span>${type === "histogram" ? "Pairwise cosine distribution" : "Eigenvalue mass"}</span><span>${esc(run.short_title)}</span></div>
-            </article>
-          `);
-        }
-      }
-      return cards.join("");
-    }
-
-    function heatmapCards(run) {
-      const keys = [
-        ["embedding_similarity_heatmap", "Embedding Similarity"],
-        ["text_cap_to_text_anchor_heatmap", "Text Cap to Text Anchor"],
-        ["code_cap_to_code_anchor_heatmap", "Code Cap to Code Anchor"],
-        ["text_cap_to_code_anchor_heatmap", "Text Cap to Code Anchor"],
-      ];
-      const cards = [];
-      for (const record of run.records || []) {
-        for (const [key, label] of keys) {
-          if (!record[key]) continue;
-          cards.push(`
-            <article class="chart-card canvas-card">
-              <h3>${esc(variant(record))} ${esc(label)}</h3>
-              ${canvasTask({ type: "heatmap", heatmap: record[key], title: `${variant(record)} ${label}` }, 340, 340)}
-              <div class="canvas-caption"><span>blue positive, red negative</span><span>${record[key].values?.length || 0} x ${record[key].values?.length || 0}</span></div>
-            </article>
-          `);
-        }
-      }
-      return cards.join("");
-    }
-
-    function historyCards(run) {
-      const cards = [];
-      for (const record of run.records || []) {
-        if (!Array.isArray(record.history) || !record.history.length) continue;
-        cards.push(`
-          <article class="chart-card canvas-card">
-            <h3>${esc(variant(record))} Loss Trace</h3>
-            ${canvasTask({ type: "history", history: record.history, title: `${variant(record)} loss` }, 420, 240)}
-            <div class="canvas-caption"><span>${record.history.length} logged points</span><span>final ${fmt(record.history[record.history.length - 1]?.loss)}</span></div>
-          </article>
-        `);
-      }
-      return cards.join("");
-    }
-
-    function renderRun(run) {
-      const chartHtml = barChart(run.records || [], metricSpecs(run));
-      const sphereHtml = sphereCards(run);
-      const pcaHtml = pcaCards(run);
-      const diagHtml = diagnosticsCards(run);
-      const heatHtml = heatmapCards(run);
-      const histHtml = historyCards(run);
-      return `
-        <article class="panel run" id="${esc(run.slug)}">
-          <div class="run-head">
-            <div class="run-title">
-              <h2>${esc(run.title)}</h2>
-              <p>${esc(run.summary)}</p>
-              <div class="chips">${configChips(run).map((chip) => `<span class="chip">${esc(chip)}</span>`).join("")}</div>
-            </div>
-            <div class="run-actions">
-              ${htmlLink(run.json_path, "JSON")}
-              ${htmlLink(run.html_path, "Original page")}
-            </div>
-          </div>
-          <div class="run-body">
-            <div class="chart-grid">${chartHtml}</div>
-            <div class="wide-chart-grid">
-              ${contrastTable(run)}
-              ${metricTable(run)}
-              ${retrievalTable(run)}
-              ${anchorTable(run)}
-            </div>
-            <details open>
-              <summary>Hypersphere projections</summary>
-              <div class="details-body">
-                <p class="subtle">Each card projects stored 2-D embedding samples into a unit-disk view. It is a visual diagnostic for spread on the high-dimensional hypersphere, not a replacement for RankMe or cosine statistics.</p>
-                <div class="chart-grid" style="margin-top: 10px;">${sphereHtml || `<div class="empty">No scatter samples stored for this run.</div>`}</div>
-              </div>
-            </details>
-            <details>
-              <summary>PCA embedding maps</summary>
-              <div class="details-body"><div class="wide-chart-grid">${pcaHtml || `<div class="empty">No PCA samples stored for this run.</div>`}</div></div>
-            </details>
-            <details>
-              <summary>Cosine histograms and eigenspectra</summary>
-              <div class="details-body"><div class="chart-grid">${diagHtml || `<div class="empty">No histogram or eigenspectrum diagnostics stored for this run.</div>`}</div></div>
-            </details>
-            <details>
-              <summary>Retrieval heatmaps</summary>
-              <div class="details-body"><div class="chart-grid">${heatHtml || `<div class="empty">No heatmaps stored for this run.</div>`}</div></div>
-            </details>
-            ${histHtml ? `<details><summary>Training traces</summary><div class="details-body"><div class="chart-grid">${histHtml}</div></div></details>` : ""}
-            <details>
-              <summary>Run config JSON</summary>
-              <div class="details-body"><pre>${esc(JSON.stringify({ config: run.config, cache_config: run.cache_config, headline_contrasts: run.headline_contrasts }, null, 2))}</pre></div>
-            </details>
-          </div>
-        </article>
-      `;
-    }
-
-    function renderRuns() {
-      document.getElementById("runs").innerHTML = `
-        <div class="section-title">
-          <h2>All Runs</h2>
-          <p>Open the detail panels for dense embedding, hypersphere, histogram, spectrum, and heatmap views.</p>
-        </div>
-        ${REPORT.runs.map(renderRun).join("")}
-      `;
-    }
-
-    function drawAll() {
-      for (const task of drawQueue) {
-        const canvas = document.getElementById(task.id);
-        if (!canvas) continue;
-        if (task.type === "scatter") drawScatter(canvas, task.points, false);
-        if (task.type === "sphere") drawScatter(canvas, task.points, true);
-        if (task.type === "histogram") drawHistogram(canvas, task.hist);
-        if (task.type === "spectrum") drawSpectrum(canvas, task.spectrum);
-        if (task.type === "heatmap") drawHeatmap(canvas, task.heatmap);
-        if (task.type === "history") drawHistory(canvas, task.history);
-      }
-      drawLegend();
-    }
-
-    function setupCanvas(canvas) {
-      const ctx = canvas.getContext("2d");
-      const w = canvas.width;
-      const h = canvas.height;
-      ctx.clearRect(0, 0, w, h);
-      ctx.fillStyle = "#fbfcf8";
-      ctx.fillRect(0, 0, w, h);
-      return { ctx, w, h };
-    }
-
-    function drawFrame(ctx, x, y, w, h) {
-      ctx.strokeStyle = "#dfe5dc";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x, y, w, h);
-    }
-
-    function drawScatter(canvas, points, sphereMode) {
-      const { ctx, w, h } = setupCanvas(canvas);
-      const pad = sphereMode ? 24 : 30;
-      const xs = points.map((p) => Number(p.x)).filter(Number.isFinite);
-      const ys = points.map((p) => Number(p.y)).filter(Number.isFinite);
-      if (!xs.length || !ys.length) return;
-      const minX = Math.min(...xs);
-      const maxX = Math.max(...xs);
-      const minY = Math.min(...ys);
-      const maxY = Math.max(...ys);
-      const spanX = Math.max(maxX - minX, 1e-9);
-      const spanY = Math.max(maxY - minY, 1e-9);
-
-      if (sphereMode) {
-        const cx = w / 2;
-        const cy = h / 2;
-        const r = Math.min(w, h) / 2 - pad;
-        ctx.strokeStyle = "#c8d2c8";
-        ctx.lineWidth = 1;
-        for (const frac of [0.25, 0.5, 0.75, 1]) {
-          ctx.beginPath();
-          ctx.arc(cx, cy, r * frac, 0, Math.PI * 2);
-          ctx.stroke();
-        }
-        ctx.strokeStyle = "#a9b8ad";
-        ctx.beginPath();
-        ctx.moveTo(cx - r, cy);
-        ctx.lineTo(cx + r, cy);
-        ctx.moveTo(cx, cy - r);
-        ctx.lineTo(cx, cy + r);
-        ctx.stroke();
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.clip();
-        for (const p of points) {
-          const x0 = ((Number(p.x) - minX) / spanX) * 2 - 1;
-          const y0 = ((Number(p.y) - minY) / spanY) * 2 - 1;
-          const norm = Math.max(1, Math.hypot(x0, y0));
-          const x = cx + (x0 / norm) * r * 0.96;
-          const y = cy - (y0 / norm) * r * 0.96;
-          const label = Number.isFinite(Number(p.label)) ? Number(p.label) : 0;
-          ctx.fillStyle = PALETTE[Math.abs(label) % PALETTE.length];
-          ctx.globalAlpha = 0.72;
-          ctx.beginPath();
-          ctx.arc(x, y, 2.0, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.restore();
-        ctx.globalAlpha = 1;
-        ctx.strokeStyle = "#5d6b63";
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.stroke();
-        return;
-      }
-
-      const plotX = pad;
-      const plotY = 18;
-      const plotW = w - pad - 14;
-      const plotH = h - 42;
-      drawFrame(ctx, plotX, plotY, plotW, plotH);
-      ctx.strokeStyle = "#d9e1d6";
-      ctx.beginPath();
-      ctx.moveTo(plotX, plotY + plotH / 2);
-      ctx.lineTo(plotX + plotW, plotY + plotH / 2);
-      ctx.moveTo(plotX + plotW / 2, plotY);
-      ctx.lineTo(plotX + plotW / 2, plotY + plotH);
-      ctx.stroke();
-      for (const p of points) {
-        const x = plotX + ((Number(p.x) - minX) / spanX) * plotW;
-        const y = plotY + plotH - ((Number(p.y) - minY) / spanY) * plotH;
-        const label = Number.isFinite(Number(p.label)) ? Number(p.label) : 0;
-        ctx.fillStyle = PALETTE[Math.abs(label) % PALETTE.length];
-        ctx.globalAlpha = 0.7;
-        ctx.beginPath();
-        ctx.arc(x, y, 2.0, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-    }
-
-    function drawHistogram(canvas, hist) {
-      const { ctx, w, h } = setupCanvas(canvas);
-      const counts = (hist?.counts || []).map(Number);
-      if (!counts.length) return;
-      const maxCount = Math.max(...counts, 1);
-      const left = 34;
-      const top = 20;
-      const chartW = w - left - 14;
-      const chartH = h - top - 34;
-      drawFrame(ctx, left, top, chartW, chartH);
-      const bw = chartW / counts.length;
-      for (let i = 0; i < counts.length; i += 1) {
-        const barH = chartH * counts[i] / maxCount;
-        ctx.fillStyle = i < counts.length / 2 ? "#b94e4e" : "#246a8f";
-        ctx.globalAlpha = 0.82;
-        ctx.fillRect(left + i * bw, top + chartH - barH, Math.max(1, bw - 1), barH);
-      }
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = "#65716c";
-      ctx.font = "12px system-ui, sans-serif";
-      ctx.fillText("-1", left, h - 10);
-      ctx.fillText("1", w - 24, h - 10);
-    }
-
-    function drawSpectrum(canvas, spectrum) {
-      const { ctx, w, h } = setupCanvas(canvas);
-      const values = (spectrum?.mass || []).map(Number).filter(Number.isFinite);
-      if (!values.length) return;
-      const left = 34;
-      const top = 20;
-      const chartW = w - left - 14;
-      const chartH = h - top - 34;
-      const maxValue = Math.max(...values, 1e-9);
-      drawFrame(ctx, left, top, chartW, chartH);
-      ctx.strokeStyle = "#1f7a63";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      values.forEach((value, i) => {
-        const x = left + chartW * i / Math.max(1, values.length - 1);
-        const y = top + chartH - chartH * value / maxValue;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      });
-      ctx.stroke();
-      ctx.fillStyle = "#1f7a63";
-      values.forEach((value, i) => {
-        const x = left + chartW * i / Math.max(1, values.length - 1);
-        const y = top + chartH - chartH * value / maxValue;
-        ctx.beginPath();
-        ctx.arc(x, y, 2, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      ctx.fillStyle = "#65716c";
-      ctx.font = "12px system-ui, sans-serif";
-      ctx.fillText("eigenvalue mass", left, 14);
-    }
-
-    function drawHeatmap(canvas, heatmap) {
-      const { ctx, w, h } = setupCanvas(canvas);
-      const values = heatmap?.values || [];
-      const n = values.length;
-      if (!n) return;
-      const pad = 16;
-      const size = Math.min(w, h) - pad * 2;
-      const cell = size / n;
-      const x0 = (w - size) / 2;
-      const y0 = (h - size) / 2;
-      for (let i = 0; i < n; i += 1) {
-        for (let j = 0; j < n; j += 1) {
-          const v = Math.max(-1, Math.min(1, Number(values[i][j]) || 0));
-          if (v >= 0) {
-            const a = Math.round(255 - 125 * v);
-            ctx.fillStyle = `rgb(${a},${a},255)`;
-          } else {
-            const a = Math.round(255 + 125 * v);
-            ctx.fillStyle = `rgb(255,${a},${a})`;
-          }
-          ctx.fillRect(x0 + j * cell, y0 + i * cell, Math.ceil(cell), Math.ceil(cell));
-        }
-      }
-      ctx.strokeStyle = "#5d6b63";
-      ctx.strokeRect(x0, y0, size, size);
-    }
-
-    function drawHistory(canvas, history) {
-      const { ctx, w, h } = setupCanvas(canvas);
-      const values = (history || []).map((point) => ({ step: Number(point.step), loss: Number(point.loss) })).filter((point) => Number.isFinite(point.step) && Number.isFinite(point.loss));
-      if (!values.length) return;
-      const left = 38;
-      const top = 18;
-      const chartW = w - left - 14;
-      const chartH = h - top - 32;
-      const minStep = Math.min(...values.map((point) => point.step));
-      const maxStep = Math.max(...values.map((point) => point.step));
-      const minLoss = Math.min(...values.map((point) => point.loss));
-      const maxLoss = Math.max(...values.map((point) => point.loss));
-      const stepSpan = Math.max(maxStep - minStep, 1e-9);
-      const lossSpan = Math.max(maxLoss - minLoss, 1e-9);
-      drawFrame(ctx, left, top, chartW, chartH);
-      ctx.strokeStyle = "#bd812d";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      values.forEach((point, i) => {
-        const x = left + (point.step - minStep) / stepSpan * chartW;
-        const y = top + chartH - (point.loss - minLoss) / lossSpan * chartH;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      });
-      ctx.stroke();
-      ctx.fillStyle = "#65716c";
-      ctx.font = "12px system-ui, sans-serif";
-      ctx.fillText(`loss ${fmt(minLoss)}-${fmt(maxLoss)}`, left, 13);
-    }
-
-    function drawLegend() {
-      for (const el of document.querySelectorAll(".legend[data-labels]")) {
-        const labels = JSON.parse(el.dataset.labels);
-        el.innerHTML = labels.map((label, idx) => `<span><i class="swatch" style="background: ${PALETTE[idx % PALETTE.length]}"></i>${esc(label)}</span>`).join("");
-      }
-    }
-
-    function init() {
-      renderTopNav();
-      renderOverview();
-      renderPreprocessing();
-      renderRuns();
-      requestAnimationFrame(drawAll);
-    }
-
-    init();
-  </script>
-</body>
-</html>
-"""
+def fmt(value: Any, kind: str = "number") -> str:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return "n/a"
+    if not math.isfinite(number):
+        return "n/a"
+    if kind == "percent":
+        return f"{number * 100:.1f}%"
+    if kind == "pp":
+        return f"{number * 100:.1f} pp"
+    if abs(number) >= 1000:
+        return f"{number:.0f}"
+    if abs(number) >= 100:
+        return f"{number:.1f}"
+    if abs(number) >= 10:
+        return f"{number:.2f}"
+    if abs(number) >= 1:
+        return f"{number:.3f}"
+    if abs(number) >= 0.01:
+        return f"{number:.4f}"
+    return f"{number:.2e}"
 
 
 def slug_from_summary(path: Path) -> str:
-    name = path.stem
-    return name.removesuffix("_summary")
-
-
-def short_title(title: str) -> str:
-    title = title.replace("Exp2 Frozen LLM: ", "Exp2 ")
-    title = title.replace("Exp0 ", "E0 ")
-    title = title.replace("Exp1 ", "E1 ")
-    return title
+    return path.stem.removesuffix("_summary")
 
 
 def default_meta(slug: str) -> dict[str, Any]:
-    clean = slug.replace("_", " ")
     return {
-        "title": clean.title(),
+        "title": slug.replace("_", " ").title(),
+        "short_title": slug.replace("_", " ").title(),
         "group": "Report",
         "summary": "Generated summary report.",
         "takeaways": [],
@@ -1516,10 +269,10 @@ def load_run(path: Path, report_dir: Path) -> dict[str, Any]:
     meta = {**default_meta(slug), **EXPERIMENT_META.get(slug, {})}
     payload = json.loads(path.read_text())
     html_path = report_dir / "html" / f"{slug}.html"
-    run = {
+    return {
         "slug": slug,
         "title": meta["title"],
-        "short_title": short_title(meta["title"]),
+        "short_title": meta["short_title"],
         "group": meta["group"],
         "summary": meta["summary"],
         "takeaways": meta["takeaways"],
@@ -1531,7 +284,6 @@ def load_run(path: Path, report_dir: Path) -> dict[str, Any]:
         "anchor_geometry": payload.get("anchor_geometry", {}),
         "records": payload.get("records", []),
     }
-    return run
 
 
 def ordered(paths: list[Path]) -> list[Path]:
@@ -1539,19 +291,942 @@ def ordered(paths: list[Path]) -> list[Path]:
     return sorted(paths, key=lambda path: (order.get(slug_from_summary(path), 10_000), slug_from_summary(path)))
 
 
-def build_dashboard(summary_paths: list[Path], report_dir: Path) -> str:
-    runs = [load_run(path, report_dir) for path in ordered(summary_paths)]
-    payload = {
-        "generated_from": [relative_to(path, report_dir) for path in ordered(summary_paths)],
-        "runs": runs,
+def by_variant(run: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return {str(record.get("variant")): record for record in run.get("records", [])}
+
+
+def rank_value(record: dict[str, Any], space: str = "auto") -> float:
+    if space == "text":
+        return get_path(record, "text_rankme")
+    if space == "code":
+        return get_path(record, "code_rankme")
+    value = get_path(record, "rankme")
+    return value if finite(value) else get_path(record, "text_rankme")
+
+
+def mean_cosine(record: dict[str, Any], space: str = "auto") -> float:
+    if space == "text":
+        return get_path(record, "text_cosine.mean")
+    if space == "code":
+        return get_path(record, "code_cosine.mean")
+    value = get_path(record, "cosine.mean")
+    return value if finite(value) else get_path(record, "text_cosine.mean")
+
+
+def metric_rows(run: dict[str, Any]) -> list[dict[str, Any]]:
+    rows = []
+    for record in run.get("records", []):
+        variant = str(record.get("variant"))
+        if finite(get_path(record, "text_rankme")):
+            rows.extend(
+                [
+                    {"variant": variant, "metric": "Text RankMe", "value": get_path(record, "text_rankme")},
+                    {"variant": variant, "metric": "Code RankMe", "value": get_path(record, "code_rankme")},
+                    {"variant": variant, "metric": "Text mean cosine", "value": get_path(record, "text_cosine.mean")},
+                    {"variant": variant, "metric": "Code mean cosine", "value": get_path(record, "code_cosine.mean")},
+                ]
+            )
+            for label, path in [
+                ("Direct R@1", "retrieval_embedding.recall@1"),
+                ("Pred-code R@1", "retrieval_predicted_code_embedding.recall@1"),
+                ("Text cap R@1", "retrieval_text_cap_to_text_anchor.recall@1"),
+                ("Code cap R@1", "retrieval_code_cap_to_code_anchor.recall@1"),
+            ]:
+                value = get_path(record, path)
+                if finite(value):
+                    rows.append({"variant": variant, "metric": label, "value": value})
+        elif finite(get_path(record, "eval_exact_match")):
+            for label, path in [
+                ("Exact match", "eval_exact_match"),
+                ("Train loss", "train_loss"),
+                ("Final logged loss", "final_log_loss"),
+                ("Samples/s", "train_samples_per_second"),
+            ]:
+                value = get_path(record, path)
+                if finite(value):
+                    rows.append({"variant": variant, "metric": label, "value": value})
+        else:
+            rows.extend(
+                [
+                    {"variant": variant, "metric": "RankMe", "value": get_path(record, "rankme")},
+                    {"variant": variant, "metric": "Within-class RankMe", "value": get_path(record, "within_class_rankme._mean_within_class")},
+                    {"variant": variant, "metric": "Mean cosine", "value": get_path(record, "cosine.mean")},
+                    {"variant": variant, "metric": "Uniformity", "value": get_path(record, "uniformity")},
+                ]
+            )
+            value = get_path(record, "linear_probe_top1")
+            if finite(value):
+                rows.append({"variant": variant, "metric": "Linear probe top-1", "value": value})
+    return [row for row in rows if finite(row["value"])]
+
+
+def selected_variants(run: dict[str, Any], limit: int = 10) -> list[dict[str, Any]]:
+    preferred = [
+        "C",
+        "C_detach",
+        "C_ema",
+        "D0",
+        "D1",
+        "D0a",
+        "D1a",
+        "D0b",
+        "D1b",
+        "D0c",
+        "D1c",
+        "D3",
+        "D_own_0",
+        "D_own_1",
+        "D_cross_0",
+        "D_cross_1",
+        "D_cross_sym_0",
+        "D_cross_sym_1",
+        "F",
+        "G",
+        "H",
+        "Regular",
+        "Cross",
+        "Both",
+    ]
+    records = by_variant(run)
+    picked = [records[name] for name in preferred if name in records]
+    if len(picked) < min(limit, len(records)):
+        for record in run.get("records", []):
+            if record not in picked:
+                picked.append(record)
+            if len(picked) >= limit:
+                break
+    return picked[:limit]
+
+
+def save_fig(fig: plt.Figure, path: Path) -> str:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(path, dpi=180, bbox_inches="tight")
+    plt.close(fig)
+    return path.name
+
+
+def annotate_wrapped(ax: plt.Axes, text: str, xy: tuple[float, float] = (0.02, 0.98)) -> None:
+    ax.text(
+        xy[0],
+        xy[1],
+        textwrap.fill(text, 52),
+        transform=ax.transAxes,
+        va="top",
+        ha="left",
+        fontsize=10,
+        color="#33413b",
+        bbox={"boxstyle": "round,pad=0.45", "facecolor": "#f6f8f2", "edgecolor": "#d8e0d4", "alpha": 0.94},
+    )
+
+
+def plot_overview(runs: list[dict[str, Any]], assets_dir: Path) -> str:
+    rows = []
+    for run in runs:
+        for record in run.get("records", []):
+            rank = rank_value(record)
+            cosine = mean_cosine(record)
+            if finite(rank) and finite(cosine):
+                rows.append(
+                    {
+                        "run": run["short_title"],
+                        "group": run["group"],
+                        "variant": str(record.get("variant")),
+                        "rank": rank,
+                        "mean_cosine": cosine,
+                    }
+                )
+    df = pd.DataFrame(rows)
+    fig, axes = plt.subplots(2, 2, figsize=(17, 11))
+    if not df.empty:
+        sns.scatterplot(
+            data=df,
+            x="mean_cosine",
+            y="rank",
+            hue="group",
+            style="run",
+            s=110,
+            edgecolor="#17211d",
+            linewidth=0.45,
+            ax=axes[0, 0],
+        )
+        axes[0, 0].set_title("Geometry Map: Prefer Upper Left, Avoid Right-Side Collapse", fontsize=17)
+        axes[0, 0].set_xlabel("Mean off-diagonal cosine (lower is better)")
+        axes[0, 0].set_ylabel("RankMe (higher is better)")
+        axes[0, 0].legend(loc="best", fontsize=8)
+        for _, row in df[df["variant"].isin(["C", "D1", "D_own_1", "D_own_0", "F", "G"])].iterrows():
+            axes[0, 0].annotate(row["variant"], (row["mean_cosine"], row["rank"]), fontsize=8, xytext=(4, 4), textcoords="offset points")
+    else:
+        axes[0, 0].axis("off")
+
+    focus = next((run for run in runs if run["slug"] == "exp2_pythia160m_synth_input_white_anchor_white"), None)
+    if focus:
+        records = by_variant(focus)
+        focus_rows = []
+        for name in ["D_own_0", "D_own_1", "C", "C_ema", "F", "G", "H"]:
+            record = records.get(name)
+            if not record:
+                continue
+            focus_rows.append(
+                {
+                    "variant": name,
+                    "code_rankme": get_path(record, "code_rankme"),
+                    "pred_r1": get_path(record, "retrieval_predicted_code_embedding.recall@1"),
+                }
+            )
+        if focus_rows:
+            local = pd.DataFrame(focus_rows)
+            sns.barplot(data=local, x="variant", y="code_rankme", ax=axes[0, 1], color="#276a8c")
+            axes[0, 1].set_title("Best Exp2 Run: Code RankMe + Pred-Code R@1", fontsize=17)
+            axes[0, 1].tick_params(axis="x", rotation=30)
+            axes[0, 1].set_xlabel("")
+            axes[0, 1].set_ylabel("Code RankMe")
+            ax_r = axes[0, 1].twinx()
+            valid = local.dropna(subset=["pred_r1"])
+            ax_r.plot(valid["variant"], valid["pred_r1"], color="#b9524d", marker="o", linewidth=2.6)
+            ax_r.set_ylim(0, max(1.0, float(valid["pred_r1"].max()) * 1.2 if len(valid) else 1.0))
+            ax_r.set_ylabel("Pred-code R@1")
+            positions = {name: pos for pos, name in enumerate(local["variant"].tolist())}
+            for row in valid.itertuples(index=False):
+                ax_r.annotate(fmt(row.pred_r1, "percent"), (positions[row.variant], row.pred_r1), textcoords="offset points", xytext=(0, 7), ha="center", fontsize=9, color="#7a332f")
+
+        anchor_rows = []
+        for name, diag in (focus.get("anchor_geometry") or {}).items():
+            if name in {"raw_text", "raw_code", "source_white_text", "source_white_code", "white_text", "white_code"}:
+                anchor_rows.append({"anchor": name, "metric": "Top eig mass", "value": get_path(diag, "top_eig_mass_ratio")})
+                anchor_rows.append({"anchor": name, "metric": "Mean cosine", "value": get_path(diag, "cosine_stats.mean")})
+        if anchor_rows:
+            sns.barplot(data=pd.DataFrame(anchor_rows), x="anchor", y="value", hue="metric", ax=axes[1, 0])
+            axes[1, 0].set_title("Whitening Makes the Anchor Usable", fontsize=17)
+            axes[1, 0].tick_params(axis="x", rotation=45)
+            axes[1, 0].set_xlabel("")
+            axes[1, 0].set_ylabel("Lower is better")
+            axes[1, 0].legend(fontsize=9)
+    else:
+        axes[0, 1].axis("off")
+        axes[1, 0].axis("off")
+
+    exp1 = next((run for run in runs if run["slug"] == "exp1_cifar_gpu"), None)
+    if exp1:
+        rows = []
+        for record in exp1.get("records", []):
+            probe = get_path(record, "linear_probe_top1")
+            rank = get_path(record, "rankme")
+            if finite(probe) and finite(rank):
+                rows.append({"variant": str(record.get("variant")), "probe": probe, "rank": rank})
+        if rows:
+            local = pd.DataFrame(rows)
+            sns.scatterplot(data=local, x="rank", y="probe", hue="variant", s=130, ax=axes[1, 1])
+            axes[1, 1].set_title("CIFAR: Spread Is Not the Same as Probe Accuracy", fontsize=17)
+            axes[1, 1].set_xlabel("RankMe")
+            axes[1, 1].set_ylabel("Linear probe top-1")
+            axes[1, 1].legend(ncol=2, fontsize=8)
+    else:
+        axes[1, 1].axis("off")
+
+    fig.suptitle("Sphere-JEPA Results: What We Are Trying to See", fontsize=22, fontweight="bold")
+    fig.tight_layout(rect=(0, 0, 1, 0.94), h_pad=2.4, w_pad=3.0)
+    return save_fig(fig, assets_dir / "overview_geometry.png")
+
+
+def plot_preprocessing(runs: list[dict[str, Any]], assets_dir: Path) -> str | None:
+    rows = []
+    for run in runs:
+        if not run["slug"].startswith("exp2_pythia160m"):
+            continue
+        records = by_variant(run)
+        d1 = records.get("D_own_1")
+        d0 = records.get("D_own_0")
+        if not d1:
+            continue
+        label = f"{run.get('config', {}).get('input_preprocess', 'raw')} / {run.get('config', {}).get('anchor_preprocess', 'raw')}"
+        rows.extend(
+            [
+                {"mode": label, "metric": "D1 text RankMe", "value": get_path(d1, "text_rankme")},
+                {"mode": label, "metric": "D1 code RankMe", "value": get_path(d1, "code_rankme")},
+                {"mode": label, "metric": "D1 pred-code R@1", "value": get_path(d1, "retrieval_predicted_code_embedding.recall@1")},
+                {"mode": label, "metric": "D1 mean text cosine", "value": get_path(d1, "text_cosine.mean")},
+            ]
+        )
+        if d0:
+            rows.extend(
+                [
+                    {"mode": label, "metric": "D1-D0 code RankMe", "value": get_path(d1, "code_rankme") - get_path(d0, "code_rankme")},
+                    {"mode": label, "metric": "D1-D0 pred-code R@1", "value": get_path(d1, "retrieval_predicted_code_embedding.recall@1") - get_path(d0, "retrieval_predicted_code_embedding.recall@1")},
+                ]
+            )
+    rows = [row for row in rows if finite(row["value"])]
+    if not rows:
+        return None
+    df = pd.DataFrame(rows)
+    metrics = list(dict.fromkeys(df["metric"]))
+    fig, axes = plt.subplots(math.ceil(len(metrics) / 2), 2, figsize=(15, 3.6 * math.ceil(len(metrics) / 2)))
+    axes = np.ravel(axes)
+    for ax, metric in zip(axes, metrics):
+        local = df[df["metric"] == metric]
+        sns.barplot(data=local, x="mode", y="value", ax=ax, color="#276a8c")
+        ax.set_title(metric)
+        ax.set_xlabel("")
+        ax.tick_params(axis="x", rotation=38)
+        if "R@1" in metric:
+            ax.set_ylabel("fraction")
+        else:
+            ax.set_ylabel("")
+    for ax in axes[len(metrics):]:
+        ax.axis("off")
+    fig.suptitle("Exp2 Preprocessing Sweep: Why Source + Anchor Whitening Matters", fontsize=22, fontweight="bold")
+    fig.tight_layout()
+    return save_fig(fig, assets_dir / "exp2_preprocessing.png")
+
+
+def plot_metrics(run: dict[str, Any], assets_dir: Path) -> str | None:
+    rows = metric_rows(run)
+    if not rows:
+        return None
+    df = pd.DataFrame(rows)
+    metrics = list(dict.fromkeys(df["metric"]))
+    max_panels = min(6, len(metrics))
+    fig, axes = plt.subplots(math.ceil(max_panels / 2), 2, figsize=(15, 3.9 * math.ceil(max_panels / 2)))
+    axes = np.ravel(axes)
+    for ax, metric in zip(axes, metrics[:max_panels]):
+        local = df[df["metric"] == metric].copy()
+        local["variant"] = pd.Categorical(local["variant"], categories=[str(r.get("variant")) for r in run.get("records", [])], ordered=True)
+        sns.barplot(data=local, y="variant", x="value", hue="variant", dodge=False, legend=False, ax=ax)
+        ax.set_title(metric)
+        ax.set_xlabel("")
+        ax.set_ylabel("")
+    for ax in axes[max_panels:]:
+        ax.axis("off")
+    fig.suptitle(f"{run['short_title']} Metrics", fontsize=22, fontweight="bold")
+    fig.tight_layout()
+    return save_fig(fig, assets_dir / f"{run['slug']}_metrics.png")
+
+
+def scatter_points(record: dict[str, Any]) -> list[tuple[str, list[dict[str, Any]]]]:
+    out = []
+    for key, label in [
+        ("scatter", "Embedding"),
+        ("pca_scatter", "Embedding"),
+        ("text_pca_scatter", "Text"),
+        ("code_pca_scatter", "Code"),
+    ]:
+        points = record.get(key)
+        if isinstance(points, list) and points:
+            out.append((label, points))
+    seen = set()
+    deduped = []
+    for label, points in out:
+        marker = (label, id(points))
+        if marker not in seen:
+            seen.add(marker)
+            deduped.append((label, points))
+    return deduped
+
+
+def points_df(points: list[dict[str, Any]]) -> pd.DataFrame:
+    rows = []
+    for point in points:
+        try:
+            rows.append({"x": float(point["x"]), "y": float(point["y"]), "label": str(point.get("label", ""))})
+        except (KeyError, TypeError, ValueError):
+            continue
+    return pd.DataFrame(rows)
+
+
+def plot_pca(run: dict[str, Any], assets_dir: Path) -> str | None:
+    panels = []
+    for record in selected_variants(run, limit=8):
+        for space, points in scatter_points(record):
+            panels.append((str(record.get("variant")), space, points))
+    if not panels:
+        return None
+    cols = min(4, len(panels))
+    rows = math.ceil(len(panels) / cols)
+    fig, axes = plt.subplots(rows, cols, figsize=(4.2 * cols, 3.8 * rows), squeeze=False)
+    for ax, (variant, space, points) in zip(axes.ravel(), panels):
+        df = points_df(points)
+        if df.empty:
+            ax.axis("off")
+            continue
+        sns.scatterplot(data=df, x="x", y="y", hue="label", palette="tab10", s=14, alpha=0.74, linewidth=0, legend=False, ax=ax)
+        ax.set_title(f"{variant} {space}")
+        ax.set_xlabel("PC1")
+        ax.set_ylabel("PC2")
+    for ax in axes.ravel()[len(panels):]:
+        ax.axis("off")
+    fig.suptitle(f"{run['short_title']} PCA Maps", fontsize=22, fontweight="bold")
+    fig.tight_layout()
+    return save_fig(fig, assets_dir / f"{run['slug']}_pca.png")
+
+
+def plot_sphere(run: dict[str, Any], assets_dir: Path) -> str | None:
+    panels = []
+    for record in selected_variants(run, limit=8):
+        points = scatter_points(record)
+        if points:
+            panels.append((str(record.get("variant")), points[0][0], points[0][1], record))
+    if not panels:
+        return None
+    cols = min(4, len(panels))
+    rows = math.ceil(len(panels) / cols)
+    fig, axes = plt.subplots(rows, cols, figsize=(4.0 * cols, 4.0 * rows), squeeze=False)
+    for ax, (variant, space, points, record) in zip(axes.ravel(), panels):
+        df = points_df(points)
+        if df.empty:
+            ax.axis("off")
+            continue
+        x = df["x"].to_numpy()
+        y = df["y"].to_numpy()
+        x = (x - x.mean()) / max(x.std(), 1e-9)
+        y = (y - y.mean()) / max(y.std(), 1e-9)
+        radius = np.maximum(np.sqrt(x * x + y * y), 1.0)
+        x = x / radius * 0.96
+        y = y / radius * 0.96
+        for r in [0.25, 0.5, 0.75, 1.0]:
+            circle = plt.Circle((0, 0), r, fill=False, color="#d9e3d6", linewidth=1.0)
+            ax.add_artist(circle)
+        sns.scatterplot(x=x, y=y, hue=df["label"], palette="tab10", s=14, alpha=0.76, linewidth=0, legend=False, ax=ax)
+        ax.set_aspect("equal")
+        ax.set_xlim(-1.08, 1.08)
+        ax.set_ylim(-1.08, 1.08)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_title(f"{variant} {space}\nRankMe {fmt(rank_value(record))}, cos {fmt(mean_cosine(record))}", fontsize=11)
+    for ax in axes.ravel()[len(panels):]:
+        ax.axis("off")
+    fig.suptitle(f"{run['short_title']} Hypersphere Proxy", fontsize=22, fontweight="bold")
+    fig.tight_layout()
+    return save_fig(fig, assets_dir / f"{run['slug']}_sphere.png")
+
+
+def hist_specs(record: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
+    specs = []
+    for key, label in [
+        ("cosine_histogram", "Embedding"),
+        ("text_cosine_histogram", "Text"),
+        ("code_cosine_histogram", "Code"),
+    ]:
+        value = record.get(key)
+        if isinstance(value, dict) and value.get("counts"):
+            specs.append((label, value))
+    return specs
+
+
+def spectrum_specs(record: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
+    specs = []
+    for key, label in [
+        ("eigen_spectrum", "Embedding"),
+        ("text_eigen_spectrum", "Text"),
+        ("code_eigen_spectrum", "Code"),
+    ]:
+        value = record.get(key)
+        if isinstance(value, dict) and value.get("mass"):
+            specs.append((label, value))
+    return specs
+
+
+def plot_cosine_hists(run: dict[str, Any], assets_dir: Path) -> str | None:
+    panels = []
+    for record in selected_variants(run, limit=8):
+        for label, hist in hist_specs(record):
+            panels.append((str(record.get("variant")), label, hist))
+    if not panels:
+        return None
+    cols = min(4, len(panels))
+    rows = math.ceil(len(panels) / cols)
+    fig, axes = plt.subplots(rows, cols, figsize=(4.2 * cols, 3.3 * rows), squeeze=False)
+    for ax, (variant, label, hist) in zip(axes.ravel(), panels):
+        counts = np.array(hist.get("counts", []), dtype=float)
+        bins = np.linspace(-1, 1, len(counts) + 1)
+        centers = 0.5 * (bins[:-1] + bins[1:])
+        ax.bar(centers, counts, width=2 / max(len(counts), 1), color="#276a8c", alpha=0.86)
+        ax.axvline(0, color="#333", linewidth=1)
+        ax.set_title(f"{variant} {label}")
+        ax.set_xlabel("Pairwise cosine")
+        ax.set_ylabel("count")
+    for ax in axes.ravel()[len(panels):]:
+        ax.axis("off")
+    fig.suptitle(f"{run['short_title']} Cosine Histograms", fontsize=22, fontweight="bold")
+    fig.tight_layout()
+    return save_fig(fig, assets_dir / f"{run['slug']}_cosine_hists.png")
+
+
+def plot_spectra(run: dict[str, Any], assets_dir: Path) -> str | None:
+    panels = []
+    for record in selected_variants(run, limit=8):
+        for label, spectrum in spectrum_specs(record):
+            panels.append((str(record.get("variant")), label, spectrum))
+    if not panels:
+        return None
+    cols = min(4, len(panels))
+    rows = math.ceil(len(panels) / cols)
+    fig, axes = plt.subplots(rows, cols, figsize=(4.2 * cols, 3.3 * rows), squeeze=False)
+    for ax, (variant, label, spectrum) in zip(axes.ravel(), panels):
+        mass = np.array(spectrum.get("mass", []), dtype=float)
+        sns.lineplot(x=np.arange(1, len(mass) + 1), y=mass, marker="o", linewidth=2.0, ax=ax, color="#287c62")
+        ax.set_title(f"{variant} {label}")
+        ax.set_xlabel("component")
+        ax.set_ylabel("eigenvalue mass")
+    for ax in axes.ravel()[len(panels):]:
+        ax.axis("off")
+    fig.suptitle(f"{run['short_title']} Eigenspectra", fontsize=22, fontweight="bold")
+    fig.tight_layout()
+    return save_fig(fig, assets_dir / f"{run['slug']}_spectra.png")
+
+
+def plot_anchor_geometry(run: dict[str, Any], assets_dir: Path) -> str | None:
+    rows = []
+    for name, diag in (run.get("anchor_geometry") or {}).items():
+        rows.extend(
+            [
+                {"anchor": name, "metric": "RankMe", "value": get_path(diag, "rankme")},
+                {"anchor": name, "metric": "Top eig mass", "value": get_path(diag, "top_eig_mass_ratio")},
+                {"anchor": name, "metric": "Mean cosine", "value": get_path(diag, "cosine_stats.mean")},
+                {"anchor": name, "metric": "Uniformity", "value": get_path(diag, "uniformity_after_normalize")},
+            ]
+        )
+    rows = [row for row in rows if finite(row["value"])]
+    if not rows:
+        return None
+    df = pd.DataFrame(rows)
+    metrics = list(dict.fromkeys(df["metric"]))
+    fig, axes = plt.subplots(2, 2, figsize=(15, 9))
+    for ax, metric in zip(axes.ravel(), metrics[:4]):
+        local = df[df["metric"] == metric]
+        sns.barplot(data=local, y="anchor", x="value", hue="anchor", dodge=False, legend=False, ax=ax)
+        ax.set_title(metric)
+        ax.set_xlabel("")
+        ax.set_ylabel("")
+    fig.suptitle(f"{run['short_title']} Anchor Geometry", fontsize=22, fontweight="bold")
+    fig.tight_layout()
+    return save_fig(fig, assets_dir / f"{run['slug']}_anchors.png")
+
+
+def plot_retrieval(run: dict[str, Any], assets_dir: Path) -> str | None:
+    rows = []
+    for record in run.get("records", []):
+        for key, value in record.items():
+            if key.startswith("retrieval") and isinstance(value, dict):
+                r1 = get_path(value, "recall@1")
+                if finite(r1):
+                    rows.append({"variant": str(record.get("variant")), "space": key.replace("retrieval_", "").replace("_", " "), "recall@1": r1})
+    if not rows:
+        return None
+    df = pd.DataFrame(rows)
+    fig, ax = plt.subplots(figsize=(14, max(5, 0.42 * len(df))))
+    sns.barplot(data=df, y="variant", x="recall@1", hue="space", ax=ax)
+    ax.set_title(f"{run['short_title']} Retrieval Recall@1")
+    ax.set_xlabel("recall@1")
+    ax.set_ylabel("")
+    ax.legend(fontsize=9)
+    fig.tight_layout()
+    return save_fig(fig, assets_dir / f"{run['slug']}_retrieval.png")
+
+
+def heatmap_specs(record: dict[str, Any]) -> list[tuple[str, dict[str, Any]]]:
+    specs = []
+    for key, label in [
+        ("embedding_similarity_heatmap", "Embedding similarity"),
+        ("text_cap_to_text_anchor_heatmap", "Text cap -> text anchor"),
+        ("code_cap_to_code_anchor_heatmap", "Code cap -> code anchor"),
+        ("text_cap_to_code_anchor_heatmap", "Text cap -> code anchor"),
+    ]:
+        value = record.get(key)
+        if isinstance(value, dict) and value.get("values"):
+            specs.append((label, value))
+    return specs
+
+
+def plot_heatmaps(run: dict[str, Any], assets_dir: Path) -> str | None:
+    panels = []
+    for record in selected_variants(run, limit=6):
+        for label, heatmap in heatmap_specs(record):
+            panels.append((str(record.get("variant")), label, heatmap))
+    if not panels:
+        return None
+    panels = panels[:12]
+    cols = min(4, len(panels))
+    rows = math.ceil(len(panels) / cols)
+    fig, axes = plt.subplots(rows, cols, figsize=(4.1 * cols, 3.8 * rows), squeeze=False)
+    for ax, (variant, label, heatmap) in zip(axes.ravel(), panels):
+        values = np.array(heatmap.get("values", []), dtype=float)
+        sns.heatmap(values, cmap="vlag", center=0, vmin=-1, vmax=1, cbar=False, xticklabels=False, yticklabels=False, ax=ax)
+        ax.set_title(f"{variant}\n{label}", fontsize=11)
+    for ax in axes.ravel()[len(panels):]:
+        ax.axis("off")
+    fig.suptitle(f"{run['short_title']} Similarity Heatmaps", fontsize=22, fontweight="bold")
+    fig.tight_layout()
+    return save_fig(fig, assets_dir / f"{run['slug']}_heatmaps.png")
+
+
+def plot_history(run: dict[str, Any], assets_dir: Path) -> str | None:
+    rows = []
+    for record in run.get("records", []):
+        for point in record.get("history") or []:
+            if finite(point.get("step")) and finite(point.get("loss")):
+                rows.append({"variant": str(record.get("variant")), "step": float(point["step"]), "loss": float(point["loss"])})
+    if not rows:
+        return None
+    df = pd.DataFrame(rows)
+    fig, ax = plt.subplots(figsize=(14, 6))
+    sns.lineplot(data=df, x="step", y="loss", hue="variant", marker="o", ax=ax)
+    ax.set_title(f"{run['short_title']} Training Loss Traces")
+    ax.set_xlabel("step")
+    ax.set_ylabel("loss")
+    ax.legend(ncol=3, fontsize=9)
+    fig.tight_layout()
+    return save_fig(fig, assets_dir / f"{run['slug']}_history.png")
+
+
+def build_metric_table(run: dict[str, Any]) -> str:
+    columns = [
+        ("RankMe", "rankme"),
+        ("Text RankMe", "text_rankme"),
+        ("Code RankMe", "code_rankme"),
+        ("Within RankMe", "within_class_rankme._mean_within_class"),
+        ("Mean Cos", "cosine.mean"),
+        ("Text Cos", "text_cosine.mean"),
+        ("Code Cos", "code_cosine.mean"),
+        ("Uniformity", "uniformity"),
+        ("Probe", "linear_probe_top1"),
+        ("Direct R@1", "retrieval_embedding.recall@1"),
+        ("Pred R@1", "retrieval_predicted_code_embedding.recall@1"),
+        ("Exact Match", "eval_exact_match"),
+    ]
+    active = [(label, path) for label, path in columns if any(finite(get_path(record, path)) for record in run.get("records", []))]
+    if not active:
+        return ""
+    rows = []
+    for record in run.get("records", []):
+        cells = [f"<td><code>{html.escape(str(record.get('variant')))}</code></td>"]
+        for _, path in active:
+            kind = "percent" if path in {"linear_probe_top1", "eval_exact_match"} or path.endswith("recall@1") else "number"
+            cells.append(f"<td class='num'>{html.escape(fmt(get_path(record, path), kind))}</td>")
+        rows.append(f"<tr>{''.join(cells)}</tr>")
+    return f"""
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Variant</th>{''.join(f'<th>{html.escape(label)}</th>' for label, _ in active)}</tr></thead>
+        <tbody>{''.join(rows)}</tbody>
+      </table>
+    </div>
+    """
+
+
+def contrast_rows(run: dict[str, Any]) -> str:
+    records = by_variant(run)
+    pairs = [
+        ("D1a", "D0a", "Noise: continuous anchor"),
+        ("D1b", "D0b", "Noise: RFF anchor"),
+        ("D1c", "D0c", "Noise: frozen teacher anchor"),
+        ("D1a", "C", "External continuous anchor vs co-trained target"),
+        ("D1c", "C", "External teacher anchor vs co-trained target"),
+        ("D1", "D0", "Noise: frozen anchor"),
+        ("D1", "C", "Frozen anchor vs co-trained target"),
+        ("D1", "D2", "Sample-specific vs class-level"),
+        ("D_own_1", "D_own_0", "Noise: own-view anchor"),
+        ("D_own_1", "C", "External anchor vs co-trained target"),
+        ("D_own_1", "C_ema", "External anchor vs EMA target"),
+        ("D_cross_1", "D_cross_0", "Noise: cross-view anchor"),
+        ("F", "D_own_1", "InfoNCE vs D_own_1"),
+        ("G", "D_own_1", "VICReg vs D_own_1"),
+        ("H", "D_own_1", "SIGReg vs D_own_1"),
+        ("D1", "Regular", "Exp3 D1 vs regular"),
+        ("C", "Regular", "Exp3 co-trained vs regular"),
+        ("C_ema", "C", "Exp3 EMA vs co-trained"),
+        ("Both", "D1", "Exp3 both caps vs D1"),
+        ("Cross", "D1", "Exp3 cross-view vs D1"),
+    ]
+    rows = []
+    for left, right, label in pairs:
+        if left not in records or right not in records:
+            continue
+        l_rec = records[left]
+        r_rec = records[right]
+        rows.append(
+            "<tr>"
+            f"<td>{html.escape(label)}</td>"
+            f"<td><code>{html.escape(left)}</code> - <code>{html.escape(right)}</code></td>"
+            f"<td class='num'>{html.escape(fmt(rank_value(l_rec) - rank_value(r_rec)))}</td>"
+            f"<td class='num'>{html.escape(fmt(mean_cosine(l_rec) - mean_cosine(r_rec)))}</td>"
+            f"<td class='num'>{html.escape(fmt(get_path(l_rec, 'retrieval_predicted_code_embedding.recall@1') - get_path(r_rec, 'retrieval_predicted_code_embedding.recall@1'), 'pp'))}</td>"
+            f"<td class='num'>{html.escape(fmt(get_path(l_rec, 'eval_exact_match') - get_path(r_rec, 'eval_exact_match'), 'pp'))}</td>"
+            "</tr>"
+        )
+    if not rows:
+        return ""
+    return f"""
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Question</th><th>Pair</th><th>Delta RankMe</th><th>Delta Cos</th><th>Delta Pred R@1</th><th>Delta EM</th></tr></thead>
+        <tbody>{''.join(rows)}</tbody>
+      </table>
+    </div>
+    """
+
+
+def run_reading_notes(run: dict[str, Any]) -> list[str]:
+    slug = run["slug"]
+    if slug == "exp0_full":
+        return [
+            "Start with C: it is the collapse demonstration. The useful pattern is D1* moving up in RankMe and away from cosine=1 compared with C and matched D0* controls.",
+            "D1a/D0a, D1b/D0b, and D1c/D0c are matched pairs. The only intended difference is noisy cap reconstruction.",
+        ]
+    if slug == "exp1_cifar_gpu":
+        return [
+            "Separate geometry from task usefulness. D1 can improve spread while still losing probe accuracy.",
+            "D2 is not a fair unsupervised win because it uses labels; use it to see what class-level anchoring can and cannot explain.",
+        ]
+    if slug == "exp2_pythia160m_synth_input_white_anchor_white":
+        return [
+            "This is the main frozen-LLM diagnostic. The headline read is D_own_1 > D_own_0 and D_own_1 >> C on geometry and predicted-code retrieval.",
+            "Direct embedding retrieval is a different question. InfoNCE/VICReg can win there without disproving the cap-anchor geometry mechanism.",
+        ]
+    if slug.startswith("exp2_pythia160m"):
+        return [
+            "Use this as a preprocessing control. Raw Pythia states are highly anisotropic, so failures here mostly tell us that the source geometry is hostile.",
+            "Compare D_own_1 to D_own_0 within the same preprocessing mode, then compare the whole mode against source+anchor whitening.",
+        ]
+    if slug == "exp3_full_synth":
+        return [
+            "This is downstream task behavior, not a pure geometry diagnostic. Exact match answers whether the final generator got better.",
+            "D1-D0 is still the matched noise comparison. D1-Regular asks whether the cap objective helps beyond standard supervised fine-tuning.",
+        ]
+    if slug == "exp3_llama1b_synth":
+        return [
+            "Read this as the stronger-base control pass. It checks whether the main Regular/C/D0/D1 pattern changes when the base model is Llama 1B.",
+            "Use D1-D0 for the matched noise comparison and D1-Regular for the cap-objective comparison.",
+        ]
+    return ["Use matched pairs first, then compare against co-trained and regularizer baselines."]
+
+
+def fig_card(src: str | None, title: str, note_key: str) -> str:
+    if not src:
+        return ""
+    return f"""
+    <article class="figure-card">
+      <h4>{html.escape(title)}</h4>
+      <img src="assets/dashboard/{html.escape(src)}" alt="{html.escape(title)}">
+      <p>{html.escape(FIGURE_NOTES[note_key])}</p>
+    </article>
+    """
+
+
+def render_glossary() -> str:
+    variant_rows = "".join(
+        f"<tr><td><code>{html.escape(code)}</code></td><td>{html.escape(name)}</td><td>{html.escape(desc)}</td></tr>"
+        for code, name, desc in VARIANT_GLOSSARY
+    )
+    metric_rows_html = "".join(
+        f"<tr><td>{html.escape(metric)}</td><td>{html.escape(desc)}</td></tr>" for metric, desc in METRIC_GLOSSARY
+    )
+    return f"""
+    <section class="panel" id="glossary">
+      <h2>How to Read This</h2>
+      <div class="callout">
+        <p><strong>What we are going for:</strong> a useful sphere-cap mechanism should make <code>D1</code>-style noisy, external-anchor variants beat their matched <code>D0</code> no-noise controls, and beat <code>C</code> co-trained targets that can move with the encoder and collapse. High RankMe plus low mean cosine is the main geometry signature.</p>
+      </div>
+      <div class="two-col">
+        <div>
+          <h3>Variant Glossary</h3>
+          <div class="table-wrap small">
+            <table>
+              <thead><tr><th>Code</th><th>Meaning</th><th>How to interpret it</th></tr></thead>
+              <tbody>{variant_rows}</tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <h3>Metric Glossary</h3>
+          <div class="table-wrap small">
+            <table>
+              <thead><tr><th>Metric/Figure</th><th>Reading rule</th></tr></thead>
+              <tbody>{metric_rows_html}</tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+    """
+
+
+def render_run(run: dict[str, Any], figures: dict[str, str | None]) -> str:
+    notes = "".join(f"<li>{html.escape(note)}</li>" for note in run_reading_notes(run))
+    takeaways = "".join(f"<li>{html.escape(item)}</li>" for item in run.get("takeaways", []))
+    links = []
+    if run.get("json_path"):
+        links.append(f"<a href='{html.escape(run['json_path'])}'>summary JSON</a>")
+    if run.get("html_path"):
+        links.append(f"<a href='{html.escape(run['html_path'])}'>old per-run HTML</a>")
+    fig_html = "".join(
+        [
+            fig_card(figures.get("metrics"), "Metric Overview", "metrics"),
+            fig_card(figures.get("anchors"), "Anchor Geometry", "anchors"),
+            fig_card(figures.get("pca"), "PCA Maps", "pca"),
+            fig_card(figures.get("sphere"), "Hypersphere Proxy", "sphere"),
+            fig_card(figures.get("hist"), "Cosine Histograms", "hist"),
+            fig_card(figures.get("spectrum"), "Eigenspectra", "spectrum"),
+            fig_card(figures.get("retrieval"), "Retrieval Bars", "heatmap"),
+            fig_card(figures.get("heatmap"), "Similarity Heatmaps", "heatmap"),
+            fig_card(figures.get("history"), "Training Traces", "metrics"),
+        ]
+    )
+    return f"""
+    <section class="panel run" id="{html.escape(run['slug'])}">
+      <div class="run-head">
+        <div>
+          <p class="eyebrow">{html.escape(run['group'])}</p>
+          <h2>{html.escape(run['title'])}</h2>
+          <p>{html.escape(run['summary'])}</p>
+        </div>
+        <div class="links">{' / '.join(links)}</div>
+      </div>
+      <div class="run-grid">
+        <article class="text-card">
+          <h3>What to Look For</h3>
+          <ul>{notes}</ul>
+          <h3>Current Read</h3>
+          <ul>{takeaways}</ul>
+        </article>
+        <article class="text-card">
+          <h3>Headline Contrasts</h3>
+          {contrast_rows(run) or '<p class="muted">No matched contrast pairs found for this run.</p>'}
+        </article>
+      </div>
+      <div class="fig-grid">{fig_html}</div>
+      <details>
+        <summary>Metrics table</summary>
+        {build_metric_table(run)}
+      </details>
+    </section>
+    """
+
+
+def build_figures(runs: list[dict[str, Any]], assets_dir: Path) -> tuple[dict[str, str | None], dict[str, dict[str, str | None]]]:
+    assets_dir.mkdir(parents=True, exist_ok=True)
+    for old in assets_dir.glob("*.png"):
+        old.unlink()
+    overview = {
+        "overview": plot_overview(runs, assets_dir),
+        "preprocessing": plot_preprocessing(runs, assets_dir),
     }
-    data = json.dumps(payload, separators=(",", ":"), ensure_ascii=True)
-    data = data.replace("</", "<\\/")
-    return HTML_TEMPLATE.replace("__REPORT_DATA__", data)
+    per_run: dict[str, dict[str, str | None]] = {}
+    for run in runs:
+        per_run[run["slug"]] = {
+            "metrics": plot_metrics(run, assets_dir),
+            "anchors": plot_anchor_geometry(run, assets_dir),
+            "pca": plot_pca(run, assets_dir),
+            "sphere": plot_sphere(run, assets_dir),
+            "hist": plot_cosine_hists(run, assets_dir),
+            "spectrum": plot_spectra(run, assets_dir),
+            "retrieval": plot_retrieval(run, assets_dir),
+            "heatmap": plot_heatmaps(run, assets_dir),
+            "history": plot_history(run, assets_dir),
+        }
+    return overview, per_run
+
+
+def build_html(runs: list[dict[str, Any]], overview: dict[str, str | None], per_run: dict[str, dict[str, str | None]]) -> str:
+    nav = "".join(f"<a href='#{html.escape(run['slug'])}'>{html.escape(run['short_title'])}</a>" for run in runs)
+    run_sections = "".join(render_run(run, per_run[run["slug"]]) for run in runs)
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sphere-JEPA Results Report</title>
+  <style>
+    :root {{
+      --bg: #f5f7f1;
+      --panel: #ffffff;
+      --soft: #f9fbf6;
+      --ink: #1e2924;
+      --muted: #66736d;
+      --line: #dce5da;
+      --accent: #276a8c;
+      --green: #287c62;
+      --red: #b9524d;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }}
+    * {{ box-sizing: border-box; }}
+    body {{ margin: 0; background: var(--bg); color: var(--ink); }}
+    a {{ color: var(--accent); text-decoration: none; }}
+    a:hover {{ text-decoration: underline; }}
+    header {{ position: sticky; top: 0; z-index: 10; background: rgba(245,247,241,0.94); border-bottom: 1px solid var(--line); backdrop-filter: blur(12px); }}
+    .top {{ max-width: 1440px; margin: 0 auto; padding: 13px 18px; display: grid; grid-template-columns: minmax(280px, 1fr) auto; gap: 16px; align-items: center; }}
+    h1 {{ margin: 0; font-size: 23px; line-height: 1.15; }}
+    .subtitle {{ margin: 4px 0 0; color: var(--muted); font-size: 13px; }}
+    nav {{ display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }}
+    nav a, .links a {{ border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 6px 9px; font-size: 12px; color: var(--ink); }}
+    main {{ max-width: 1440px; margin: 0 auto; padding: 18px; }}
+    .panel {{ background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 18px; margin-bottom: 18px; box-shadow: 0 10px 26px rgba(30,41,36,0.06); }}
+    .hero {{ display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr); gap: 18px; align-items: start; }}
+    .callout {{ background: #eef5ee; border-left: 5px solid var(--green); padding: 12px 14px; border-radius: 7px; }}
+    .two-col {{ display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 18px; align-items: start; }}
+    h2 {{ margin: 0 0 10px; font-size: 22px; }}
+    h3 {{ margin: 0 0 9px; font-size: 16px; }}
+    h4 {{ margin: 0 0 9px; font-size: 15px; }}
+    p, li {{ line-height: 1.48; }}
+    .muted, .figure-card p {{ color: var(--muted); }}
+    .eyebrow {{ margin: 0 0 4px; color: var(--green); font-size: 12px; font-weight: 750; text-transform: uppercase; letter-spacing: 0; }}
+    .figure-card, .text-card {{ background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 13px; min-width: 0; }}
+    .figure-card img {{ display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 7px; background: white; }}
+    .fig-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 14px; margin-top: 14px; }}
+    .run-grid {{ display: grid; grid-template-columns: minmax(320px, 0.9fr) minmax(420px, 1.1fr); gap: 14px; }}
+    .run-head {{ display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: start; border-bottom: 1px solid var(--line); padding-bottom: 13px; margin-bottom: 14px; }}
+    .links {{ display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }}
+    .table-wrap {{ width: 100%; overflow: auto; border: 1px solid var(--line); border-radius: 7px; background: white; }}
+    .table-wrap.small {{ max-height: 560px; }}
+    table {{ width: 100%; border-collapse: collapse; font-size: 13px; min-width: 700px; }}
+    th, td {{ padding: 8px 9px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; }}
+    th {{ background: #edf3ea; color: #415047; font-size: 11px; text-transform: uppercase; letter-spacing: 0; position: sticky; top: 0; }}
+    td.num {{ text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }}
+    code {{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }}
+    summary {{ cursor: pointer; font-weight: 700; padding: 10px 0; }}
+    @media (max-width: 900px) {{
+      .top, .hero, .two-col, .run-grid, .run-head {{ grid-template-columns: 1fr; }}
+      nav, .links {{ justify-content: flex-start; }}
+      .fig-grid {{ grid-template-columns: 1fr; }}
+    }}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="top">
+      <div>
+        <h1>Sphere-JEPA Results Report</h1>
+        <p class="subtitle">Matplotlib/seaborn figures with a glossary and reading notes for every experiment.</p>
+      </div>
+      <nav><a href="#glossary">How to read</a><a href="#overview">Overview</a>{nav}</nav>
+    </div>
+  </header>
+  <main>
+    {render_glossary()}
+    <section class="panel" id="overview">
+      <h2>Overview Figures</h2>
+      <div class="hero">
+        {fig_card(overview.get('overview'), 'Overall Geometry Map', 'overview')}
+        {fig_card(overview.get('preprocessing'), 'Exp2 Preprocessing Sweep', 'preprocessing')}
+      </div>
+    </section>
+    {run_sections}
+  </main>
+</body>
+</html>
+"""
+
+
+def build_dashboard(summary_paths: list[Path], report_dir: Path, out: Path) -> None:
+    setup_theme()
+    runs = [load_run(path, report_dir) for path in ordered(summary_paths)]
+    assets_dir = out.parent / "assets" / "dashboard"
+    overview, per_run = build_figures(runs, assets_dir)
+    rendered = build_html(runs, overview, per_run)
+    rendered = "\n".join(line.rstrip() for line in rendered.splitlines()) + "\n"
+    out.write_text(rendered)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build a self-contained all-results dashboard for sphere-JEPA report summaries.")
+    parser = argparse.ArgumentParser(description="Build a matplotlib/seaborn HTML report for sphere-JEPA summaries.")
     parser.add_argument("--report-dir", type=Path, default=Path("reports/gpu_2026-05-09"))
     parser.add_argument("--summary", action="append", type=Path, default=None, help="Summary JSON file. May be passed multiple times.")
     parser.add_argument("--out", type=Path, default=None)
@@ -1563,7 +1238,7 @@ def main() -> None:
         raise SystemExit(f"no summary JSON files found under {report_dir / 'json'}")
     out = args.out or report_dir / "index.html"
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(build_dashboard(summaries, report_dir))
+    build_dashboard(summaries, report_dir, out)
     print(f"wrote {out}")
 
 

@@ -1,0 +1,2753 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Exp3 Full LLM-JEPA Synth Report</title>
+  <style>
+    :root {
+      --bg: #f6f7f2;
+      --panel: #ffffff;
+      --soft: #fbfcf8;
+      --ink: #1e2723;
+      --muted: #65716c;
+      --line: #dfe5dc;
+      --green: #1f7a63;
+      --red: #b94e4e;
+      --shadow: 0 8px 24px rgba(31, 39, 35, 0.08);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 4;
+      border-bottom: 1px solid var(--line);
+      background: rgba(246, 247, 242, 0.94);
+      backdrop-filter: blur(12px);
+    }
+    .head-inner, main { max-width: 1480px; margin: 0 auto; padding: 16px 18px; }
+    h1 { margin: 0; font-size: 22px; line-height: 1.2; }
+    h2 { margin: 22px 0 10px; font-size: 18px; }
+    h3 { margin: 0 0 10px; font-size: 15px; }
+    p { color: var(--muted); line-height: 1.45; }
+    .stats, .grid { display: grid; gap: 12px; }
+    .stats { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+    .grid { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+    .stat, .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      padding: 14px;
+      min-width: 0;
+    }
+    .stat { background: var(--soft); min-height: 96px; }
+    .label { color: var(--muted); font-size: 12px; text-transform: uppercase; }
+    .value { margin-top: 7px; font-size: 25px; font-weight: 780; line-height: 1; }
+    .note, .muted { color: var(--muted); font-size: 12px; }
+    .wide { grid-column: 1 / -1; }
+    .bar-list { display: grid; gap: 8px; }
+    .bar-row { display: grid; grid-template-columns: 86px 1fr 72px; gap: 8px; align-items: center; font-size: 12px; }
+    .bar-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bar-track { height: 12px; border: 1px solid #d9e1d6; border-radius: 999px; background: #edf1eb; overflow: hidden; }
+    .bar-track span { display: block; height: 100%; border-radius: 999px; }
+    .bar-value, .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+    table { width: 100%; min-width: 820px; border-collapse: collapse; background: var(--panel); font-size: 13px; }
+    .small table { min-width: 460px; }
+    th, td { padding: 8px 9px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { background: #f2f5ef; color: #405047; font-size: 11px; text-transform: uppercase; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    details { margin-top: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--soft); }
+    summary { cursor: pointer; padding: 10px 12px; font-weight: 710; }
+    details .table-wrap { margin: 0 12px 12px; }
+    .pos { color: var(--green); font-weight: 700; }
+    .neg { color: var(--red); font-weight: 700; }
+    svg { display: block; width: 100%; height: auto; }
+    .axis { fill: var(--muted); font: 12px system-ui, sans-serif; }
+    .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; color: var(--muted); font-size: 12px; }
+    .legend span { display: inline-flex; gap: 5px; align-items: center; }
+    .legend i { width: 9px; height: 9px; border-radius: 99px; display: inline-block; }
+    pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 12px; line-height: 1.45; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="head-inner">
+      <h1>Exp3 Full LLM-JEPA Synth Report</h1>
+      <p>SmolLM2-135M full synthetic NL-to-regex sweep: regular, co-trained, EMA, frozen-anchor controls, cross-view, and both-cap ablation.</p>
+    </div>
+  </header>
+  <main>
+    <section class="stats"><article class='stat'><div class='label'>Training variants</div><div class='value'>7/7</div><div class='note'>SmolLM2 full-synth checkpoints with trainer_state.json.</div></article><article class='stat'><div class='label'>Evaluated variants</div><div class='value'>7/7</div><div class='note'>Exact-match evaluation on synth_test.jsonl.</div></article><article class='stat'><div class='label'>Best exact match</div><div class='value'>Regular 0.0%</div><div class='note'>Highest downstream string exact-match score.</div></article><article class='stat'><div class='label'>D1 - D0</div><div class='value'>0.0 pp</div><div class='note'>Frozen noisy own-view anchor minus frozen sigma=0 control.</div></article><article class='stat'><div class='label'>Train examples</div><div class='value'>8000</div><div class='note'>Full synthetic NL-to-regex training split.</div></article><article class='stat'><div class='label'>Test examples</div><div class='value'>2000</div><div class='note'>Held-out synthetic NL-to-regex evaluation split.</div></article></section>
+    <h2>Plots</h2>
+    <section class="grid"><article class='card'><h3>Downstream Exact Match</h3><div class='bar-list'><div class='bar-row'><div class='bar-name'>Regular</div><div class='bar-track'><span style='width:2.00%;background:#246a8f'></span></div><div class='bar-value'>0.0%</div></div><div class='bar-row'><div class='bar-name'>C</div><div class='bar-track'><span style='width:2.00%;background:#b94e4e'></span></div><div class='bar-value'>0.0%</div></div><div class='bar-row'><div class='bar-name'>C_ema</div><div class='bar-track'><span style='width:2.00%;background:#1f7a63'></span></div><div class='bar-value'>0.0%</div></div><div class='bar-row'><div class='bar-name'>D0</div><div class='bar-track'><span style='width:2.00%;background:#bd812d'></span></div><div class='bar-value'>0.0%</div></div><div class='bar-row'><div class='bar-name'>D1</div><div class='bar-track'><span style='width:2.00%;background:#6654a2'></span></div><div class='bar-value'>0.0%</div></div><div class='bar-row'><div class='bar-name'>Cross</div><div class='bar-track'><span style='width:2.00%;background:#188092'></span></div><div class='bar-value'>0.0%</div></div><div class='bar-row'><div class='bar-name'>Both</div><div class='bar-track'><span style='width:2.00%;background:#8d5a2b'></span></div><div class='bar-value'>0.0%</div></div></div></article><article class='card'><h3>First-Line Exact Match</h3><div class='bar-list'><div class='bar-row'><div class='bar-name'>Regular</div><div class='bar-track'><span style='width:2.00%;background:#246a8f'></span></div><div class='bar-value'>0.0%</div></div><div class='bar-row'><div class='bar-name'>C</div><div class='bar-track'><span style='width:2.00%;background:#b94e4e'></span></div><div class='bar-value'>0.0%</div></div><div class='bar-row'><div class='bar-name'>C_ema</div><div class='bar-track'><span style='width:2.00%;background:#1f7a63'></span></div><div class='bar-value'>0.0%</div></div><div class='bar-row'><div class='bar-name'>D0</div><div class='bar-track'><span style='width:2.00%;background:#bd812d'></span></div><div class='bar-value'>0.0%</div></div><div class='bar-row'><div class='bar-name'>D1</div><div class='bar-track'><span style='width:2.00%;background:#6654a2'></span></div><div class='bar-value'>0.0%</div></div><div class='bar-row'><div class='bar-name'>Cross</div><div class='bar-track'><span style='width:2.00%;background:#188092'></span></div><div class='bar-value'>0.0%</div></div><div class='bar-row'><div class='bar-name'>Both</div><div class='bar-track'><span style='width:2.00%;background:#8d5a2b'></span></div><div class='bar-value'>0.0%</div></div></div></article><article class='card'><h3>Contains Ground Truth</h3><div class='bar-list'><div class='bar-row'><div class='bar-name'>Regular</div><div class='bar-track'><span style='width:2.00%;background:#246a8f'></span></div><div class='bar-value'>0.0%</div></div><div class='bar-row'><div class='bar-name'>C</div><div class='bar-track'><span style='width:2.00%;background:#b94e4e'></span></div><div class='bar-value'>0.0%</div></div><div class='bar-row'><div class='bar-name'>C_ema</div><div class='bar-track'><span style='width:2.00%;background:#1f7a63'></span></div><div class='bar-value'>0.0%</div></div><div class='bar-row'><div class='bar-name'>D0</div><div class='bar-track'><span style='width:2.00%;background:#bd812d'></span></div><div class='bar-value'>0.0%</div></div><div class='bar-row'><div class='bar-name'>D1</div><div class='bar-track'><span style='width:2.00%;background:#6654a2'></span></div><div class='bar-value'>0.0%</div></div><div class='bar-row'><div class='bar-name'>Cross</div><div class='bar-track'><span style='width:2.00%;background:#188092'></span></div><div class='bar-value'>0.0%</div></div><div class='bar-row'><div class='bar-name'>Both</div><div class='bar-track'><span style='width:2.00%;background:#8d5a2b'></span></div><div class='bar-value'>0.0%</div></div></div></article><article class='card'><h3>Reported Train Loss</h3><div class='bar-list'><div class='bar-row'><div class='bar-name'>Regular</div><div class='bar-track'><span style='width:69.57%;background:#246a8f'></span></div><div class='bar-value'>1.571</div></div><div class='bar-row'><div class='bar-name'>C</div><div class='bar-track'><span style='width:86.84%;background:#b94e4e'></span></div><div class='bar-value'>1.962</div></div><div class='bar-row'><div class='bar-name'>C_ema</div><div class='bar-track'><span style='width:92.61%;background:#1f7a63'></span></div><div class='bar-value'>2.092</div></div><div class='bar-row'><div class='bar-name'>D0</div><div class='bar-track'><span style='width:96.18%;background:#bd812d'></span></div><div class='bar-value'>2.173</div></div><div class='bar-row'><div class='bar-name'>D1</div><div class='bar-track'><span style='width:97.24%;background:#6654a2'></span></div><div class='bar-value'>2.197</div></div><div class='bar-row'><div class='bar-name'>Cross</div><div class='bar-track'><span style='width:100.00%;background:#188092'></span></div><div class='bar-value'>2.259</div></div><div class='bar-row'><div class='bar-name'>Both</div><div class='bar-track'><span style='width:97.05%;background:#8d5a2b'></span></div><div class='bar-value'>2.192</div></div></div></article><article class='card'><h3>Final Logged LM Loss</h3><div class='bar-list'><div class='bar-row'><div class='bar-name'>Regular</div><div class='bar-track'><span style='width:84.08%;background:#246a8f'></span></div><div class='bar-value'>1.350</div></div><div class='bar-row'><div class='bar-name'>C</div><div class='bar-track'><span style='width:92.41%;background:#b94e4e'></span></div><div class='bar-value'>1.483</div></div><div class='bar-row'><div class='bar-name'>C_ema</div><div class='bar-track'><span style='width:95.04%;background:#1f7a63'></span></div><div class='bar-value'>1.526</div></div><div class='bar-row'><div class='bar-name'>D0</div><div class='bar-track'><span style='width:97.32%;background:#bd812d'></span></div><div class='bar-value'>1.562</div></div><div class='bar-row'><div class='bar-name'>D1</div><div class='bar-track'><span style='width:97.95%;background:#6654a2'></span></div><div class='bar-value'>1.572</div></div><div class='bar-row'><div class='bar-name'>Cross</div><div class='bar-track'><span style='width:100.00%;background:#188092'></span></div><div class='bar-value'>1.605</div></div><div class='bar-row'><div class='bar-name'>Both</div><div class='bar-track'><span style='width:97.94%;background:#8d5a2b'></span></div><div class='bar-value'>1.572</div></div></div></article><article class='card'><h3>Train Runtime</h3><div class='bar-list'><div class='bar-row'><div class='bar-name'>Regular</div><div class='bar-track'><span style='width:42.70%;background:#246a8f'></span></div><div class='bar-value'>626.0</div></div><div class='bar-row'><div class='bar-name'>C</div><div class='bar-track'><span style='width:76.79%;background:#b94e4e'></span></div><div class='bar-value'>1126</div></div><div class='bar-row'><div class='bar-name'>C_ema</div><div class='bar-track'><span style='width:100.00%;background:#1f7a63'></span></div><div class='bar-value'>1466</div></div><div class='bar-row'><div class='bar-name'>D0</div><div class='bar-track'><span style='width:93.66%;background:#bd812d'></span></div><div class='bar-value'>1373</div></div><div class='bar-row'><div class='bar-name'>D1</div><div class='bar-track'><span style='width:97.56%;background:#6654a2'></span></div><div class='bar-value'>1430</div></div><div class='bar-row'><div class='bar-name'>Cross</div><div class='bar-track'><span style='width:97.46%;background:#188092'></span></div><div class='bar-value'>1429</div></div><div class='bar-row'><div class='bar-name'>Both</div><div class='bar-track'><span style='width:96.62%;background:#8d5a2b'></span></div><div class='bar-value'>1416</div></div></div></article>
+    <article class="card">
+      <h3>Exact-Match Contrasts</h3>
+      <div class="table-wrap small">
+        <table>
+          <thead><tr><th>Question</th><th>Delta</th></tr></thead>
+          <tbody><tr><td>Noise benefit: D1 - D0</td><td class='num pos'>0.0 pp</td></tr><tr><td>JEPA over regular: D1 - Regular</td><td class='num pos'>0.0 pp</td></tr><tr><td>Co-trained cap over regular: C - Regular</td><td class='num pos'>0.0 pp</td></tr><tr><td>EMA target over co-trained: C_ema - C</td><td class='num pos'>0.0 pp</td></tr><tr><td>Both caps over own-view D1: Both - D1</td><td class='num pos'>0.0 pp</td></tr><tr><td>Cross-view cap over own-view D1: Cross - D1</td><td class='num pos'>0.0 pp</td></tr></tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="card wide">
+      <h3>Training Loss Traces</h3>
+      <svg viewBox="0 0 920 320" role="img" aria-label="training loss traces">
+        <rect x="54" y="24" width="848" height="252" fill="#fbfcf8" stroke="#dfe5dc" />
+        <line x1="54" y1="276" x2="902" y2="276" stroke="#738078" />
+        <line x1="54" y1="24" x2="54" y2="276" stroke="#738078" />
+        <text x="54" y="16" class="axis">loss 1.340-7.342</text>
+        <text x="834" y="308" class="axis">step 2000</text>
+        <polyline points='54.0,206.6 75.7,217.5 97.5,225.9 119.2,233.1 141.0,239.7 162.7,246.7 184.5,252.5 206.2,259.0 227.9,262.7 249.7,266.3 271.4,268.6 293.2,270.7 314.9,272.6 336.7,273.2 358.4,273.9 380.2,274.3 401.9,274.6 423.6,275.0 445.4,274.5 467.1,275.4 488.9,274.9 510.6,275.0 532.4,275.1 554.1,275.8 575.8,275.6 597.6,275.6 619.3,276.0 641.1,275.0 662.8,275.5 684.6,275.5 706.3,275.4 728.1,275.3 749.8,275.1 771.5,275.7 793.3,275.7 815.0,275.5 836.8,275.5 858.5,275.3 880.3,275.3 902.0,275.6' fill='none' stroke='#246a8f' stroke-width='2.2' /><polyline points='54.0,37.3 75.7,91.9 97.5,147.0 119.2,191.9 141.0,219.0 162.7,234.2 184.5,243.4 206.2,251.3 227.9,255.6 249.7,259.5 271.4,262.0 293.2,264.1 314.9,266.0 336.7,266.8 358.4,267.8 380.2,268.1 401.9,268.7 423.6,269.0 445.4,268.6 467.1,269.6 488.9,269.1 510.6,269.2 532.4,269.3 554.1,270.0 575.8,269.8 597.6,269.9 619.3,270.3 641.1,269.2 662.8,269.8 684.6,269.9 706.3,269.7 728.1,269.7 749.8,269.4 771.5,269.9 793.3,270.0 815.0,269.9 836.8,269.9 858.5,269.8 880.3,269.6 902.0,270.0' fill='none' stroke='#b94e4e' stroke-width='2.2' /><polyline points='54.0,28.6 75.7,67.4 97.5,112.0 119.2,159.0 141.0,196.5 162.7,220.6 184.5,235.0 206.2,245.5 227.9,251.4 249.7,256.2 271.4,259.2 293.2,261.5 314.9,263.8 336.7,264.7 358.4,265.8 380.2,266.1 401.9,266.6 423.6,267.0 445.4,266.6 467.1,267.6 488.9,267.1 510.6,267.3 532.4,267.4 554.1,268.0 575.8,267.8 597.6,268.0 619.3,268.4 641.1,267.3 662.8,267.9 684.6,267.9 706.3,267.9 728.1,267.7 749.8,267.4 771.5,268.0 793.3,268.0 815.0,268.0 836.8,267.9 858.5,267.9 880.3,267.7 902.0,268.2' fill='none' stroke='#1f7a63' stroke-width='2.2' /><polyline points='54.0,28.7 75.7,69.6 97.5,112.9 119.2,152.8 141.0,183.2 162.7,204.2 184.5,219.4 206.2,232.4 227.9,241.0 249.7,248.7 271.4,254.0 293.2,257.7 314.9,260.7 336.7,262.4 358.4,263.6 380.2,264.2 401.9,265.0 423.6,265.4 445.4,265.0 467.1,266.0 488.9,265.5 510.6,265.7 532.4,265.9 554.1,266.5 575.8,266.2 597.6,266.4 619.3,266.9 641.1,265.7 662.8,266.2 684.6,266.3 706.3,266.3 728.1,266.1 749.8,266.0 771.5,266.5 793.3,266.5 815.0,266.5 836.8,266.4 858.5,266.4 880.3,266.0 902.0,266.7' fill='none' stroke='#bd812d' stroke-width='2.2' /><polyline points='54.0,27.5 75.7,67.2 97.5,109.4 119.2,148.9 141.0,179.4 162.7,200.8 184.5,216.6 206.2,230.3 227.9,239.5 249.7,247.3 271.4,252.9 293.2,256.8 314.9,259.8 336.7,261.8 358.4,263.1 380.2,263.6 401.9,264.6 423.6,264.9 445.4,264.5 467.1,265.6 488.9,265.2 510.6,265.3 532.4,265.5 554.1,266.1 575.8,265.9 597.6,266.1 619.3,266.5 641.1,265.4 662.8,265.9 684.6,265.9 706.3,266.0 728.1,265.8 749.8,265.6 771.5,266.1 793.3,266.1 815.0,266.1 836.8,266.0 858.5,266.0 880.3,265.6 902.0,266.2' fill='none' stroke='#6654a2' stroke-width='2.2' /><polyline points='54.0,24.0 75.7,63.1 97.5,103.6 119.2,141.6 141.0,172.6 162.7,194.0 184.5,210.7 206.2,224.6 227.9,234.6 249.7,242.8 271.4,249.2 293.2,253.6 314.9,257.0 336.7,259.6 358.4,261.1 380.2,261.8 401.9,263.1 423.6,263.4 445.4,263.1 467.1,264.2 488.9,263.7 510.6,263.9 532.4,264.2 554.1,264.6 575.8,264.4 597.6,264.7 619.3,265.1 641.1,264.1 662.8,264.5 684.6,264.6 706.3,264.5 728.1,264.4 749.8,264.2 771.5,264.7 793.3,264.6 815.0,264.8 836.8,264.6 858.5,264.5 880.3,264.1 902.0,264.9' fill='none' stroke='#188092' stroke-width='2.2' /><polyline points='54.0,28.5 75.7,67.4 97.5,109.6 119.2,149.6 141.0,180.8 162.7,202.1 184.5,217.5 206.2,231.0 227.9,239.8 249.7,247.5 271.4,253.1 293.2,256.9 314.9,259.9 336.7,261.8 358.4,263.1 380.2,263.7 401.9,264.6 423.6,264.9 445.4,264.6 467.1,265.6 488.9,265.1 510.6,265.3 532.4,265.5 554.1,266.1 575.8,265.9 597.6,266.0 619.3,266.4 641.1,265.4 662.8,265.8 684.6,265.9 706.3,265.9 728.1,265.7 749.8,265.5 771.5,266.0 793.3,266.0 815.0,266.0 836.8,266.0 858.5,266.0 880.3,265.6 902.0,266.3' fill='none' stroke='#8d5a2b' stroke-width='2.2' />
+      </svg>
+      <div class="legend"><span><i style='background:#246a8f'></i>Regular</span><span><i style='background:#b94e4e'></i>C</span><span><i style='background:#1f7a63'></i>C_ema</span><span><i style='background:#bd812d'></i>D0</span><span><i style='background:#6654a2'></i>D1</span><span><i style='background:#188092'></i>Cross</span><span><i style='background:#8d5a2b'></i>Both</span></div>
+    </article>
+
+    <article class="card wide">
+      <h3>Variant Metrics</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Variant</th><th>Meaning</th><th>Exact Match</th><th>First-Line Exact</th><th>Contains Target</th><th>Matches</th><th>Train Loss</th><th>Final Log Loss</th><th>Runtime</th><th>Samples/s</th><th>Status</th></tr>
+          </thead>
+          <tbody><tr><td><code>Regular</code></td><td>Regular supervised fine-tune without JEPA cap loss.</td><td class='num'>0.0%</td><td class='num'>0.0%</td><td class='num'>0.0%</td><td class='num'>0/2000</td><td class='num'>1.571</td><td class='num'>1.350</td><td class='num'>626.0 s</td><td class='num'>51.12</td><td>trained/evaluated</td></tr><tr><td><code>C</code></td><td>Co-trained own-view cap target with sigma_max=0.5.</td><td class='num'>0.0%</td><td class='num'>0.0%</td><td class='num'>0.0%</td><td class='num'>0/2000</td><td class='num'>1.962</td><td class='num'>1.483</td><td class='num'>1126 s</td><td class='num'>28.43</td><td>trained/evaluated</td></tr><tr><td><code>C_ema</code></td><td>EMA anchor target with sigma_max=0.5.</td><td class='num'>0.0%</td><td class='num'>0.0%</td><td class='num'>0.0%</td><td class='num'>0/2000</td><td class='num'>2.092</td><td class='num'>1.526</td><td class='num'>1466 s</td><td class='num'>21.83</td><td>trained/evaluated</td></tr><tr><td><code>D0</code></td><td>Frozen own-view anchor control with sigma_max=0.0.</td><td class='num'>0.0%</td><td class='num'>0.0%</td><td class='num'>0.0%</td><td class='num'>0/2000</td><td class='num'>2.173</td><td class='num'>1.562</td><td class='num'>1373 s</td><td class='num'>23.31</td><td>trained/evaluated</td></tr><tr><td><code>D1</code></td><td>Frozen own-view anchor with sigma_max=0.5.</td><td class='num'>0.0%</td><td class='num'>0.0%</td><td class='num'>0.0%</td><td class='num'>0/2000</td><td class='num'>2.197</td><td class='num'>1.572</td><td class='num'>1430 s</td><td class='num'>22.38</td><td>trained/evaluated</td></tr><tr><td><code>Cross</code></td><td>Frozen cross-view cap reconstruction with sigma_max=0.5.</td><td class='num'>0.0%</td><td class='num'>0.0%</td><td class='num'>0.0%</td><td class='num'>0/2000</td><td class='num'>2.259</td><td class='num'>1.605</td><td class='num'>1429 s</td><td class='num'>22.40</td><td>trained/evaluated</td></tr><tr><td><code>Both</code></td><td>Frozen own-view plus cross-view cap reconstruction with sigma_max=0.5.</td><td class='num'>0.0%</td><td class='num'>0.0%</td><td class='num'>0.0%</td><td class='num'>0/2000</td><td class='num'>2.192</td><td class='num'>1.572</td><td class='num'>1416 s</td><td class='num'>22.59</td><td>trained/evaluated</td></tr></tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="card wide">
+      <h3>Inspectable Mismatch Samples</h3>
+      <p class="muted">These are short snippets from the evaluation JSONL, included so the HTML page shows what failures look like without committing full model outputs.</p>
+
+            <details>
+              <summary>Regular mismatch samples</summary>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Index</th><th>Generated</th><th>Ground truth</th></tr></thead>
+                  <tbody><tr><td class='num'>0</td><td>(.*?)((dog|3|1)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(</td><td>~((dog.*[0-9].*){3,})</td></tr><tr><td class='num'>1</td><td>(.)+ This regular expression matches any sequence of characters that ends with a vowel, zero or more times, followed by a non-vowel character. It is case-insensitive and matches any character that is not a vowel or zero.</td><td>.*(.*)(([AEIOUaeiou])*).*</td></tr><tr><td class='num'>2</td><td>(^[0-9a-fA-F])^[0-9a-fA-F] This regular expression matches any sequence of characters that starts with a number or a character, followed by a vowel. It also includes a dot (.) to indicate the start of a word.</td><td>(([0-9])|(.)).*([AEIOUaeiou]).*</td></tr><tr><td class='num'>3</td><td>(dog) followed by a capital letter and ending with a lower-case letter.</td><td>([A-Z].*dog.*)&amp;((.*)([a-z]))</td></tr><tr><td class='num'>4</td><td>(^[aeiouAEIOU])^[aeiouAEIOU]*.+$ This regular expression matches any sequence of a vowel followed by a letter at least once, and the letter itself. It uses the dot (.) as the dot-not operator, which matches any character that is not</td><td>([AEIOUaeiou].*[A-Za-z].*)+</td></tr><tr><td class='num'>5</td><td>(.){1,3} This regular expression matches any sequence of one or more characters that are either a vowel or a non-letter. It uses a forward slash (`/`) to match the start of a line, a forward slash (`/`) to match the end of a line, and a fo...</td><td>((.*)([AEIOUaeiou]))|((.)(.*))</td></tr><tr><td class='num'>6</td><td>(^[a-zA-Z0-9_])^[aeiou] This regular expression matches any sequence of characters that is either a lower-case letter, a vowel, or a letter. It uses the `^` and `$` anchors to ensure that the pattern matches the entire</td><td>.*([a-z])|([AEIOUaeiou])|([A-Za-z]).*</td></tr><tr><td class='num'>7</td><td>(^[aeiouAEIOU])^[aeiouAEIOU] This regular expression matches any sequence of a vowel followed by a non-letter, and then a non-letter followed by another non-letter. It uses the `^` and `$` anchors to capture the start and</td><td>(([AEIOUaeiou])+).*(.).*</td></tr></tbody>
+                </table>
+              </div>
+            </details>
+
+            <details>
+              <summary>C mismatch samples</summary>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Index</th><th>Generated</th><th>Ground truth</th></tr></thead>
+                  <tbody><tr><td class='num'>0</td><td>(.*?)((dog|3|1)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(</td><td>~((dog.*[0-9].*){3,})</td></tr><tr><td class='num'>1</td><td>(^[aeiouAEIOU])^([aeiouAEIOU])* This regular expression matches any sequence of characters that ends with a vowel, zero or more times, and contains at least one of the following characters: - A vowel - A zero or more times - A</td><td>.*(.*)(([AEIOUaeiou])*).*</td></tr><tr><td class='num'>2</td><td>(^[0-9a-fA-F])^[0-9a-fA-F]([\d{3}])([\d{3}])([\d{3}])([\d{3}])([\d{3}])([\d{</td><td>(([0-9])|(.)).*([AEIOUaeiou]).*</td></tr><tr><td class='num'>3</td><td>(dog) followed by a capital letter and ending with a lower-case letter.</td><td>([A-Z].*dog.*)&amp;((.*)([a-z]))</td></tr><tr><td class='num'>4</td><td>(^[aeiouAEIOU])^[aeiouAEIOU]((\w{3,5})|([a-z])([A-Z])([0-9])).*$ This regular expression matches any sequence of characters that are either a vowel followed by a letter,</td><td>([AEIOUaeiou].*[A-Za-z].*)+</td></tr><tr><td class='num'>5</td><td>(.){1,3} This regular expression matches any sequence of one or more characters that are either a vowel or a non-letter. It uses a forward slash (`/`) to match the start of a line, a forward slash (`/`) to match the end of a line, and a fo...</td><td>((.*)([AEIOUaeiou]))|((.)(.*))</td></tr><tr><td class='num'>6</td><td>(^[a-zA-Z0-9_])^[a-zA-Z0-9_] This regular expression matches any sequence of lowercase letters, a vowel, or a letter, and a sequence of one or more of the following characters: - lower-case</td><td>.*([a-z])|([AEIOUaeiou])|([A-Za-z]).*</td></tr><tr><td class='num'>7</td><td>(^[aeiouAEIOU])^[aeiouAEIOU]([^aeiouAEIOU])+ This regular expression matches any sequence of a vowel followed by a character that is not a vowel. It uses the `^` and `$` anchors to capture the beginning and end</td><td>(([AEIOUaeiou])+).*(.).*</td></tr></tbody>
+                </table>
+              </div>
+            </details>
+
+            <details>
+              <summary>C_ema mismatch samples</summary>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Index</th><th>Generated</th><th>Ground truth</th></tr></thead>
+                  <tbody><tr><td class='num'>0</td><td>(.*?)((\d+)?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*</td><td>~((dog.*[0-9].*){3,})</td></tr><tr><td class='num'>1</td><td>(^[aeiouAEIOU])^[aeiouAEIOU]([^aeiouAEIOU])* This regular expression matches any sequence of characters that ends with a vowel, zero or more times, and contains at least one of the following characters: - A vowel -</td><td>.*(.*)(([AEIOUaeiou])*).*</td></tr><tr><td class='num'>2</td><td>(^[0-9a-fA-F])^[0-9a-fA-F] This regular expression matches any character that is a number or a letter before a vowel. It uses the dot (.) as the dot character, the character (a-z) as the</td><td>(([0-9])|(.)).*([AEIOUaeiou]).*</td></tr><tr><td class='num'>3</td><td>(dog) followed by a capital letter and ending with a lower-case letter.</td><td>([A-Z].*dog.*)&amp;((.*)([a-z]))</td></tr><tr><td class='num'>4</td><td>(^[aeiouAEIOU])^[aeiouAEIOU]*.+$ This regular expression matches any sequence of characters that starts with a vowel followed by a letter at least once. It uses the dot (.) as the dot-not operator, which matches any character that is not a</td><td>([AEIOUaeiou].*[A-Za-z].*)+</td></tr><tr><td class='num'>5</td><td>(.){1,3} This regular expression matches any sequence of one or more characters that are either a vowel or a non-letter. It uses a forward slash (`/`) to match the start of a line, a forward slash (`/`) to match the end of a line, and a fo...</td><td>((.*)([AEIOUaeiou]))|((.)(.*))</td></tr><tr><td class='num'>6</td><td>(^[a-zA-Z0-9_]) This regular expression matches any sequence of characters that is either a lower-case letter, a vowel, or a letter. It is case-insensitive and matches any character that is not a letter or a digit.</td><td>.*([a-z])|([AEIOUaeiou])|([A-Za-z]).*</td></tr><tr><td class='num'>7</td><td>(^[aeiouAEIOU])^[aeiouAEIOU] This regular expression matches any sequence of a vowel followed by a non-letter, and then a non-letter followed by another non-letter. It uses the `^` and `$` anchors to capture the start and</td><td>(([AEIOUaeiou])+).*(.).*</td></tr></tbody>
+                </table>
+              </div>
+            </details>
+
+            <details>
+              <summary>D0 mismatch samples</summary>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Index</th><th>Generated</th><th>Ground truth</th></tr></thead>
+                  <tbody><tr><td class='num'>0</td><td>(^dog|3|1|3|1|3|1|3|1|3|1|3|1|3|1|3|1|3|1|3|1|3|1|3|1|3|1|3|1|3|1|</td><td>~((dog.*[0-9].*){3,})</td></tr><tr><td class='num'>1</td><td>(^[aeiouAEIOU])^[aeiouAEIOU]([aeiouAEIOU])([aeiouAEIOU])([aeiouAEIOU])([aeiouAEIOU])([aeiouAEIOU])([aeiouAEIOU])([aeiouAEIO</td><td>.*(.*)(([AEIOUaeiou])*).*</td></tr><tr><td class='num'>2</td><td>(^[0-9a-fA-F])^[0-9a-fA-F] This regular expression matches any sequence of characters that starts with a digit, followed by a letter or a character, and ends with a vowel. It uses the dot (.) as the dot</td><td>(([0-9])|(.)).*([AEIOUaeiou]).*</td></tr><tr><td class='num'>3</td><td>(dog) followed by a capital letter and ending with a lower-case letter.</td><td>([A-Z].*dog.*)&amp;((.*)([a-z]))</td></tr><tr><td class='num'>4</td><td>(a) (b) (c) (d) (e) (f) (g) (h) (i) (j) (k) (l) (m) (n) (o) (p) (q) (r) (s) (t) (u) (</td><td>([AEIOUaeiou].*[A-Za-z].*)+</td></tr><tr><td class='num'>5</td><td>(.){1,3} This regular expression matches any sequence of one or more characters that are either a vowel or a non-letter. It is case-insensitive and matches any character that is not a letter.</td><td>((.*)([AEIOUaeiou]))|((.)(.*))</td></tr><tr><td class='num'>6</td><td>(^[a-zA-Z0-9_])^[a-zA-Z0-9_] This regular expression matches any sequence of characters that is either a lower-case letter, a vowel, or a letter. It uses the `^` and `$` anchors</td><td>.*([a-z])|([AEIOUaeiou])|([A-Za-z]).*</td></tr><tr><td class='num'>7</td><td>(^[aeiouAEIOU])^[aeiouAEIOU] This regular expression matches any sequence of characters that are a vowel followed by a non-letter, followed by a non-letter, or followed by a non-letter followed by a non-letter. It does not match any</td><td>(([AEIOUaeiou])+).*(.).*</td></tr></tbody>
+                </table>
+              </div>
+            </details>
+
+            <details>
+              <summary>D1 mismatch samples</summary>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Index</th><th>Generated</th><th>Ground truth</th></tr></thead>
+                  <tbody><tr><td class='num'>0</td><td>(.*?)((\d+)?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*</td><td>~((dog.*[0-9].*){3,})</td></tr><tr><td class='num'>1</td><td>(^[aeiouAEIOU])^[aeiouAEIOU]([^aeiouAEIOU])* This regular expression matches any sequence of characters that ends with a vowel, zero or more times, and contains at least one of the following characters: - A vowel -</td><td>.*(.*)(([AEIOUaeiou])*).*</td></tr><tr><td class='num'>2</td><td>(^[0-9a-fA-F])^[0-9a-fA-F] This regular expression matches any sequence of characters that starts with a number or a character, followed by a vowel. It also includes a dot (.) to indicate the start of a word.</td><td>(([0-9])|(.)).*([AEIOUaeiou]).*</td></tr><tr><td class='num'>3</td><td>(dog) followed by a capital letter and ending with a lower-case letter.</td><td>([A-Z].*dog.*)&amp;((.*)([a-z]))</td></tr><tr><td class='num'>4</td><td>(^[aeiouAEIOU])^[aeiouAEIOU]*.+$ This regular expression matches any sequence of a vowel followed by a letter at least once, and the letter itself. It uses the dot (.) as the dot-not operator, which matches any character that is not</td><td>([AEIOUaeiou].*[A-Za-z].*)+</td></tr><tr><td class='num'>5</td><td>(.){1,3} This regular expression matches any sequence of one or more characters that are either a vowel or a non-letter. It is case-insensitive and matches any character that is not a letter.</td><td>((.*)([AEIOUaeiou]))|((.)(.*))</td></tr><tr><td class='num'>6</td><td>(^[a-zA-Z0-9_]) This regular expression matches any sequence of lowercase letters, a vowel, or a letter, and it includes a forward slash (`/`) to match the start of a line.</td><td>.*([a-z])|([AEIOUaeiou])|([A-Za-z]).*</td></tr><tr><td class='num'>7</td><td>(^[aeiouAEIOU])^[aeiouAEIOU] This regular expression matches any sequence of characters that are a vowel followed by a non-letter, followed by a non-letter, followed by a non-letter, followed by a non-letter, followed by a non-</td><td>(([AEIOUaeiou])+).*(.).*</td></tr></tbody>
+                </table>
+              </div>
+            </details>
+
+            <details>
+              <summary>Cross mismatch samples</summary>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Index</th><th>Generated</th><th>Ground truth</th></tr></thead>
+                  <tbody><tr><td class='num'>0</td><td>(^dog|3|1|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|</td><td>~((dog.*[0-9].*){3,})</td></tr><tr><td class='num'>1</td><td>(^[aeiouAEIOU])^[aeiouAEIOU]([aeiouAEIOU])([aeiouAEIOU])([aeiouAEIOU])([aeiouAEIOU])([aeiouAEIOU])([aeiouAEIOU])([aeiouAEIO</td><td>.*(.*)(([AEIOUaeiou])*).*</td></tr><tr><td class='num'>2</td><td>(^[0-9a-fA-F])^[0-9a-fA-F] This regular expression matches any sequence of characters that starts with a digit, a letter, or a vowel, followed by a character. It repeats the pattern of the preceding character.</td><td>(([0-9])|(.)).*([AEIOUaeiou]).*</td></tr><tr><td class='num'>3</td><td>(dog) followed by a capital letter and ending with a lower-case letter.</td><td>([A-Z].*dog.*)&amp;((.*)([a-z]))</td></tr><tr><td class='num'>4</td><td>(a) (b) (c) (d) (e) (f) (g) (h) (i) (j) (k) (l) (m) (n) (o) (p) (q) (r) (s) (t) (u) (</td><td>([AEIOUaeiou].*[A-Za-z].*)+</td></tr><tr><td class='num'>5</td><td>(.){1,3} This regular expression matches any sequence of one or more characters that are either a vowel or a non-letter. It uses a forward slash (`/`) to match the start of a line, a forward slash (`/`) to match the end of a line, and a fo...</td><td>((.*)([AEIOUaeiou]))|((.)(.*))</td></tr><tr><td class='num'>6</td><td>(^[a-zA-Z0-9_])^[a-zA-Z0-9_] This regular expression matches any sequence of characters that is either a lower-case letter, a vowel, or a letter. It uses the `^` and `$` anchors</td><td>.*([a-z])|([AEIOUaeiou])|([A-Za-z]).*</td></tr><tr><td class='num'>7</td><td>(^[aeiouAEIOU])^[aeiouAEIOU] This regular expression matches any sequence of characters that are a vowel followed by a non-letter, followed by a non-letter, followed by a non-letter, followed by a non-letter, followed by a non-</td><td>(([AEIOUaeiou])+).*(.).*</td></tr></tbody>
+                </table>
+              </div>
+            </details>
+
+            <details>
+              <summary>Both mismatch samples</summary>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Index</th><th>Generated</th><th>Ground truth</th></tr></thead>
+                  <tbody><tr><td class='num'>0</td><td>(^dog|3|1|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|</td><td>~((dog.*[0-9].*){3,})</td></tr><tr><td class='num'>1</td><td>(^[aeiouAEIOU])^[aeiouAEIOU]([^aeiouAEIOU])* This regular expression matches any sequence of characters that ends with a vowel, zero or more times, and contains at least one of the following characters: - A vowel -</td><td>.*(.*)(([AEIOUaeiou])*).*</td></tr><tr><td class='num'>2</td><td>(^[0-9a-fA-F])^[0-9a-fA-F] This regular expression matches any sequence of characters that starts with a number or a character, followed by a vowel. It also includes a dot (.) to indicate the start of a word.</td><td>(([0-9])|(.)).*([AEIOUaeiou]).*</td></tr><tr><td class='num'>3</td><td>(dog) followed by a capital letter and ending with a lower-case letter.</td><td>([A-Z].*dog.*)&amp;((.*)([a-z]))</td></tr><tr><td class='num'>4</td><td>(^[aeiouAEIOU])^[aeiouAEIOU]((\w+))$ This regular expression matches any sequence of a vowel followed by a letter at least once, and a non-letter followed by a letter at least once. It uses the `^` and `$</td><td>([AEIOUaeiou].*[A-Za-z].*)+</td></tr><tr><td class='num'>5</td><td>(.){1,3} This regular expression matches any sequence of one or more characters that are either a vowel or a non-letter. It is case-insensitive and matches any character that is not a letter.</td><td>((.*)([AEIOUaeiou]))|((.)(.*))</td></tr><tr><td class='num'>6</td><td>(^[a-zA-Z0-9_]) This regular expression matches any sequence of lowercase letters, a vowel, or a letter, and it includes a forward slash (`/`) to match the start of a line.</td><td>.*([a-z])|([AEIOUaeiou])|([A-Za-z]).*</td></tr><tr><td class='num'>7</td><td>(^[aeiouAEIOU])^[aeiouAEIOU]([^aeiouAEIOU])$ This regular expression matches any sequence of a vowel followed by a character that is not a vowel. It uses the `^` and `$` anchors to capture the beginning and end</td><td>(([AEIOUaeiou])+).*(.).*</td></tr></tbody>
+                </table>
+              </div>
+            </details>
+
+    </article>
+    </section>
+    <h2>Embedded Summary JSON</h2>
+    <article class="card wide"><pre>{
+  &quot;config&quot;: {
+    &quot;experiment&quot;: &quot;exp3_full_synth&quot;,
+    &quot;task&quot;: &quot;Natural language to regular expression generation&quot;,
+    &quot;base_model&quot;: &quot;HuggingFaceTB/SmolLM2-135M-Instruct&quot;,
+    &quot;train_file&quot;: &quot;datasets/synth_train.jsonl&quot;,
+    &quot;test_file&quot;: &quot;datasets/synth_test.jsonl&quot;,
+    &quot;train_examples&quot;: 8000,
+    &quot;test_examples&quot;: 2000,
+    &quot;epochs&quot;: 4,
+    &quot;batch_size&quot;: 16,
+    &quot;learning_rate&quot;: 1e-05,
+    &quot;eval_metric&quot;: &quot;exact-match string equality on synth_test.jsonl&quot;,
+    &quot;secondary_eval_metrics&quot;: [
+      &quot;first non-empty generated line exactly equals target&quot;,
+      &quot;generated text starts with target&quot;,
+      &quot;generated text contains target&quot;
+    ],
+    &quot;variants&quot;: [
+      &quot;Regular&quot;,
+      &quot;C&quot;,
+      &quot;C_ema&quot;,
+      &quot;D0&quot;,
+      &quot;D1&quot;,
+      &quot;Cross&quot;,
+      &quot;Both&quot;
+    ]
+  },
+  &quot;headline_contrasts&quot;: {
+    &quot;D1_minus_D0_eval_exact_match&quot;: 0.0,
+    &quot;D1_minus_Regular_eval_exact_match&quot;: 0.0,
+    &quot;C_minus_Regular_eval_exact_match&quot;: 0.0,
+    &quot;C_ema_minus_C_eval_exact_match&quot;: 0.0,
+    &quot;Both_minus_D1_eval_exact_match&quot;: 0.0,
+    &quot;Cross_minus_D1_eval_exact_match&quot;: 0.0
+  },
+  &quot;records&quot;: [
+    {
+      &quot;key&quot;: &quot;regular&quot;,
+      &quot;variant&quot;: &quot;Regular&quot;,
+      &quot;description&quot;: &quot;Regular supervised fine-tune without JEPA cap loss.&quot;,
+      &quot;model_dir&quot;: &quot;results/exp3_full_synth/regular_model&quot;,
+      &quot;eval_file&quot;: &quot;results/exp3_full_synth/eval/regular.jsonl&quot;,
+      &quot;status&quot;: &quot;trained&quot;,
+      &quot;global_step&quot;: 2000,
+      &quot;num_train_epochs&quot;: 4.0,
+      &quot;history&quot;: [
+        {
+          &quot;step&quot;: 50,
+          &quot;epoch&quot;: 0.1,
+          &quot;loss&quot;: 2.9939,
+          &quot;learning_rate&quot;: 9.755e-06,
+          &quot;grad_norm&quot;: 9.3125
+        },
+        {
+          &quot;step&quot;: 100,
+          &quot;epoch&quot;: 0.2,
+          &quot;loss&quot;: 2.7345,
+          &quot;learning_rate&quot;: 9.505000000000001e-06,
+          &quot;grad_norm&quot;: 8.6875
+        },
+        {
+          &quot;step&quot;: 150,
+          &quot;epoch&quot;: 0.3,
+          &quot;loss&quot;: 2.5335,
+          &quot;learning_rate&quot;: 9.255e-06,
+          &quot;grad_norm&quot;: 8.3125
+        },
+        {
+          &quot;step&quot;: 200,
+          &quot;epoch&quot;: 0.4,
+          &quot;loss&quot;: 2.3608,
+          &quot;learning_rate&quot;: 9.005000000000001e-06,
+          &quot;grad_norm&quot;: 8.6875
+        },
+        {
+          &quot;step&quot;: 250,
+          &quot;epoch&quot;: 0.5,
+          &quot;loss&quot;: 2.2045,
+          &quot;learning_rate&quot;: 8.755e-06,
+          &quot;grad_norm&quot;: 8.125
+        },
+        {
+          &quot;step&quot;: 300,
+          &quot;epoch&quot;: 0.6,
+          &quot;loss&quot;: 2.0384,
+          &quot;learning_rate&quot;: 8.505e-06,
+          &quot;grad_norm&quot;: 8.0
+        },
+        {
+          &quot;step&quot;: 350,
+          &quot;epoch&quot;: 0.7,
+          &quot;loss&quot;: 1.8993,
+          &quot;learning_rate&quot;: 8.255000000000001e-06,
+          &quot;grad_norm&quot;: 7.46875
+        },
+        {
+          &quot;step&quot;: 400,
+          &quot;epoch&quot;: 0.8,
+          &quot;loss&quot;: 1.7459,
+          &quot;learning_rate&quot;: 8.005e-06,
+          &quot;grad_norm&quot;: 7.4375
+        },
+        {
+          &quot;step&quot;: 450,
+          &quot;epoch&quot;: 0.9,
+          &quot;loss&quot;: 1.6565,
+          &quot;learning_rate&quot;: 7.755000000000001e-06,
+          &quot;grad_norm&quot;: 5.8125
+        },
+        {
+          &quot;step&quot;: 500,
+          &quot;epoch&quot;: 1.0,
+          &quot;loss&quot;: 1.5708,
+          &quot;learning_rate&quot;: 7.505e-06,
+          &quot;grad_norm&quot;: 5.4375
+        },
+        {
+          &quot;step&quot;: 550,
+          &quot;epoch&quot;: 1.1,
+          &quot;loss&quot;: 1.5169,
+          &quot;learning_rate&quot;: 7.255000000000001e-06,
+          &quot;grad_norm&quot;: 5.21875
+        },
+        {
+          &quot;step&quot;: 600,
+          &quot;epoch&quot;: 1.2,
+          &quot;loss&quot;: 1.4668,
+          &quot;learning_rate&quot;: 7.005000000000001e-06,
+          &quot;grad_norm&quot;: 4.96875
+        },
+        {
+          &quot;step&quot;: 650,
+          &quot;epoch&quot;: 1.3,
+          &quot;loss&quot;: 1.4208,
+          &quot;learning_rate&quot;: 6.7550000000000005e-06,
+          &quot;grad_norm&quot;: 5.125
+        },
+        {
+          &quot;step&quot;: 700,
+          &quot;epoch&quot;: 1.4,
+          &quot;loss&quot;: 1.4068,
+          &quot;learning_rate&quot;: 6.505e-06,
+          &quot;grad_norm&quot;: 4.8125
+        },
+        {
+          &quot;step&quot;: 750,
+          &quot;epoch&quot;: 1.5,
+          &quot;loss&quot;: 1.3889,
+          &quot;learning_rate&quot;: 6.255e-06,
+          &quot;grad_norm&quot;: 4.59375
+        },
+        {
+          &quot;step&quot;: 800,
+          &quot;epoch&quot;: 1.6,
+          &quot;loss&quot;: 1.3813,
+          &quot;learning_rate&quot;: 6.005000000000001e-06,
+          &quot;grad_norm&quot;: 4.625
+        },
+        {
+          &quot;step&quot;: 850,
+          &quot;epoch&quot;: 1.7,
+          &quot;loss&quot;: 1.3728,
+          &quot;learning_rate&quot;: 5.755000000000001e-06,
+          &quot;grad_norm&quot;: 4.625
+        },
+        {
+          &quot;step&quot;: 900,
+          &quot;epoch&quot;: 1.8,
+          &quot;loss&quot;: 1.3648,
+          &quot;learning_rate&quot;: 5.505000000000001e-06,
+          &quot;grad_norm&quot;: 4.4375
+        },
+        {
+          &quot;step&quot;: 950,
+          &quot;epoch&quot;: 1.9,
+          &quot;loss&quot;: 1.3746,
+          &quot;learning_rate&quot;: 5.2550000000000005e-06,
+          &quot;grad_norm&quot;: 4.8125
+        },
+        {
+          &quot;step&quot;: 1000,
+          &quot;epoch&quot;: 2.0,
+          &quot;loss&quot;: 1.3537,
+          &quot;learning_rate&quot;: 5.0049999999999995e-06,
+          &quot;grad_norm&quot;: 4.8125
+        },
+        {
+          &quot;step&quot;: 1050,
+          &quot;epoch&quot;: 2.1,
+          &quot;loss&quot;: 1.3657,
+          &quot;learning_rate&quot;: 4.755e-06,
+          &quot;grad_norm&quot;: 4.9375
+        },
+        {
+          &quot;step&quot;: 1100,
+          &quot;epoch&quot;: 2.2,
+          &quot;loss&quot;: 1.3637,
+          &quot;learning_rate&quot;: 4.505e-06,
+          &quot;grad_norm&quot;: 4.75
+        },
+        {
+          &quot;step&quot;: 1150,
+          &quot;epoch&quot;: 2.3,
+          &quot;loss&quot;: 1.3609,
+          &quot;learning_rate&quot;: 4.255e-06,
+          &quot;grad_norm&quot;: 4.65625
+        },
+        {
+          &quot;step&quot;: 1200,
+          &quot;epoch&quot;: 2.4,
+          &quot;loss&quot;: 1.3447,
+          &quot;learning_rate&quot;: 4.005000000000001e-06,
+          &quot;grad_norm&quot;: 4.65625
+        },
+        {
+          &quot;step&quot;: 1250,
+          &quot;epoch&quot;: 2.5,
+          &quot;loss&quot;: 1.35,
+          &quot;learning_rate&quot;: 3.7550000000000005e-06,
+          &quot;grad_norm&quot;: 4.6875
+        },
+        {
+          &quot;step&quot;: 1300,
+          &quot;epoch&quot;: 2.6,
+          &quot;loss&quot;: 1.3493,
+          &quot;learning_rate&quot;: 3.505e-06,
+          &quot;grad_norm&quot;: 4.5625
+        },
+        {
+          &quot;step&quot;: 1350,
+          &quot;epoch&quot;: 2.7,
+          &quot;loss&quot;: 1.34,
+          &quot;learning_rate&quot;: 3.255e-06,
+          &quot;grad_norm&quot;: 4.78125
+        },
+        {
+          &quot;step&quot;: 1400,
+          &quot;epoch&quot;: 2.8,
+          &quot;loss&quot;: 1.3646,
+          &quot;learning_rate&quot;: 3.005e-06,
+          &quot;grad_norm&quot;: 4.84375
+        },
+        {
+          &quot;step&quot;: 1450,
+          &quot;epoch&quot;: 2.9,
+          &quot;loss&quot;: 1.3511,
+          &quot;learning_rate&quot;: 2.7550000000000003e-06,
+          &quot;grad_norm&quot;: 4.4375
+        },
+        {
+          &quot;step&quot;: 1500,
+          &quot;epoch&quot;: 3.0,
+          &quot;loss&quot;: 1.353,
+          &quot;learning_rate&quot;: 2.505e-06,
+          &quot;grad_norm&quot;: 4.78125
+        },
+        {
+          &quot;step&quot;: 1550,
+          &quot;epoch&quot;: 3.1,
+          &quot;loss&quot;: 1.3536,
+          &quot;learning_rate&quot;: 2.2550000000000004e-06,
+          &quot;grad_norm&quot;: 4.78125
+        },
+        {
+          &quot;step&quot;: 1600,
+          &quot;epoch&quot;: 3.2,
+          &quot;loss&quot;: 1.3557,
+          &quot;learning_rate&quot;: 2.0050000000000003e-06,
+          &quot;grad_norm&quot;: 4.71875
+        },
+        {
+          &quot;step&quot;: 1650,
+          &quot;epoch&quot;: 3.3,
+          &quot;loss&quot;: 1.3611,
+          &quot;learning_rate&quot;: 1.7550000000000001e-06,
+          &quot;grad_norm&quot;: 4.65625
+        },
+        {
+          &quot;step&quot;: 1700,
+          &quot;epoch&quot;: 3.4,
+          &quot;loss&quot;: 1.3479,
+          &quot;learning_rate&quot;: 1.505e-06,
+          &quot;grad_norm&quot;: 4.78125
+        },
+        {
+          &quot;step&quot;: 1750,
+          &quot;epoch&quot;: 3.5,
+          &quot;loss&quot;: 1.3462,
+          &quot;learning_rate&quot;: 1.255e-06,
+          &quot;grad_norm&quot;: 4.78125
+        },
+        {
+          &quot;step&quot;: 1800,
+          &quot;epoch&quot;: 3.6,
+          &quot;loss&quot;: 1.3516,
+          &quot;learning_rate&quot;: 1.0050000000000001e-06,
+          &quot;grad_norm&quot;: 4.875
+        },
+        {
+          &quot;step&quot;: 1850,
+          &quot;epoch&quot;: 3.7,
+          &quot;loss&quot;: 1.3515,
+          &quot;learning_rate&quot;: 7.550000000000001e-07,
+          &quot;grad_norm&quot;: 4.59375
+        },
+        {
+          &quot;step&quot;: 1900,
+          &quot;epoch&quot;: 3.8,
+          &quot;loss&quot;: 1.3556,
+          &quot;learning_rate&quot;: 5.05e-07,
+          &quot;grad_norm&quot;: 4.6875
+        },
+        {
+          &quot;step&quot;: 1950,
+          &quot;epoch&quot;: 3.9,
+          &quot;loss&quot;: 1.3575,
+          &quot;learning_rate&quot;: 2.55e-07,
+          &quot;grad_norm&quot;: 4.625
+        },
+        {
+          &quot;step&quot;: 2000,
+          &quot;epoch&quot;: 4.0,
+          &quot;loss&quot;: 1.3496,
+          &quot;learning_rate&quot;: 5e-09,
+          &quot;grad_norm&quot;: 4.625
+        }
+      ],
+      &quot;train_loss&quot;: 1.571471824645996,
+      &quot;train_runtime&quot;: 625.953,
+      &quot;train_samples_per_second&quot;: 51.122,
+      &quot;train_steps_per_second&quot;: 3.195,
+      &quot;final_log_loss&quot;: 1.3496,
+      &quot;min_log_loss&quot;: 1.34,
+      &quot;eval_status&quot;: &quot;evaluated&quot;,
+      &quot;eval_count&quot;: 2000,
+      &quot;eval_matches&quot;: 0,
+      &quot;eval_exact_match&quot;: 0.0,
+      &quot;eval_startswith_matches&quot;: 0,
+      &quot;eval_startswith&quot;: 0.0,
+      &quot;eval_first_line_matches&quot;: 0,
+      &quot;eval_first_line_exact&quot;: 0.0,
+      &quot;eval_contains_matches&quot;: 0,
+      &quot;eval_contains_ground_truth&quot;: 0.0,
+      &quot;eval_mean_generated_chars&quot;: 133.381,
+      &quot;sample_mismatches&quot;: [
+        {
+          &quot;index&quot;: 0,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines not having the string &#x27;dog&#x27; followed by a number, 3 or more times&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(.*?)((dog|3|1)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(&quot;,
+          &quot;ground_truth&quot;: &quot;~((dog.*[0-9].*){3,})&quot;
+        },
+        {
+          &quot;index&quot;: 1,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines containing ending with a vowel, zero or more times&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(.)+ This regular expression matches any sequence of characters that ends with a vowel, zero or more times, followed by a non-vowel character. It is case-insensitive and matches any character that is not a vowel or zero.&quot;,
+          &quot;ground_truth&quot;: &quot;.*(.*)(([AEIOUaeiou])*).*&quot;
+        },
+        {
+          &quot;index&quot;: 2,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a number or a character before a vowel&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[0-9a-fA-F])^[0-9a-fA-F] This regular expression matches any sequence of characters that starts with a number or a character, followed by a vowel. It also includes a dot (.) to indicate the start of a word.&quot;,
+          &quot;ground_truth&quot;: &quot;(([0-9])|(.)).*([AEIOUaeiou]).*&quot;
+        },
+        {
+          &quot;index&quot;: 3,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a capital letter followed by the string &#x27;dog&#x27; and ending with a lower-case letter&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(dog) followed by a capital letter and ending with a lower-case letter.&quot;,
+          &quot;ground_truth&quot;: &quot;([A-Z].*dog.*)&amp;((.*)([a-z]))&quot;
+        },
+        {
+          &quot;index&quot;: 4,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a vowel followed by a letter at least once&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[aeiouAEIOU])^[aeiouAEIOU]*.+$ This regular expression matches any sequence of a vowel followed by a letter at least once, and the letter itself. It uses the dot (.) as the dot-not operator, which matches any character that is not&quot;,
+          &quot;ground_truth&quot;: &quot;([AEIOUaeiou].*[A-Za-z].*)+&quot;
+        },
+        {
+          &quot;index&quot;: 5,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines ending with a vowel or starting with a character&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(.){1,3} This regular expression matches any sequence of one or more characters that are either a vowel or a non-letter. It uses a forward slash (`/`) to match the start of a line, a forward slash (`/`) to match the end of a line, and a fo...&quot;,
+          &quot;ground_truth&quot;: &quot;((.*)([AEIOUaeiou]))|((.)(.*))&quot;
+        },
+        {
+          &quot;index&quot;: 6,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines containing either a lower-case letter, a vowel, or a letter&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[a-zA-Z0-9_])^[aeiou] This regular expression matches any sequence of characters that is either a lower-case letter, a vowel, or a letter. It uses the `^` and `$` anchors to ensure that the pattern matches the entire&quot;,
+          &quot;ground_truth&quot;: &quot;.*([a-z])|([AEIOUaeiou])|([A-Za-z]).*&quot;
+        },
+        {
+          &quot;index&quot;: 7,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a vowel at least once before a character&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[aeiouAEIOU])^[aeiouAEIOU] This regular expression matches any sequence of a vowel followed by a non-letter, and then a non-letter followed by another non-letter. It uses the `^` and `$` anchors to capture the start and&quot;,
+          &quot;ground_truth&quot;: &quot;(([AEIOUaeiou])+).*(.).*&quot;
+        }
+      ]
+    },
+    {
+      &quot;key&quot;: &quot;c&quot;,
+      &quot;variant&quot;: &quot;C&quot;,
+      &quot;description&quot;: &quot;Co-trained own-view cap target with sigma_max=0.5.&quot;,
+      &quot;model_dir&quot;: &quot;results/exp3_full_synth/c_model&quot;,
+      &quot;eval_file&quot;: &quot;results/exp3_full_synth/eval/c.jsonl&quot;,
+      &quot;status&quot;: &quot;trained&quot;,
+      &quot;global_step&quot;: 2000,
+      &quot;num_train_epochs&quot;: 4.0,
+      &quot;history&quot;: [
+        {
+          &quot;step&quot;: 50,
+          &quot;epoch&quot;: 0.1,
+          &quot;loss&quot;: 7.0246,
+          &quot;learning_rate&quot;: 9.755e-06,
+          &quot;grad_norm&quot;: 20.3027286529541
+        },
+        {
+          &quot;step&quot;: 100,
+          &quot;epoch&quot;: 0.2,
+          &quot;loss&quot;: 5.726,
+          &quot;learning_rate&quot;: 9.505000000000001e-06,
+          &quot;grad_norm&quot;: 14.019233703613281
+        },
+        {
+          &quot;step&quot;: 150,
+          &quot;epoch&quot;: 0.3,
+          &quot;loss&quot;: 4.4132,
+          &quot;learning_rate&quot;: 9.255e-06,
+          &quot;grad_norm&quot;: 11.194435119628906
+        },
+        {
+          &quot;step&quot;: 200,
+          &quot;epoch&quot;: 0.4,
+          &quot;loss&quot;: 3.3442,
+          &quot;learning_rate&quot;: 9.005000000000001e-06,
+          &quot;grad_norm&quot;: 10.320647239685059
+        },
+        {
+          &quot;step&quot;: 250,
+          &quot;epoch&quot;: 0.5,
+          &quot;loss&quot;: 2.6981,
+          &quot;learning_rate&quot;: 8.755e-06,
+          &quot;grad_norm&quot;: 9.095841407775879
+        },
+        {
+          &quot;step&quot;: 300,
+          &quot;epoch&quot;: 0.6,
+          &quot;loss&quot;: 2.3368,
+          &quot;learning_rate&quot;: 8.505e-06,
+          &quot;grad_norm&quot;: 8.327035903930664
+        },
+        {
+          &quot;step&quot;: 350,
+          &quot;epoch&quot;: 0.7,
+          &quot;loss&quot;: 2.1169,
+          &quot;learning_rate&quot;: 8.255000000000001e-06,
+          &quot;grad_norm&quot;: 8.020034790039062
+        },
+        {
+          &quot;step&quot;: 400,
+          &quot;epoch&quot;: 0.8,
+          &quot;loss&quot;: 1.9285,
+          &quot;learning_rate&quot;: 8.005e-06,
+          &quot;grad_norm&quot;: 7.29006814956665
+        },
+        {
+          &quot;step&quot;: 450,
+          &quot;epoch&quot;: 0.9,
+          &quot;loss&quot;: 1.8254,
+          &quot;learning_rate&quot;: 7.755000000000001e-06,
+          &quot;grad_norm&quot;: 6.496725082397461
+        },
+        {
+          &quot;step&quot;: 500,
+          &quot;epoch&quot;: 1.0,
+          &quot;loss&quot;: 1.7319,
+          &quot;learning_rate&quot;: 7.505e-06,
+          &quot;grad_norm&quot;: 5.619277477264404
+        },
+        {
+          &quot;step&quot;: 550,
+          &quot;epoch&quot;: 1.1,
+          &quot;loss&quot;: 1.6741,
+          &quot;learning_rate&quot;: 7.255000000000001e-06,
+          &quot;grad_norm&quot;: 5.508273124694824
+        },
+        {
+          &quot;step&quot;: 600,
+          &quot;epoch&quot;: 1.2,
+          &quot;loss&quot;: 1.6226,
+          &quot;learning_rate&quot;: 7.005000000000001e-06,
+          &quot;grad_norm&quot;: 5.432162284851074
+        },
+        {
+          &quot;step&quot;: 650,
+          &quot;epoch&quot;: 1.3,
+          &quot;loss&quot;: 1.577,
+          &quot;learning_rate&quot;: 6.7550000000000005e-06,
+          &quot;grad_norm&quot;: 5.765261650085449
+        },
+        {
+          &quot;step&quot;: 700,
+          &quot;epoch&quot;: 1.4,
+          &quot;loss&quot;: 1.5586,
+          &quot;learning_rate&quot;: 6.505e-06,
+          &quot;grad_norm&quot;: 5.231797218322754
+        },
+        {
+          &quot;step&quot;: 750,
+          &quot;epoch&quot;: 1.5,
+          &quot;loss&quot;: 1.536,
+          &quot;learning_rate&quot;: 6.255e-06,
+          &quot;grad_norm&quot;: 5.147747993469238
+        },
+        {
+          &quot;step&quot;: 800,
+          &quot;epoch&quot;: 1.6,
+          &quot;loss&quot;: 1.5275,
+          &quot;learning_rate&quot;: 6.005000000000001e-06,
+          &quot;grad_norm&quot;: 4.837440013885498
+        },
+        {
+          &quot;step&quot;: 850,
+          &quot;epoch&quot;: 1.7,
+          &quot;loss&quot;: 1.5145,
+          &quot;learning_rate&quot;: 5.755000000000001e-06,
+          &quot;grad_norm&quot;: 4.9846882820129395
+        },
+        {
+          &quot;step&quot;: 900,
+          &quot;epoch&quot;: 1.8,
+          &quot;loss&quot;: 1.5063,
+          &quot;learning_rate&quot;: 5.505000000000001e-06,
+          &quot;grad_norm&quot;: 5.060025691986084
+        },
+        {
+          &quot;step&quot;: 950,
+          &quot;epoch&quot;: 1.9,
+          &quot;loss&quot;: 1.5155,
+          &quot;learning_rate&quot;: 5.2550000000000005e-06,
+          &quot;grad_norm&quot;: 4.949865341186523
+        },
+        {
+          &quot;step&quot;: 1000,
+          &quot;epoch&quot;: 2.0,
+          &quot;loss&quot;: 1.4929,
+          &quot;learning_rate&quot;: 5.0049999999999995e-06,
+          &quot;grad_norm&quot;: 5.147716045379639
+        },
+        {
+          &quot;step&quot;: 1050,
+          &quot;epoch&quot;: 2.1,
+          &quot;loss&quot;: 1.505,
+          &quot;learning_rate&quot;: 4.755e-06,
+          &quot;grad_norm&quot;: 5.698075294494629
+        },
+        {
+          &quot;step&quot;: 1100,
+          &quot;epoch&quot;: 2.2,
+          &quot;loss&quot;: 1.5014,
+          &quot;learning_rate&quot;: 4.505e-06,
+          &quot;grad_norm&quot;: 5.107393264770508
+        },
+        {
+          &quot;step&quot;: 1150,
+          &quot;epoch&quot;: 2.3,
+          &quot;loss&quot;: 1.499,
+          &quot;learning_rate&quot;: 4.255e-06,
+          &quot;grad_norm&quot;: 5.645328521728516
+        },
+        {
+          &quot;step&quot;: 1200,
+          &quot;epoch&quot;: 2.4,
+          &quot;loss&quot;: 1.4838,
+          &quot;learning_rate&quot;: 4.005000000000001e-06,
+          &quot;grad_norm&quot;: 5.201114654541016
+        },
+        {
+          &quot;step&quot;: 1250,
+          &quot;epoch&quot;: 2.5,
+          &quot;loss&quot;: 1.4888,
+          &quot;learning_rate&quot;: 3.7550000000000005e-06,
+          &quot;grad_norm&quot;: 4.87166690826416
+        },
+        {
+          &quot;step&quot;: 1300,
+          &quot;epoch&quot;: 2.6,
+          &quot;loss&quot;: 1.485,
+          &quot;learning_rate&quot;: 3.505e-06,
+          &quot;grad_norm&quot;: 4.994210243225098
+        },
+        {
+          &quot;step&quot;: 1350,
+          &quot;epoch&quot;: 2.7,
+          &quot;loss&quot;: 1.4759,
+          &quot;learning_rate&quot;: 3.255e-06,
+          &quot;grad_norm&quot;: 5.330140590667725
+        },
+        {
+          &quot;step&quot;: 1400,
+          &quot;epoch&quot;: 2.8,
+          &quot;loss&quot;: 1.5015,
+          &quot;learning_rate&quot;: 3.005e-06,
+          &quot;grad_norm&quot;: 5.695991516113281
+        },
+        {
+          &quot;step&quot;: 1450,
+          &quot;epoch&quot;: 2.9,
+          &quot;loss&quot;: 1.4865,
+          &quot;learning_rate&quot;: 2.7550000000000003e-06,
+          &quot;grad_norm&quot;: 4.824212074279785
+        },
+        {
+          &quot;step&quot;: 1500,
+          &quot;epoch&quot;: 3.0,
+          &quot;loss&quot;: 1.4862,
+          &quot;learning_rate&quot;: 2.505e-06,
+          &quot;grad_norm&quot;: 5.087234020233154
+        },
+        {
+          &quot;step&quot;: 1550,
+          &quot;epoch&quot;: 3.1,
+          &quot;loss&quot;: 1.4891,
+          &quot;learning_rate&quot;: 2.2550000000000004e-06,
+          &quot;grad_norm&quot;: 4.782970428466797
+        },
+        {
+          &quot;step&quot;: 1600,
+          &quot;epoch&quot;: 3.2,
+          &quot;loss&quot;: 1.4898,
+          &quot;learning_rate&quot;: 2.0050000000000003e-06,
+          &quot;grad_norm&quot;: 5.057684421539307
+        },
+        {
+          &quot;step&quot;: 1650,
+          &quot;epoch&quot;: 3.3,
+          &quot;loss&quot;: 1.4971,
+          &quot;learning_rate&quot;: 1.7550000000000001e-06,
+          &quot;grad_norm&quot;: 4.773283958435059
+        },
+        {
+          &quot;step&quot;: 1700,
+          &quot;epoch&quot;: 3.4,
+          &quot;loss&quot;: 1.4847,
+          &quot;learning_rate&quot;: 1.505e-06,
+          &quot;grad_norm&quot;: 5.123107433319092
+        },
+        {
+          &quot;step&quot;: 1750,
+          &quot;epoch&quot;: 3.5,
+          &quot;loss&quot;: 1.484,
+          &quot;learning_rate&quot;: 1.255e-06,
+          &quot;grad_norm&quot;: 5.096769332885742
+        },
+        {
+          &quot;step&quot;: 1800,
+          &quot;epoch&quot;: 3.6,
+          &quot;loss&quot;: 1.4861,
+          &quot;learning_rate&quot;: 1.0050000000000001e-06,
+          &quot;grad_norm&quot;: 5.167232513427734
+        },
+        {
+          &quot;step&quot;: 1850,
+          &quot;epoch&quot;: 3.7,
+          &quot;loss&quot;: 1.4857,
+          &quot;learning_rate&quot;: 7.550000000000001e-07,
+          &quot;grad_norm&quot;: 4.794999599456787
+        },
+        {
+          &quot;step&quot;: 1900,
+          &quot;epoch&quot;: 3.8,
+          &quot;loss&quot;: 1.4881,
+          &quot;learning_rate&quot;: 5.05e-07,
+          &quot;grad_norm&quot;: 5.193706035614014
+        },
+        {
+          &quot;step&quot;: 1950,
+          &quot;epoch&quot;: 3.9,
+          &quot;loss&quot;: 1.492,
+          &quot;learning_rate&quot;: 2.55e-07,
+          &quot;grad_norm&quot;: 5.067869186401367
+        },
+        {
+          &quot;step&quot;: 2000,
+          &quot;epoch&quot;: 4.0,
+          &quot;loss&quot;: 1.4834,
+          &quot;learning_rate&quot;: 5e-09,
+          &quot;grad_norm&quot;: 5.089972496032715
+        }
+      ],
+      &quot;train_loss&quot;: 1.9615880317687988,
+      &quot;train_runtime&quot;: 1125.7005,
+      &quot;train_samples_per_second&quot;: 28.427,
+      &quot;train_steps_per_second&quot;: 1.777,
+      &quot;final_log_loss&quot;: 1.4834,
+      &quot;min_log_loss&quot;: 1.4759,
+      &quot;eval_status&quot;: &quot;evaluated&quot;,
+      &quot;eval_count&quot;: 2000,
+      &quot;eval_matches&quot;: 0,
+      &quot;eval_exact_match&quot;: 0.0,
+      &quot;eval_startswith_matches&quot;: 0,
+      &quot;eval_startswith&quot;: 0.0,
+      &quot;eval_first_line_matches&quot;: 0,
+      &quot;eval_first_line_exact&quot;: 0.0,
+      &quot;eval_contains_matches&quot;: 0,
+      &quot;eval_contains_ground_truth&quot;: 0.0,
+      &quot;eval_mean_generated_chars&quot;: 120.9635,
+      &quot;sample_mismatches&quot;: [
+        {
+          &quot;index&quot;: 0,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines not having the string &#x27;dog&#x27; followed by a number, 3 or more times&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(.*?)((dog|3|1)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(&quot;,
+          &quot;ground_truth&quot;: &quot;~((dog.*[0-9].*){3,})&quot;
+        },
+        {
+          &quot;index&quot;: 1,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines containing ending with a vowel, zero or more times&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[aeiouAEIOU])^([aeiouAEIOU])* This regular expression matches any sequence of characters that ends with a vowel, zero or more times, and contains at least one of the following characters: - A vowel - A zero or more times - A&quot;,
+          &quot;ground_truth&quot;: &quot;.*(.*)(([AEIOUaeiou])*).*&quot;
+        },
+        {
+          &quot;index&quot;: 2,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a number or a character before a vowel&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[0-9a-fA-F])^[0-9a-fA-F]([\\d{3}])([\\d{3}])([\\d{3}])([\\d{3}])([\\d{3}])([\\d{&quot;,
+          &quot;ground_truth&quot;: &quot;(([0-9])|(.)).*([AEIOUaeiou]).*&quot;
+        },
+        {
+          &quot;index&quot;: 3,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a capital letter followed by the string &#x27;dog&#x27; and ending with a lower-case letter&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(dog) followed by a capital letter and ending with a lower-case letter.&quot;,
+          &quot;ground_truth&quot;: &quot;([A-Z].*dog.*)&amp;((.*)([a-z]))&quot;
+        },
+        {
+          &quot;index&quot;: 4,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a vowel followed by a letter at least once&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[aeiouAEIOU])^[aeiouAEIOU]((\\w{3,5})|([a-z])([A-Z])([0-9])).*$ This regular expression matches any sequence of characters that are either a vowel followed by a letter,&quot;,
+          &quot;ground_truth&quot;: &quot;([AEIOUaeiou].*[A-Za-z].*)+&quot;
+        },
+        {
+          &quot;index&quot;: 5,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines ending with a vowel or starting with a character&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(.){1,3} This regular expression matches any sequence of one or more characters that are either a vowel or a non-letter. It uses a forward slash (`/`) to match the start of a line, a forward slash (`/`) to match the end of a line, and a fo...&quot;,
+          &quot;ground_truth&quot;: &quot;((.*)([AEIOUaeiou]))|((.)(.*))&quot;
+        },
+        {
+          &quot;index&quot;: 6,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines containing either a lower-case letter, a vowel, or a letter&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[a-zA-Z0-9_])^[a-zA-Z0-9_] This regular expression matches any sequence of lowercase letters, a vowel, or a letter, and a sequence of one or more of the following characters: - lower-case&quot;,
+          &quot;ground_truth&quot;: &quot;.*([a-z])|([AEIOUaeiou])|([A-Za-z]).*&quot;
+        },
+        {
+          &quot;index&quot;: 7,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a vowel at least once before a character&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[aeiouAEIOU])^[aeiouAEIOU]([^aeiouAEIOU])+ This regular expression matches any sequence of a vowel followed by a character that is not a vowel. It uses the `^` and `$` anchors to capture the beginning and end&quot;,
+          &quot;ground_truth&quot;: &quot;(([AEIOUaeiou])+).*(.).*&quot;
+        }
+      ]
+    },
+    {
+      &quot;key&quot;: &quot;c_ema&quot;,
+      &quot;variant&quot;: &quot;C_ema&quot;,
+      &quot;description&quot;: &quot;EMA anchor target with sigma_max=0.5.&quot;,
+      &quot;model_dir&quot;: &quot;results/exp3_full_synth/c_ema_model&quot;,
+      &quot;eval_file&quot;: &quot;results/exp3_full_synth/eval/c_ema.jsonl&quot;,
+      &quot;status&quot;: &quot;trained&quot;,
+      &quot;global_step&quot;: 2000,
+      &quot;num_train_epochs&quot;: 4.0,
+      &quot;history&quot;: [
+        {
+          &quot;step&quot;: 50,
+          &quot;epoch&quot;: 0.1,
+          &quot;loss&quot;: 7.2328,
+          &quot;learning_rate&quot;: 9.755e-06,
+          &quot;grad_norm&quot;: 9.78717041015625
+        },
+        {
+          &quot;step&quot;: 100,
+          &quot;epoch&quot;: 0.2,
+          &quot;loss&quot;: 6.3076,
+          &quot;learning_rate&quot;: 9.505000000000001e-06,
+          &quot;grad_norm&quot;: 9.516822814941406
+        },
+        {
+          &quot;step&quot;: 150,
+          &quot;epoch&quot;: 0.3,
+          &quot;loss&quot;: 5.2459,
+          &quot;learning_rate&quot;: 9.255e-06,
+          &quot;grad_norm&quot;: 9.359792709350586
+        },
+        {
+          &quot;step&quot;: 200,
+          &quot;epoch&quot;: 0.4,
+          &quot;loss&quot;: 4.1259,
+          &quot;learning_rate&quot;: 9.005000000000001e-06,
+          &quot;grad_norm&quot;: 9.572783470153809
+        },
+        {
+          &quot;step&quot;: 250,
+          &quot;epoch&quot;: 0.5,
+          &quot;loss&quot;: 3.2338,
+          &quot;learning_rate&quot;: 8.755e-06,
+          &quot;grad_norm&quot;: 8.646888732910156
+        },
+        {
+          &quot;step&quot;: 300,
+          &quot;epoch&quot;: 0.6,
+          &quot;loss&quot;: 2.6605,
+          &quot;learning_rate&quot;: 8.505e-06,
+          &quot;grad_norm&quot;: 8.58564281463623
+        },
+        {
+          &quot;step&quot;: 350,
+          &quot;epoch&quot;: 0.7,
+          &quot;loss&quot;: 2.3162,
+          &quot;learning_rate&quot;: 8.255000000000001e-06,
+          &quot;grad_norm&quot;: 8.046194076538086
+        },
+        {
+          &quot;step&quot;: 400,
+          &quot;epoch&quot;: 0.8,
+          &quot;loss&quot;: 2.0655,
+          &quot;learning_rate&quot;: 8.005e-06,
+          &quot;grad_norm&quot;: 7.951244831085205
+        },
+        {
+          &quot;step&quot;: 450,
+          &quot;epoch&quot;: 0.9,
+          &quot;loss&quot;: 1.9252,
+          &quot;learning_rate&quot;: 7.755000000000001e-06,
+          &quot;grad_norm&quot;: 6.650552272796631
+        },
+        {
+          &quot;step&quot;: 500,
+          &quot;epoch&quot;: 1.0,
+          &quot;loss&quot;: 1.812,
+          &quot;learning_rate&quot;: 7.505e-06,
+          &quot;grad_norm&quot;: 5.702052116394043
+        },
+        {
+          &quot;step&quot;: 550,
+          &quot;epoch&quot;: 1.1,
+          &quot;loss&quot;: 1.7402,
+          &quot;learning_rate&quot;: 7.255000000000001e-06,
+          &quot;grad_norm&quot;: 5.339331150054932
+        },
+        {
+          &quot;step&quot;: 600,
+          &quot;epoch&quot;: 1.2,
+          &quot;loss&quot;: 1.6856,
+          &quot;learning_rate&quot;: 7.005000000000001e-06,
+          &quot;grad_norm&quot;: 5.40117073059082
+        },
+        {
+          &quot;step&quot;: 650,
+          &quot;epoch&quot;: 1.3,
+          &quot;loss&quot;: 1.6315,
+          &quot;learning_rate&quot;: 6.7550000000000005e-06,
+          &quot;grad_norm&quot;: 5.381725311279297
+        },
+        {
+          &quot;step&quot;: 700,
+          &quot;epoch&quot;: 1.4,
+          &quot;loss&quot;: 1.6096,
+          &quot;learning_rate&quot;: 6.505e-06,
+          &quot;grad_norm&quot;: 5.33717155456543
+        },
+        {
+          &quot;step&quot;: 750,
+          &quot;epoch&quot;: 1.5,
+          &quot;loss&quot;: 1.584,
+          &quot;learning_rate&quot;: 6.255e-06,
+          &quot;grad_norm&quot;: 5.233431816101074
+        },
+        {
+          &quot;step&quot;: 800,
+          &quot;epoch&quot;: 1.6,
+          &quot;loss&quot;: 1.5751,
+          &quot;learning_rate&quot;: 6.005000000000001e-06,
+          &quot;grad_norm&quot;: 4.914448261260986
+        },
+        {
+          &quot;step&quot;: 850,
+          &quot;epoch&quot;: 1.7,
+          &quot;loss&quot;: 1.5628,
+          &quot;learning_rate&quot;: 5.755000000000001e-06,
+          &quot;grad_norm&quot;: 5.119904518127441
+        },
+        {
+          &quot;step&quot;: 900,
+          &quot;epoch&quot;: 1.8,
+          &quot;loss&quot;: 1.5539,
+          &quot;learning_rate&quot;: 5.505000000000001e-06,
+          &quot;grad_norm&quot;: 4.863697528839111
+        },
+        {
+          &quot;step&quot;: 950,
+          &quot;epoch&quot;: 1.9,
+          &quot;loss&quot;: 1.5644,
+          &quot;learning_rate&quot;: 5.2550000000000005e-06,
+          &quot;grad_norm&quot;: 5.101799011230469
+        },
+        {
+          &quot;step&quot;: 1000,
+          &quot;epoch&quot;: 2.0,
+          &quot;loss&quot;: 1.5397,
+          &quot;learning_rate&quot;: 5.0049999999999995e-06,
+          &quot;grad_norm&quot;: 5.172698020935059
+        },
+        {
+          &quot;step&quot;: 1050,
+          &quot;epoch&quot;: 2.1,
+          &quot;loss&quot;: 1.5522,
+          &quot;learning_rate&quot;: 4.755e-06,
+          &quot;grad_norm&quot;: 5.236083507537842
+        },
+        {
+          &quot;step&quot;: 1100,
+          &quot;epoch&quot;: 2.2,
+          &quot;loss&quot;: 1.5473,
+          &quot;learning_rate&quot;: 4.505e-06,
+          &quot;grad_norm&quot;: 5.063155651092529
+        },
+        {
+          &quot;step&quot;: 1150,
+          &quot;epoch&quot;: 2.3,
+          &quot;loss&quot;: 1.5459,
+          &quot;learning_rate&quot;: 4.255e-06,
+          &quot;grad_norm&quot;: 5.026848316192627
+        },
+        {
+          &quot;step&quot;: 1200,
+          &quot;epoch&quot;: 2.4,
+          &quot;loss&quot;: 1.5297,
+          &quot;learning_rate&quot;: 4.005000000000001e-06,
+          &quot;grad_norm&quot;: 4.957864761352539
+        },
+        {
+          &quot;step&quot;: 1250,
+          &quot;epoch&quot;: 2.5,
+          &quot;loss&quot;: 1.5356,
+          &quot;learning_rate&quot;: 3.7550000000000005e-06,
+          &quot;grad_norm&quot;: 4.970141887664795
+        },
+        {
+          &quot;step&quot;: 1300,
+          &quot;epoch&quot;: 2.6,
+          &quot;loss&quot;: 1.5306,
+          &quot;learning_rate&quot;: 3.505e-06,
+          &quot;grad_norm&quot;: 4.9173078536987305
+        },
+        {
+          &quot;step&quot;: 1350,
+          &quot;epoch&quot;: 2.7,
+          &quot;loss&quot;: 1.5209,
+          &quot;learning_rate&quot;: 3.255e-06,
+          &quot;grad_norm&quot;: 5.18796968460083
+        },
+        {
+          &quot;step&quot;: 1400,
+          &quot;epoch&quot;: 2.8,
+          &quot;loss&quot;: 1.5475,
+          &quot;learning_rate&quot;: 3.005e-06,
+          &quot;grad_norm&quot;: 5.270847797393799
+        },
+        {
+          &quot;step&quot;: 1450,
+          &quot;epoch&quot;: 2.9,
+          &quot;loss&quot;: 1.5335,
+          &quot;learning_rate&quot;: 2.7550000000000003e-06,
+          &quot;grad_norm&quot;: 4.985874652862549
+        },
+        {
+          &quot;step&quot;: 1500,
+          &quot;epoch&quot;: 3.0,
+          &quot;loss&quot;: 1.5331,
+          &quot;learning_rate&quot;: 2.505e-06,
+          &quot;grad_norm&quot;: 5.098726272583008
+        },
+        {
+          &quot;step&quot;: 1550,
+          &quot;epoch&quot;: 3.1,
+          &quot;loss&quot;: 1.5339,
+          &quot;learning_rate&quot;: 2.2550000000000004e-06,
+          &quot;grad_norm&quot;: 4.851482391357422
+        },
+        {
+          &quot;step&quot;: 1600,
+          &quot;epoch&quot;: 3.2,
+          &quot;loss&quot;: 1.5381,
+          &quot;learning_rate&quot;: 2.0050000000000003e-06,
+          &quot;grad_norm&quot;: 5.243873119354248
+        },
+        {
+          &quot;step&quot;: 1650,
+          &quot;epoch&quot;: 3.3,
+          &quot;loss&quot;: 1.5437,
+          &quot;learning_rate&quot;: 1.7550000000000001e-06,
+          &quot;grad_norm&quot;: 4.958983421325684
+        },
+        {
+          &quot;step&quot;: 1700,
+          &quot;epoch&quot;: 3.4,
+          &quot;loss&quot;: 1.5304,
+          &quot;learning_rate&quot;: 1.505e-06,
+          &quot;grad_norm&quot;: 5.231337547302246
+        },
+        {
+          &quot;step&quot;: 1750,
+          &quot;epoch&quot;: 3.5,
+          &quot;loss&quot;: 1.5302,
+          &quot;learning_rate&quot;: 1.255e-06,
+          &quot;grad_norm&quot;: 5.091558456420898
+        },
+        {
+          &quot;step&quot;: 1800,
+          &quot;epoch&quot;: 3.6,
+          &quot;loss&quot;: 1.5301,
+          &quot;learning_rate&quot;: 1.0050000000000001e-06,
+          &quot;grad_norm&quot;: 5.049768924713135
+        },
+        {
+          &quot;step&quot;: 1850,
+          &quot;epoch&quot;: 3.7,
+          &quot;loss&quot;: 1.5334,
+          &quot;learning_rate&quot;: 7.550000000000001e-07,
+          &quot;grad_norm&quot;: 4.875127792358398
+        },
+        {
+          &quot;step&quot;: 1900,
+          &quot;epoch&quot;: 3.8,
+          &quot;loss&quot;: 1.5328,
+          &quot;learning_rate&quot;: 5.05e-07,
+          &quot;grad_norm&quot;: 4.960959434509277
+        },
+        {
+          &quot;step&quot;: 1950,
+          &quot;epoch&quot;: 3.9,
+          &quot;loss&quot;: 1.5374,
+          &quot;learning_rate&quot;: 2.55e-07,
+          &quot;grad_norm&quot;: 4.905231952667236
+        },
+        {
+          &quot;step&quot;: 2000,
+          &quot;epoch&quot;: 4.0,
+          &quot;loss&quot;: 1.5256,
+          &quot;learning_rate&quot;: 5e-09,
+          &quot;grad_norm&quot;: 4.9036149978637695
+        }
+      ],
+      &quot;train_loss&quot;: 2.0920970611572267,
+      &quot;train_runtime&quot;: 1465.8787,
+      &quot;train_samples_per_second&quot;: 21.83,
+      &quot;train_steps_per_second&quot;: 1.364,
+      &quot;final_log_loss&quot;: 1.5256,
+      &quot;min_log_loss&quot;: 1.5209,
+      &quot;eval_status&quot;: &quot;evaluated&quot;,
+      &quot;eval_count&quot;: 2000,
+      &quot;eval_matches&quot;: 0,
+      &quot;eval_exact_match&quot;: 0.0,
+      &quot;eval_startswith_matches&quot;: 0,
+      &quot;eval_startswith&quot;: 0.0,
+      &quot;eval_first_line_matches&quot;: 0,
+      &quot;eval_first_line_exact&quot;: 0.0,
+      &quot;eval_contains_matches&quot;: 0,
+      &quot;eval_contains_ground_truth&quot;: 0.0,
+      &quot;eval_mean_generated_chars&quot;: 125.3205,
+      &quot;sample_mismatches&quot;: [
+        {
+          &quot;index&quot;: 0,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines not having the string &#x27;dog&#x27; followed by a number, 3 or more times&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(.*?)((\\d+)?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*&quot;,
+          &quot;ground_truth&quot;: &quot;~((dog.*[0-9].*){3,})&quot;
+        },
+        {
+          &quot;index&quot;: 1,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines containing ending with a vowel, zero or more times&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[aeiouAEIOU])^[aeiouAEIOU]([^aeiouAEIOU])* This regular expression matches any sequence of characters that ends with a vowel, zero or more times, and contains at least one of the following characters: - A vowel -&quot;,
+          &quot;ground_truth&quot;: &quot;.*(.*)(([AEIOUaeiou])*).*&quot;
+        },
+        {
+          &quot;index&quot;: 2,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a number or a character before a vowel&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[0-9a-fA-F])^[0-9a-fA-F] This regular expression matches any character that is a number or a letter before a vowel. It uses the dot (.) as the dot character, the character (a-z) as the&quot;,
+          &quot;ground_truth&quot;: &quot;(([0-9])|(.)).*([AEIOUaeiou]).*&quot;
+        },
+        {
+          &quot;index&quot;: 3,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a capital letter followed by the string &#x27;dog&#x27; and ending with a lower-case letter&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(dog) followed by a capital letter and ending with a lower-case letter.&quot;,
+          &quot;ground_truth&quot;: &quot;([A-Z].*dog.*)&amp;((.*)([a-z]))&quot;
+        },
+        {
+          &quot;index&quot;: 4,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a vowel followed by a letter at least once&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[aeiouAEIOU])^[aeiouAEIOU]*.+$ This regular expression matches any sequence of characters that starts with a vowel followed by a letter at least once. It uses the dot (.) as the dot-not operator, which matches any character that is not a&quot;,
+          &quot;ground_truth&quot;: &quot;([AEIOUaeiou].*[A-Za-z].*)+&quot;
+        },
+        {
+          &quot;index&quot;: 5,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines ending with a vowel or starting with a character&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(.){1,3} This regular expression matches any sequence of one or more characters that are either a vowel or a non-letter. It uses a forward slash (`/`) to match the start of a line, a forward slash (`/`) to match the end of a line, and a fo...&quot;,
+          &quot;ground_truth&quot;: &quot;((.*)([AEIOUaeiou]))|((.)(.*))&quot;
+        },
+        {
+          &quot;index&quot;: 6,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines containing either a lower-case letter, a vowel, or a letter&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[a-zA-Z0-9_]) This regular expression matches any sequence of characters that is either a lower-case letter, a vowel, or a letter. It is case-insensitive and matches any character that is not a letter or a digit.&quot;,
+          &quot;ground_truth&quot;: &quot;.*([a-z])|([AEIOUaeiou])|([A-Za-z]).*&quot;
+        },
+        {
+          &quot;index&quot;: 7,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a vowel at least once before a character&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[aeiouAEIOU])^[aeiouAEIOU] This regular expression matches any sequence of a vowel followed by a non-letter, and then a non-letter followed by another non-letter. It uses the `^` and `$` anchors to capture the start and&quot;,
+          &quot;ground_truth&quot;: &quot;(([AEIOUaeiou])+).*(.).*&quot;
+        }
+      ]
+    },
+    {
+      &quot;key&quot;: &quot;d0&quot;,
+      &quot;variant&quot;: &quot;D0&quot;,
+      &quot;description&quot;: &quot;Frozen own-view anchor control with sigma_max=0.0.&quot;,
+      &quot;model_dir&quot;: &quot;results/exp3_full_synth/d0_model&quot;,
+      &quot;eval_file&quot;: &quot;results/exp3_full_synth/eval/d0.jsonl&quot;,
+      &quot;status&quot;: &quot;trained&quot;,
+      &quot;global_step&quot;: 2000,
+      &quot;num_train_epochs&quot;: 4.0,
+      &quot;history&quot;: [
+        {
+          &quot;step&quot;: 50,
+          &quot;epoch&quot;: 0.1,
+          &quot;loss&quot;: 7.2301,
+          &quot;learning_rate&quot;: 9.755e-06,
+          &quot;grad_norm&quot;: 9.787572860717773
+        },
+        {
+          &quot;step&quot;: 100,
+          &quot;epoch&quot;: 0.2,
+          &quot;loss&quot;: 6.2561,
+          &quot;learning_rate&quot;: 9.505000000000001e-06,
+          &quot;grad_norm&quot;: 9.365922927856445
+        },
+        {
+          &quot;step&quot;: 150,
+          &quot;epoch&quot;: 0.3,
+          &quot;loss&quot;: 5.2252,
+          &quot;learning_rate&quot;: 9.255e-06,
+          &quot;grad_norm&quot;: 9.359031677246094
+        },
+        {
+          &quot;step&quot;: 200,
+          &quot;epoch&quot;: 0.4,
+          &quot;loss&quot;: 4.2737,
+          &quot;learning_rate&quot;: 9.005000000000001e-06,
+          &quot;grad_norm&quot;: 9.692876815795898
+        },
+        {
+          &quot;step&quot;: 250,
+          &quot;epoch&quot;: 0.5,
+          &quot;loss&quot;: 3.5502,
+          &quot;learning_rate&quot;: 8.755e-06,
+          &quot;grad_norm&quot;: 8.752052307128906
+        },
+        {
+          &quot;step&quot;: 300,
+          &quot;epoch&quot;: 0.6,
+          &quot;loss&quot;: 3.0492,
+          &quot;learning_rate&quot;: 8.505e-06,
+          &quot;grad_norm&quot;: 8.790446281433105
+        },
+        {
+          &quot;step&quot;: 350,
+          &quot;epoch&quot;: 0.7,
+          &quot;loss&quot;: 2.6879,
+          &quot;learning_rate&quot;: 8.255000000000001e-06,
+          &quot;grad_norm&quot;: 8.692964553833008
+        },
+        {
+          &quot;step&quot;: 400,
+          &quot;epoch&quot;: 0.8,
+          &quot;loss&quot;: 2.3781,
+          &quot;learning_rate&quot;: 8.005e-06,
+          &quot;grad_norm&quot;: 7.9087748527526855
+        },
+        {
+          &quot;step&quot;: 450,
+          &quot;epoch&quot;: 0.9,
+          &quot;loss&quot;: 2.1745,
+          &quot;learning_rate&quot;: 7.755000000000001e-06,
+          &quot;grad_norm&quot;: 6.960097789764404
+        },
+        {
+          &quot;step&quot;: 500,
+          &quot;epoch&quot;: 1.0,
+          &quot;loss&quot;: 1.9908,
+          &quot;learning_rate&quot;: 7.505e-06,
+          &quot;grad_norm&quot;: 6.010952949523926
+        },
+        {
+          &quot;step&quot;: 550,
+          &quot;epoch&quot;: 1.1,
+          &quot;loss&quot;: 1.8645,
+          &quot;learning_rate&quot;: 7.255000000000001e-06,
+          &quot;grad_norm&quot;: 5.455867767333984
+        },
+        {
+          &quot;step&quot;: 600,
+          &quot;epoch&quot;: 1.2,
+          &quot;loss&quot;: 1.777,
+          &quot;learning_rate&quot;: 7.005000000000001e-06,
+          &quot;grad_norm&quot;: 5.599682807922363
+        },
+        {
+          &quot;step&quot;: 650,
+          &quot;epoch&quot;: 1.3,
+          &quot;loss&quot;: 1.7049,
+          &quot;learning_rate&quot;: 6.7550000000000005e-06,
+          &quot;grad_norm&quot;: 5.503387928009033
+        },
+        {
+          &quot;step&quot;: 700,
+          &quot;epoch&quot;: 1.4,
+          &quot;loss&quot;: 1.6636,
+          &quot;learning_rate&quot;: 6.505e-06,
+          &quot;grad_norm&quot;: 5.390696048736572
+        },
+        {
+          &quot;step&quot;: 750,
+          &quot;epoch&quot;: 1.5,
+          &quot;loss&quot;: 1.6347,
+          &quot;learning_rate&quot;: 6.255e-06,
+          &quot;grad_norm&quot;: 5.304864883422852
+        },
+        {
+          &quot;step&quot;: 800,
+          &quot;epoch&quot;: 1.6,
+          &quot;loss&quot;: 1.6209,
+          &quot;learning_rate&quot;: 6.005000000000001e-06,
+          &quot;grad_norm&quot;: 4.9718499183654785
+        },
+        {
+          &quot;step&quot;: 850,
+          &quot;epoch&quot;: 1.7,
+          &quot;loss&quot;: 1.6012,
+          &quot;learning_rate&quot;: 5.755000000000001e-06,
+          &quot;grad_norm&quot;: 5.104836940765381
+        },
+        {
+          &quot;step&quot;: 900,
+          &quot;epoch&quot;: 1.8,
+          &quot;loss&quot;: 1.5932,
+          &quot;learning_rate&quot;: 5.505000000000001e-06,
+          &quot;grad_norm&quot;: 4.925392150878906
+        },
+        {
+          &quot;step&quot;: 950,
+          &quot;epoch&quot;: 1.9,
+          &quot;loss&quot;: 1.6027,
+          &quot;learning_rate&quot;: 5.2550000000000005e-06,
+          &quot;grad_norm&quot;: 5.205242156982422
+        },
+        {
+          &quot;step&quot;: 1000,
+          &quot;epoch&quot;: 2.0,
+          &quot;loss&quot;: 1.578,
+          &quot;learning_rate&quot;: 5.0049999999999995e-06,
+          &quot;grad_norm&quot;: 5.270107746124268
+        },
+        {
+          &quot;step&quot;: 1050,
+          &quot;epoch&quot;: 2.1,
+          &quot;loss&quot;: 1.5904,
+          &quot;learning_rate&quot;: 4.755e-06,
+          &quot;grad_norm&quot;: 5.346916675567627
+        },
+        {
+          &quot;step&quot;: 1100,
+          &quot;epoch&quot;: 2.2,
+          &quot;loss&quot;: 1.5859,
+          &quot;learning_rate&quot;: 4.505e-06,
+          &quot;grad_norm&quot;: 5.149586200714111
+        },
+        {
+          &quot;step&quot;: 1150,
+          &quot;epoch&quot;: 2.3,
+          &quot;loss&quot;: 1.5817,
+          &quot;learning_rate&quot;: 4.255e-06,
+          &quot;grad_norm&quot;: 5.07669734954834
+        },
+        {
+          &quot;step&quot;: 1200,
+          &quot;epoch&quot;: 2.4,
+          &quot;loss&quot;: 1.5668,
+          &quot;learning_rate&quot;: 4.005000000000001e-06,
+          &quot;grad_norm&quot;: 5.026512145996094
+        },
+        {
+          &quot;step&quot;: 1250,
+          &quot;epoch&quot;: 2.5,
+          &quot;loss&quot;: 1.5724,
+          &quot;learning_rate&quot;: 3.7550000000000005e-06,
+          &quot;grad_norm&quot;: 5.080693244934082
+        },
+        {
+          &quot;step&quot;: 1300,
+          &quot;epoch&quot;: 2.6,
+          &quot;loss&quot;: 1.5676,
+          &quot;learning_rate&quot;: 3.505e-06,
+          &quot;grad_norm&quot;: 5.080828666687012
+        },
+        {
+          &quot;step&quot;: 1350,
+          &quot;epoch&quot;: 2.7,
+          &quot;loss&quot;: 1.5577,
+          &quot;learning_rate&quot;: 3.255e-06,
+          &quot;grad_norm&quot;: 5.308696269989014
+        },
+        {
+          &quot;step&quot;: 1400,
+          &quot;epoch&quot;: 2.8,
+          &quot;loss&quot;: 1.5848,
+          &quot;learning_rate&quot;: 3.005e-06,
+          &quot;grad_norm&quot;: 5.461297512054443
+        },
+        {
+          &quot;step&quot;: 1450,
+          &quot;epoch&quot;: 2.9,
+          &quot;loss&quot;: 1.5728,
+          &quot;learning_rate&quot;: 2.7550000000000003e-06,
+          &quot;grad_norm&quot;: 5.0277509689331055
+        },
+        {
+          &quot;step&quot;: 1500,
+          &quot;epoch&quot;: 3.0,
+          &quot;loss&quot;: 1.5702,
+          &quot;learning_rate&quot;: 2.505e-06,
+          &quot;grad_norm&quot;: 5.222703456878662
+        },
+        {
+          &quot;step&quot;: 1550,
+          &quot;epoch&quot;: 3.1,
+          &quot;loss&quot;: 1.5707,
+          &quot;learning_rate&quot;: 2.2550000000000004e-06,
+          &quot;grad_norm&quot;: 5.071610927581787
+        },
+        {
+          &quot;step&quot;: 1600,
+          &quot;epoch&quot;: 3.2,
+          &quot;loss&quot;: 1.5751,
+          &quot;learning_rate&quot;: 2.0050000000000003e-06,
+          &quot;grad_norm&quot;: 5.259387493133545
+        },
+        {
+          &quot;step&quot;: 1650,
+          &quot;epoch&quot;: 3.3,
+          &quot;loss&quot;: 1.579,
+          &quot;learning_rate&quot;: 1.7550000000000001e-06,
+          &quot;grad_norm&quot;: 4.894405364990234
+        },
+        {
+          &quot;step&quot;: 1700,
+          &quot;epoch&quot;: 3.4,
+          &quot;loss&quot;: 1.5666,
+          &quot;learning_rate&quot;: 1.505e-06,
+          &quot;grad_norm&quot;: 5.4167609214782715
+        },
+        {
+          &quot;step&quot;: 1750,
+          &quot;epoch&quot;: 3.5,
+          &quot;loss&quot;: 1.5673,
+          &quot;learning_rate&quot;: 1.255e-06,
+          &quot;grad_norm&quot;: 5.206573009490967
+        },
+        {
+          &quot;step&quot;: 1800,
+          &quot;epoch&quot;: 3.6,
+          &quot;loss&quot;: 1.5673,
+          &quot;learning_rate&quot;: 1.0050000000000001e-06,
+          &quot;grad_norm&quot;: 5.288992881774902
+        },
+        {
+          &quot;step&quot;: 1850,
+          &quot;epoch&quot;: 3.7,
+          &quot;loss&quot;: 1.5678,
+          &quot;learning_rate&quot;: 7.550000000000001e-07,
+          &quot;grad_norm&quot;: 4.995203495025635
+        },
+        {
+          &quot;step&quot;: 1900,
+          &quot;epoch&quot;: 3.8,
+          &quot;loss&quot;: 1.5684,
+          &quot;learning_rate&quot;: 5.05e-07,
+          &quot;grad_norm&quot;: 5.126776218414307
+        },
+        {
+          &quot;step&quot;: 1950,
+          &quot;epoch&quot;: 3.9,
+          &quot;loss&quot;: 1.5786,
+          &quot;learning_rate&quot;: 2.55e-07,
+          &quot;grad_norm&quot;: 5.1171183586120605
+        },
+        {
+          &quot;step&quot;: 2000,
+          &quot;epoch&quot;: 4.0,
+          &quot;loss&quot;: 1.5622,
+          &quot;learning_rate&quot;: 5e-09,
+          &quot;grad_norm&quot;: 5.023706436157227
+        }
+      ],
+      &quot;train_loss&quot;: 2.1727479553222655,
+      &quot;train_runtime&quot;: 1372.979,
+      &quot;train_samples_per_second&quot;: 23.307,
+      &quot;train_steps_per_second&quot;: 1.457,
+      &quot;final_log_loss&quot;: 1.5622,
+      &quot;min_log_loss&quot;: 1.5577,
+      &quot;eval_status&quot;: &quot;evaluated&quot;,
+      &quot;eval_count&quot;: 2000,
+      &quot;eval_matches&quot;: 0,
+      &quot;eval_exact_match&quot;: 0.0,
+      &quot;eval_startswith_matches&quot;: 0,
+      &quot;eval_startswith&quot;: 0.0,
+      &quot;eval_first_line_matches&quot;: 0,
+      &quot;eval_first_line_exact&quot;: 0.0,
+      &quot;eval_contains_matches&quot;: 0,
+      &quot;eval_contains_ground_truth&quot;: 0.0,
+      &quot;eval_mean_generated_chars&quot;: 121.4685,
+      &quot;sample_mismatches&quot;: [
+        {
+          &quot;index&quot;: 0,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines not having the string &#x27;dog&#x27; followed by a number, 3 or more times&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^dog|3|1|3|1|3|1|3|1|3|1|3|1|3|1|3|1|3|1|3|1|3|1|3|1|3|1|3|1|3|1|&quot;,
+          &quot;ground_truth&quot;: &quot;~((dog.*[0-9].*){3,})&quot;
+        },
+        {
+          &quot;index&quot;: 1,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines containing ending with a vowel, zero or more times&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[aeiouAEIOU])^[aeiouAEIOU]([aeiouAEIOU])([aeiouAEIOU])([aeiouAEIOU])([aeiouAEIOU])([aeiouAEIOU])([aeiouAEIOU])([aeiouAEIO&quot;,
+          &quot;ground_truth&quot;: &quot;.*(.*)(([AEIOUaeiou])*).*&quot;
+        },
+        {
+          &quot;index&quot;: 2,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a number or a character before a vowel&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[0-9a-fA-F])^[0-9a-fA-F] This regular expression matches any sequence of characters that starts with a digit, followed by a letter or a character, and ends with a vowel. It uses the dot (.) as the dot&quot;,
+          &quot;ground_truth&quot;: &quot;(([0-9])|(.)).*([AEIOUaeiou]).*&quot;
+        },
+        {
+          &quot;index&quot;: 3,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a capital letter followed by the string &#x27;dog&#x27; and ending with a lower-case letter&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(dog) followed by a capital letter and ending with a lower-case letter.&quot;,
+          &quot;ground_truth&quot;: &quot;([A-Z].*dog.*)&amp;((.*)([a-z]))&quot;
+        },
+        {
+          &quot;index&quot;: 4,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a vowel followed by a letter at least once&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(a) (b) (c) (d) (e) (f) (g) (h) (i) (j) (k) (l) (m) (n) (o) (p) (q) (r) (s) (t) (u) (&quot;,
+          &quot;ground_truth&quot;: &quot;([AEIOUaeiou].*[A-Za-z].*)+&quot;
+        },
+        {
+          &quot;index&quot;: 5,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines ending with a vowel or starting with a character&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(.){1,3} This regular expression matches any sequence of one or more characters that are either a vowel or a non-letter. It is case-insensitive and matches any character that is not a letter.&quot;,
+          &quot;ground_truth&quot;: &quot;((.*)([AEIOUaeiou]))|((.)(.*))&quot;
+        },
+        {
+          &quot;index&quot;: 6,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines containing either a lower-case letter, a vowel, or a letter&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[a-zA-Z0-9_])^[a-zA-Z0-9_] This regular expression matches any sequence of characters that is either a lower-case letter, a vowel, or a letter. It uses the `^` and `$` anchors&quot;,
+          &quot;ground_truth&quot;: &quot;.*([a-z])|([AEIOUaeiou])|([A-Za-z]).*&quot;
+        },
+        {
+          &quot;index&quot;: 7,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a vowel at least once before a character&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[aeiouAEIOU])^[aeiouAEIOU] This regular expression matches any sequence of characters that are a vowel followed by a non-letter, followed by a non-letter, or followed by a non-letter followed by a non-letter. It does not match any&quot;,
+          &quot;ground_truth&quot;: &quot;(([AEIOUaeiou])+).*(.).*&quot;
+        }
+      ]
+    },
+    {
+      &quot;key&quot;: &quot;d1&quot;,
+      &quot;variant&quot;: &quot;D1&quot;,
+      &quot;description&quot;: &quot;Frozen own-view anchor with sigma_max=0.5.&quot;,
+      &quot;model_dir&quot;: &quot;results/exp3_full_synth/d1_model&quot;,
+      &quot;eval_file&quot;: &quot;results/exp3_full_synth/eval/d1.jsonl&quot;,
+      &quot;status&quot;: &quot;trained&quot;,
+      &quot;global_step&quot;: 2000,
+      &quot;num_train_epochs&quot;: 4.0,
+      &quot;history&quot;: [
+        {
+          &quot;step&quot;: 50,
+          &quot;epoch&quot;: 0.1,
+          &quot;loss&quot;: 7.2597,
+          &quot;learning_rate&quot;: 9.755e-06,
+          &quot;grad_norm&quot;: 9.836274147033691
+        },
+        {
+          &quot;step&quot;: 100,
+          &quot;epoch&quot;: 0.2,
+          &quot;loss&quot;: 6.3143,
+          &quot;learning_rate&quot;: 9.505000000000001e-06,
+          &quot;grad_norm&quot;: 9.940563201904297
+        },
+        {
+          &quot;step&quot;: 150,
+          &quot;epoch&quot;: 0.3,
+          &quot;loss&quot;: 5.3078,
+          &quot;learning_rate&quot;: 9.255e-06,
+          &quot;grad_norm&quot;: 9.45288372039795
+        },
+        {
+          &quot;step&quot;: 200,
+          &quot;epoch&quot;: 0.4,
+          &quot;loss&quot;: 4.3671,
+          &quot;learning_rate&quot;: 9.005000000000001e-06,
+          &quot;grad_norm&quot;: 9.81913948059082
+        },
+        {
+          &quot;step&quot;: 250,
+          &quot;epoch&quot;: 0.5,
+          &quot;loss&quot;: 3.6416,
+          &quot;learning_rate&quot;: 8.755e-06,
+          &quot;grad_norm&quot;: 9.003096580505371
+        },
+        {
+          &quot;step&quot;: 300,
+          &quot;epoch&quot;: 0.6,
+          &quot;loss&quot;: 3.1322,
+          &quot;learning_rate&quot;: 8.505e-06,
+          &quot;grad_norm&quot;: 9.033897399902344
+        },
+        {
+          &quot;step&quot;: 350,
+          &quot;epoch&quot;: 0.7,
+          &quot;loss&quot;: 2.7555,
+          &quot;learning_rate&quot;: 8.255000000000001e-06,
+          &quot;grad_norm&quot;: 8.727004051208496
+        },
+        {
+          &quot;step&quot;: 400,
+          &quot;epoch&quot;: 0.8,
+          &quot;loss&quot;: 2.4284,
+          &quot;learning_rate&quot;: 8.005e-06,
+          &quot;grad_norm&quot;: 8.315072059631348
+        },
+        {
+          &quot;step&quot;: 450,
+          &quot;epoch&quot;: 0.9,
+          &quot;loss&quot;: 2.2104,
+          &quot;learning_rate&quot;: 7.755000000000001e-06,
+          &quot;grad_norm&quot;: 6.997830390930176
+        },
+        {
+          &quot;step&quot;: 500,
+          &quot;epoch&quot;: 1.0,
+          &quot;loss&quot;: 2.0241,
+          &quot;learning_rate&quot;: 7.505e-06,
+          &quot;grad_norm&quot;: 6.155956268310547
+        },
+        {
+          &quot;step&quot;: 550,
+          &quot;epoch&quot;: 1.1,
+          &quot;loss&quot;: 1.8911,
+          &quot;learning_rate&quot;: 7.255000000000001e-06,
+          &quot;grad_norm&quot;: 5.439766883850098
+        },
+        {
+          &quot;step&quot;: 600,
+          &quot;epoch&quot;: 1.2,
+          &quot;loss&quot;: 1.798,
+          &quot;learning_rate&quot;: 7.005000000000001e-06,
+          &quot;grad_norm&quot;: 5.59194803237915
+        },
+        {
+          &quot;step&quot;: 650,
+          &quot;epoch&quot;: 1.3,
+          &quot;loss&quot;: 1.7254,
+          &quot;learning_rate&quot;: 6.7550000000000005e-06,
+          &quot;grad_norm&quot;: 5.412873268127441
+        },
+        {
+          &quot;step&quot;: 700,
+          &quot;epoch&quot;: 1.4,
+          &quot;loss&quot;: 1.6789,
+          &quot;learning_rate&quot;: 6.505e-06,
+          &quot;grad_norm&quot;: 5.581038951873779
+        },
+        {
+          &quot;step&quot;: 750,
+          &quot;epoch&quot;: 1.5,
+          &quot;loss&quot;: 1.6479,
+          &quot;learning_rate&quot;: 6.255e-06,
+          &quot;grad_norm&quot;: 5.443614959716797
+        },
+        {
+          &quot;step&quot;: 800,
+          &quot;epoch&quot;: 1.6,
+          &quot;loss&quot;: 1.6346,
+          &quot;learning_rate&quot;: 6.005000000000001e-06,
+          &quot;grad_norm&quot;: 5.0888895988464355
+        },
+        {
+          &quot;step&quot;: 850,
+          &quot;epoch&quot;: 1.7,
+          &quot;loss&quot;: 1.612,
+          &quot;learning_rate&quot;: 5.755000000000001e-06,
+          &quot;grad_norm&quot;: 5.223740100860596
+        },
+        {
+          &quot;step&quot;: 900,
+          &quot;epoch&quot;: 1.8,
+          &quot;loss&quot;: 1.6043,
+          &quot;learning_rate&quot;: 5.505000000000001e-06,
+          &quot;grad_norm&quot;: 5.288980484008789
+        },
+        {
+          &quot;step&quot;: 950,
+          &quot;epoch&quot;: 1.9,
+          &quot;loss&quot;: 1.6129,
+          &quot;learning_rate&quot;: 5.2550000000000005e-06,
+          &quot;grad_norm&quot;: 5.21630334854126
+        },
+        {
+          &quot;step&quot;: 1000,
+          &quot;epoch&quot;: 2.0,
+          &quot;loss&quot;: 1.5867,
+          &quot;learning_rate&quot;: 5.0049999999999995e-06,
+          &quot;grad_norm&quot;: 5.168790817260742
+        },
+        {
+          &quot;step&quot;: 1050,
+          &quot;epoch&quot;: 2.1,
+          &quot;loss&quot;: 1.5983,
+          &quot;learning_rate&quot;: 4.755e-06,
+          &quot;grad_norm&quot;: 5.394881248474121
+        },
+        {
+          &quot;step&quot;: 1100,
+          &quot;epoch&quot;: 2.2,
+          &quot;loss&quot;: 1.594,
+          &quot;learning_rate&quot;: 4.505e-06,
+          &quot;grad_norm&quot;: 5.25582218170166
+        },
+        {
+          &quot;step&quot;: 1150,
+          &quot;epoch&quot;: 2.3,
+          &quot;loss&quot;: 1.5902,
+          &quot;learning_rate&quot;: 4.255e-06,
+          &quot;grad_norm&quot;: 5.083071708679199
+        },
+        {
+          &quot;step&quot;: 1200,
+          &quot;epoch&quot;: 2.4,
+          &quot;loss&quot;: 1.5762,
+          &quot;learning_rate&quot;: 4.005000000000001e-06,
+          &quot;grad_norm&quot;: 4.883965492248535
+        },
+        {
+          &quot;step&quot;: 1250,
+          &quot;epoch&quot;: 2.5,
+          &quot;loss&quot;: 1.5812,
+          &quot;learning_rate&quot;: 3.7550000000000005e-06,
+          &quot;grad_norm&quot;: 5.035397529602051
+        },
+        {
+          &quot;step&quot;: 1300,
+          &quot;epoch&quot;: 2.6,
+          &quot;loss&quot;: 1.5758,
+          &quot;learning_rate&quot;: 3.505e-06,
+          &quot;grad_norm&quot;: 5.041840553283691
+        },
+        {
+          &quot;step&quot;: 1350,
+          &quot;epoch&quot;: 2.7,
+          &quot;loss&quot;: 1.566,
+          &quot;learning_rate&quot;: 3.255e-06,
+          &quot;grad_norm&quot;: 5.207042694091797
+        },
+        {
+          &quot;step&quot;: 1400,
+          &quot;epoch&quot;: 2.8,
+          &quot;loss&quot;: 1.5925,
+          &quot;learning_rate&quot;: 3.005e-06,
+          &quot;grad_norm&quot;: 5.321143627166748
+        },
+        {
+          &quot;step&quot;: 1450,
+          &quot;epoch&quot;: 2.9,
+          &quot;loss&quot;: 1.5811,
+          &quot;learning_rate&quot;: 2.7550000000000003e-06,
+          &quot;grad_norm&quot;: 4.922350883483887
+        },
+        {
+          &quot;step&quot;: 1500,
+          &quot;epoch&quot;: 3.0,
+          &quot;loss&quot;: 1.5794,
+          &quot;learning_rate&quot;: 2.505e-06,
+          &quot;grad_norm&quot;: 5.1173858642578125
+        },
+        {
+          &quot;step&quot;: 1550,
+          &quot;epoch&quot;: 3.1,
+          &quot;loss&quot;: 1.5791,
+          &quot;learning_rate&quot;: 2.2550000000000004e-06,
+          &quot;grad_norm&quot;: 5.0410566329956055
+        },
+        {
+          &quot;step&quot;: 1600,
+          &quot;epoch&quot;: 3.2,
+          &quot;loss&quot;: 1.583,
+          &quot;learning_rate&quot;: 2.0050000000000003e-06,
+          &quot;grad_norm&quot;: 5.18080997467041
+        },
+        {
+          &quot;step&quot;: 1650,
+          &quot;epoch&quot;: 3.3,
+          &quot;loss&quot;: 1.5888,
+          &quot;learning_rate&quot;: 1.7550000000000001e-06,
+          &quot;grad_norm&quot;: 4.908641338348389
+        },
+        {
+          &quot;step&quot;: 1700,
+          &quot;epoch&quot;: 3.4,
+          &quot;loss&quot;: 1.5755,
+          &quot;learning_rate&quot;: 1.505e-06,
+          &quot;grad_norm&quot;: 5.47130012512207
+        },
+        {
+          &quot;step&quot;: 1750,
+          &quot;epoch&quot;: 3.5,
+          &quot;loss&quot;: 1.5766,
+          &quot;learning_rate&quot;: 1.255e-06,
+          &quot;grad_norm&quot;: 5.084531784057617
+        },
+        {
+          &quot;step&quot;: 1800,
+          &quot;epoch&quot;: 3.6,
+          &quot;loss&quot;: 1.5766,
+          &quot;learning_rate&quot;: 1.0050000000000001e-06,
+          &quot;grad_norm&quot;: 5.294846057891846
+        },
+        {
+          &quot;step&quot;: 1850,
+          &quot;epoch&quot;: 3.7,
+          &quot;loss&quot;: 1.5776,
+          &quot;learning_rate&quot;: 7.550000000000001e-07,
+          &quot;grad_norm&quot;: 4.793512344360352
+        },
+        {
+          &quot;step&quot;: 1900,
+          &quot;epoch&quot;: 3.8,
+          &quot;loss&quot;: 1.5789,
+          &quot;learning_rate&quot;: 5.05e-07,
+          &quot;grad_norm&quot;: 5.076966285705566
+        },
+        {
+          &quot;step&quot;: 1950,
+          &quot;epoch&quot;: 3.9,
+          &quot;loss&quot;: 1.5867,
+          &quot;learning_rate&quot;: 2.55e-07,
+          &quot;grad_norm&quot;: 5.1551833152771
+        },
+        {
+          &quot;step&quot;: 2000,
+          &quot;epoch&quot;: 4.0,
+          &quot;loss&quot;: 1.5723,
+          &quot;learning_rate&quot;: 5e-09,
+          &quot;grad_norm&quot;: 5.101424694061279
+        }
+      ],
+      &quot;train_loss&quot;: 2.196567615509033,
+      &quot;train_runtime&quot;: 1430.0425,
+      &quot;train_samples_per_second&quot;: 22.377,
+      &quot;train_steps_per_second&quot;: 1.399,
+      &quot;final_log_loss&quot;: 1.5723,
+      &quot;min_log_loss&quot;: 1.566,
+      &quot;eval_status&quot;: &quot;evaluated&quot;,
+      &quot;eval_count&quot;: 2000,
+      &quot;eval_matches&quot;: 0,
+      &quot;eval_exact_match&quot;: 0.0,
+      &quot;eval_startswith_matches&quot;: 0,
+      &quot;eval_startswith&quot;: 0.0,
+      &quot;eval_first_line_matches&quot;: 0,
+      &quot;eval_first_line_exact&quot;: 0.0,
+      &quot;eval_contains_matches&quot;: 0,
+      &quot;eval_contains_ground_truth&quot;: 0.0,
+      &quot;eval_mean_generated_chars&quot;: 123.688,
+      &quot;sample_mismatches&quot;: [
+        {
+          &quot;index&quot;: 0,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines not having the string &#x27;dog&#x27; followed by a number, 3 or more times&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(.*?)((\\d+)?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*?)(.*&quot;,
+          &quot;ground_truth&quot;: &quot;~((dog.*[0-9].*){3,})&quot;
+        },
+        {
+          &quot;index&quot;: 1,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines containing ending with a vowel, zero or more times&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[aeiouAEIOU])^[aeiouAEIOU]([^aeiouAEIOU])* This regular expression matches any sequence of characters that ends with a vowel, zero or more times, and contains at least one of the following characters: - A vowel -&quot;,
+          &quot;ground_truth&quot;: &quot;.*(.*)(([AEIOUaeiou])*).*&quot;
+        },
+        {
+          &quot;index&quot;: 2,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a number or a character before a vowel&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[0-9a-fA-F])^[0-9a-fA-F] This regular expression matches any sequence of characters that starts with a number or a character, followed by a vowel. It also includes a dot (.) to indicate the start of a word.&quot;,
+          &quot;ground_truth&quot;: &quot;(([0-9])|(.)).*([AEIOUaeiou]).*&quot;
+        },
+        {
+          &quot;index&quot;: 3,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a capital letter followed by the string &#x27;dog&#x27; and ending with a lower-case letter&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(dog) followed by a capital letter and ending with a lower-case letter.&quot;,
+          &quot;ground_truth&quot;: &quot;([A-Z].*dog.*)&amp;((.*)([a-z]))&quot;
+        },
+        {
+          &quot;index&quot;: 4,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a vowel followed by a letter at least once&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[aeiouAEIOU])^[aeiouAEIOU]*.+$ This regular expression matches any sequence of a vowel followed by a letter at least once, and the letter itself. It uses the dot (.) as the dot-not operator, which matches any character that is not&quot;,
+          &quot;ground_truth&quot;: &quot;([AEIOUaeiou].*[A-Za-z].*)+&quot;
+        },
+        {
+          &quot;index&quot;: 5,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines ending with a vowel or starting with a character&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(.){1,3} This regular expression matches any sequence of one or more characters that are either a vowel or a non-letter. It is case-insensitive and matches any character that is not a letter.&quot;,
+          &quot;ground_truth&quot;: &quot;((.*)([AEIOUaeiou]))|((.)(.*))&quot;
+        },
+        {
+          &quot;index&quot;: 6,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines containing either a lower-case letter, a vowel, or a letter&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[a-zA-Z0-9_]) This regular expression matches any sequence of lowercase letters, a vowel, or a letter, and it includes a forward slash (`/`) to match the start of a line.&quot;,
+          &quot;ground_truth&quot;: &quot;.*([a-z])|([AEIOUaeiou])|([A-Za-z]).*&quot;
+        },
+        {
+          &quot;index&quot;: 7,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a vowel at least once before a character&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[aeiouAEIOU])^[aeiouAEIOU] This regular expression matches any sequence of characters that are a vowel followed by a non-letter, followed by a non-letter, followed by a non-letter, followed by a non-letter, followed by a non-&quot;,
+          &quot;ground_truth&quot;: &quot;(([AEIOUaeiou])+).*(.).*&quot;
+        }
+      ]
+    },
+    {
+      &quot;key&quot;: &quot;cross&quot;,
+      &quot;variant&quot;: &quot;Cross&quot;,
+      &quot;description&quot;: &quot;Frozen cross-view cap reconstruction with sigma_max=0.5.&quot;,
+      &quot;model_dir&quot;: &quot;results/exp3_full_synth/cross_model&quot;,
+      &quot;eval_file&quot;: &quot;results/exp3_full_synth/eval/cross.jsonl&quot;,
+      &quot;status&quot;: &quot;trained&quot;,
+      &quot;global_step&quot;: 2000,
+      &quot;num_train_epochs&quot;: 4.0,
+      &quot;history&quot;: [
+        {
+          &quot;step&quot;: 50,
+          &quot;epoch&quot;: 0.1,
+          &quot;loss&quot;: 7.3424,
+          &quot;learning_rate&quot;: 9.755e-06,
+          &quot;grad_norm&quot;: 9.946755409240723
+        },
+        {
+          &quot;step&quot;: 100,
+          &quot;epoch&quot;: 0.2,
+          &quot;loss&quot;: 6.4114,
+          &quot;learning_rate&quot;: 9.505000000000001e-06,
+          &quot;grad_norm&quot;: 9.557315826416016
+        },
+        {
+          &quot;step&quot;: 150,
+          &quot;epoch&quot;: 0.3,
+          &quot;loss&quot;: 5.4458,
+          &quot;learning_rate&quot;: 9.255e-06,
+          &quot;grad_norm&quot;: 9.597705841064453
+        },
+        {
+          &quot;step&quot;: 200,
+          &quot;epoch&quot;: 0.4,
+          &quot;loss&quot;: 4.5413,
+          &quot;learning_rate&quot;: 9.005000000000001e-06,
+          &quot;grad_norm&quot;: 10.185587882995605
+        },
+        {
+          &quot;step&quot;: 250,
+          &quot;epoch&quot;: 0.5,
+          &quot;loss&quot;: 3.8017,
+          &quot;learning_rate&quot;: 8.755e-06,
+          &quot;grad_norm&quot;: 9.109216690063477
+        },
+        {
+          &quot;step&quot;: 300,
+          &quot;epoch&quot;: 0.6,
+          &quot;loss&quot;: 3.294,
+          &quot;learning_rate&quot;: 8.505e-06,
+          &quot;grad_norm&quot;: 9.146042823791504
+        },
+        {
+          &quot;step&quot;: 350,
+          &quot;epoch&quot;: 0.7,
+          &quot;loss&quot;: 2.8956,
+          &quot;learning_rate&quot;: 8.255000000000001e-06,
+          &quot;grad_norm&quot;: 8.989449501037598
+        },
+        {
+          &quot;step&quot;: 400,
+          &quot;epoch&quot;: 0.8,
+          &quot;loss&quot;: 2.5648,
+          &quot;learning_rate&quot;: 8.005e-06,
+          &quot;grad_norm&quot;: 8.324013710021973
+        },
+        {
+          &quot;step&quot;: 450,
+          &quot;epoch&quot;: 0.9,
+          &quot;loss&quot;: 2.3271,
+          &quot;learning_rate&quot;: 7.755000000000001e-06,
+          &quot;grad_norm&quot;: 7.43494987487793
+        },
+        {
+          &quot;step&quot;: 500,
+          &quot;epoch&quot;: 1.0,
+          &quot;loss&quot;: 2.1299,
+          &quot;learning_rate&quot;: 7.505e-06,
+          &quot;grad_norm&quot;: 6.220327377319336
+        },
+        {
+          &quot;step&quot;: 550,
+          &quot;epoch&quot;: 1.1,
+          &quot;loss&quot;: 1.9773,
+          &quot;learning_rate&quot;: 7.255000000000001e-06,
+          &quot;grad_norm&quot;: 5.6292643547058105
+        },
+        {
+          &quot;step&quot;: 600,
+          &quot;epoch&quot;: 1.2,
+          &quot;loss&quot;: 1.8743,
+          &quot;learning_rate&quot;: 7.005000000000001e-06,
+          &quot;grad_norm&quot;: 5.66787576675415
+        },
+        {
+          &quot;step&quot;: 650,
+          &quot;epoch&quot;: 1.3,
+          &quot;loss&quot;: 1.7929,
+          &quot;learning_rate&quot;: 6.7550000000000005e-06,
+          &quot;grad_norm&quot;: 5.650744915008545
+        },
+        {
+          &quot;step&quot;: 700,
+          &quot;epoch&quot;: 1.4,
+          &quot;loss&quot;: 1.7311,
+          &quot;learning_rate&quot;: 6.505e-06,
+          &quot;grad_norm&quot;: 5.465630531311035
+        },
+        {
+          &quot;step&quot;: 750,
+          &quot;epoch&quot;: 1.5,
+          &quot;loss&quot;: 1.6954,
+          &quot;learning_rate&quot;: 6.255e-06,
+          &quot;grad_norm&quot;: 5.193068504333496
+        },
+        {
+          &quot;step&quot;: 800,
+          &quot;epoch&quot;: 1.6,
+          &quot;loss&quot;: 1.6791,
+          &quot;learning_rate&quot;: 6.005000000000001e-06,
+          &quot;grad_norm&quot;: 5.018929481506348
+        },
+        {
+          &quot;step&quot;: 850,
+          &quot;epoch&quot;: 1.7,
+          &quot;loss&quot;: 1.6475,
+          &quot;learning_rate&quot;: 5.755000000000001e-06,
+          &quot;grad_norm&quot;: 5.153578281402588
+        },
+        {
+          &quot;step&quot;: 900,
+          &quot;epoch&quot;: 1.8,
+          &quot;loss&quot;: 1.6403,
+          &quot;learning_rate&quot;: 5.505000000000001e-06,
+          &quot;grad_norm&quot;: 4.964440822601318
+        },
+        {
+          &quot;step&quot;: 950,
+          &quot;epoch&quot;: 1.9,
+          &quot;loss&quot;: 1.647,
+          &quot;learning_rate&quot;: 5.2550000000000005e-06,
+          &quot;grad_norm&quot;: 5.214284896850586
+        },
+        {
+          &quot;step&quot;: 1000,
+          &quot;epoch&quot;: 2.0,
+          &quot;loss&quot;: 1.6213,
+          &quot;learning_rate&quot;: 5.0049999999999995e-06,
+          &quot;grad_norm&quot;: 5.174105167388916
+        },
+        {
+          &quot;step&quot;: 1050,
+          &quot;epoch&quot;: 2.1,
+          &quot;loss&quot;: 1.6338,
+          &quot;learning_rate&quot;: 4.755e-06,
+          &quot;grad_norm&quot;: 5.856593608856201
+        },
+        {
+          &quot;step&quot;: 1100,
+          &quot;epoch&quot;: 2.2,
+          &quot;loss&quot;: 1.6285,
+          &quot;learning_rate&quot;: 4.505e-06,
+          &quot;grad_norm&quot;: 5.304856777191162
+        },
+        {
+          &quot;step&quot;: 1150,
+          &quot;epoch&quot;: 2.3,
+          &quot;loss&quot;: 1.621,
+          &quot;learning_rate&quot;: 4.255e-06,
+          &quot;grad_norm&quot;: 5.00872278213501
+        },
+        {
+          &quot;step&quot;: 1200,
+          &quot;epoch&quot;: 2.4,
+          &quot;loss&quot;: 1.6105,
+          &quot;learning_rate&quot;: 4.005000000000001e-06,
+          &quot;grad_norm&quot;: 4.964756011962891
+        },
+        {
+          &quot;step&quot;: 1250,
+          &quot;epoch&quot;: 2.5,
+          &quot;loss&quot;: 1.6162,
+          &quot;learning_rate&quot;: 3.7550000000000005e-06,
+          &quot;grad_norm&quot;: 5.178131103515625
+        },
+        {
+          &quot;step&quot;: 1300,
+          &quot;epoch&quot;: 2.6,
+          &quot;loss&quot;: 1.6085,
+          &quot;learning_rate&quot;: 3.505e-06,
+          &quot;grad_norm&quot;: 5.082279682159424
+        },
+        {
+          &quot;step&quot;: 1350,
+          &quot;epoch&quot;: 2.7,
+          &quot;loss&quot;: 1.5985,
+          &quot;learning_rate&quot;: 3.255e-06,
+          &quot;grad_norm&quot;: 5.201193332672119
+        },
+        {
+          &quot;step&quot;: 1400,
+          &quot;epoch&quot;: 2.8,
+          &quot;loss&quot;: 1.624,
+          &quot;learning_rate&quot;: 3.005e-06,
+          &quot;grad_norm&quot;: 5.442107677459717
+        },
+        {
+          &quot;step&quot;: 1450,
+          &quot;epoch&quot;: 2.9,
+          &quot;loss&quot;: 1.6149,
+          &quot;learning_rate&quot;: 2.7550000000000003e-06,
+          &quot;grad_norm&quot;: 4.890161037445068
+        },
+        {
+          &quot;step&quot;: 1500,
+          &quot;epoch&quot;: 3.0,
+          &quot;loss&quot;: 1.6112,
+          &quot;learning_rate&quot;: 2.505e-06,
+          &quot;grad_norm&quot;: 5.022841930389404
+        },
+        {
+          &quot;step&quot;: 1550,
+          &quot;epoch&quot;: 3.1,
+          &quot;loss&quot;: 1.6131,
+          &quot;learning_rate&quot;: 2.2550000000000004e-06,
+          &quot;grad_norm&quot;: 4.966517925262451
+        },
+        {
+          &quot;step&quot;: 1600,
+          &quot;epoch&quot;: 3.2,
+          &quot;loss&quot;: 1.6159,
+          &quot;learning_rate&quot;: 2.0050000000000003e-06,
+          &quot;grad_norm&quot;: 5.316385269165039
+        },
+        {
+          &quot;step&quot;: 1650,
+          &quot;epoch&quot;: 3.3,
+          &quot;loss&quot;: 1.6209,
+          &quot;learning_rate&quot;: 1.7550000000000001e-06,
+          &quot;grad_norm&quot;: 5.03608512878418
+        },
+        {
+          &quot;step&quot;: 1700,
+          &quot;epoch&quot;: 3.4,
+          &quot;loss&quot;: 1.6086,
+          &quot;learning_rate&quot;: 1.505e-06,
+          &quot;grad_norm&quot;: 5.389274597167969
+        },
+        {
+          &quot;step&quot;: 1750,
+          &quot;epoch&quot;: 3.5,
+          &quot;loss&quot;: 1.6116,
+          &quot;learning_rate&quot;: 1.255e-06,
+          &quot;grad_norm&quot;: 5.132940769195557
+        },
+        {
+          &quot;step&quot;: 1800,
+          &quot;epoch&quot;: 3.6,
+          &quot;loss&quot;: 1.6073,
+          &quot;learning_rate&quot;: 1.0050000000000001e-06,
+          &quot;grad_norm&quot;: 5.207131862640381
+        },
+        {
+          &quot;step&quot;: 1850,
+          &quot;epoch&quot;: 3.7,
+          &quot;loss&quot;: 1.6123,
+          &quot;learning_rate&quot;: 7.550000000000001e-07,
+          &quot;grad_norm&quot;: 4.8621110916137695
+        },
+        {
+          &quot;step&quot;: 1900,
+          &quot;epoch&quot;: 3.8,
+          &quot;loss&quot;: 1.613,
+          &quot;learning_rate&quot;: 5.05e-07,
+          &quot;grad_norm&quot;: 5.087031364440918
+        },
+        {
+          &quot;step&quot;: 1950,
+          &quot;epoch&quot;: 3.9,
+          &quot;loss&quot;: 1.6235,
+          &quot;learning_rate&quot;: 2.55e-07,
+          &quot;grad_norm&quot;: 5.013148784637451
+        },
+        {
+          &quot;step&quot;: 2000,
+          &quot;epoch&quot;: 4.0,
+          &quot;loss&quot;: 1.6052,
+          &quot;learning_rate&quot;: 5e-09,
+          &quot;grad_norm&quot;: 4.999807357788086
+        }
+      ],
+      &quot;train_loss&quot;: 2.2589600982666016,
+      &quot;train_runtime&quot;: 1428.6113,
+      &quot;train_samples_per_second&quot;: 22.399,
+      &quot;train_steps_per_second&quot;: 1.4,
+      &quot;final_log_loss&quot;: 1.6052,
+      &quot;min_log_loss&quot;: 1.5985,
+      &quot;eval_status&quot;: &quot;evaluated&quot;,
+      &quot;eval_count&quot;: 2000,
+      &quot;eval_matches&quot;: 0,
+      &quot;eval_exact_match&quot;: 0.0,
+      &quot;eval_startswith_matches&quot;: 0,
+      &quot;eval_startswith&quot;: 0.0,
+      &quot;eval_first_line_matches&quot;: 0,
+      &quot;eval_first_line_exact&quot;: 0.0,
+      &quot;eval_contains_matches&quot;: 0,
+      &quot;eval_contains_ground_truth&quot;: 0.0,
+      &quot;eval_mean_generated_chars&quot;: 124.121,
+      &quot;sample_mismatches&quot;: [
+        {
+          &quot;index&quot;: 0,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines not having the string &#x27;dog&#x27; followed by a number, 3 or more times&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^dog|3|1|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|&quot;,
+          &quot;ground_truth&quot;: &quot;~((dog.*[0-9].*){3,})&quot;
+        },
+        {
+          &quot;index&quot;: 1,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines containing ending with a vowel, zero or more times&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[aeiouAEIOU])^[aeiouAEIOU]([aeiouAEIOU])([aeiouAEIOU])([aeiouAEIOU])([aeiouAEIOU])([aeiouAEIOU])([aeiouAEIOU])([aeiouAEIO&quot;,
+          &quot;ground_truth&quot;: &quot;.*(.*)(([AEIOUaeiou])*).*&quot;
+        },
+        {
+          &quot;index&quot;: 2,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a number or a character before a vowel&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[0-9a-fA-F])^[0-9a-fA-F] This regular expression matches any sequence of characters that starts with a digit, a letter, or a vowel, followed by a character. It repeats the pattern of the preceding character.&quot;,
+          &quot;ground_truth&quot;: &quot;(([0-9])|(.)).*([AEIOUaeiou]).*&quot;
+        },
+        {
+          &quot;index&quot;: 3,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a capital letter followed by the string &#x27;dog&#x27; and ending with a lower-case letter&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(dog) followed by a capital letter and ending with a lower-case letter.&quot;,
+          &quot;ground_truth&quot;: &quot;([A-Z].*dog.*)&amp;((.*)([a-z]))&quot;
+        },
+        {
+          &quot;index&quot;: 4,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a vowel followed by a letter at least once&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(a) (b) (c) (d) (e) (f) (g) (h) (i) (j) (k) (l) (m) (n) (o) (p) (q) (r) (s) (t) (u) (&quot;,
+          &quot;ground_truth&quot;: &quot;([AEIOUaeiou].*[A-Za-z].*)+&quot;
+        },
+        {
+          &quot;index&quot;: 5,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines ending with a vowel or starting with a character&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(.){1,3} This regular expression matches any sequence of one or more characters that are either a vowel or a non-letter. It uses a forward slash (`/`) to match the start of a line, a forward slash (`/`) to match the end of a line, and a fo...&quot;,
+          &quot;ground_truth&quot;: &quot;((.*)([AEIOUaeiou]))|((.)(.*))&quot;
+        },
+        {
+          &quot;index&quot;: 6,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines containing either a lower-case letter, a vowel, or a letter&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[a-zA-Z0-9_])^[a-zA-Z0-9_] This regular expression matches any sequence of characters that is either a lower-case letter, a vowel, or a letter. It uses the `^` and `$` anchors&quot;,
+          &quot;ground_truth&quot;: &quot;.*([a-z])|([AEIOUaeiou])|([A-Za-z]).*&quot;
+        },
+        {
+          &quot;index&quot;: 7,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a vowel at least once before a character&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[aeiouAEIOU])^[aeiouAEIOU] This regular expression matches any sequence of characters that are a vowel followed by a non-letter, followed by a non-letter, followed by a non-letter, followed by a non-letter, followed by a non-&quot;,
+          &quot;ground_truth&quot;: &quot;(([AEIOUaeiou])+).*(.).*&quot;
+        }
+      ]
+    },
+    {
+      &quot;key&quot;: &quot;both&quot;,
+      &quot;variant&quot;: &quot;Both&quot;,
+      &quot;description&quot;: &quot;Frozen own-view plus cross-view cap reconstruction with sigma_max=0.5.&quot;,
+      &quot;model_dir&quot;: &quot;results/exp3_full_synth/both_model&quot;,
+      &quot;eval_file&quot;: &quot;results/exp3_full_synth/eval/both.jsonl&quot;,
+      &quot;status&quot;: &quot;trained&quot;,
+      &quot;global_step&quot;: 2000,
+      &quot;num_train_epochs&quot;: 4.0,
+      &quot;history&quot;: [
+        {
+          &quot;step&quot;: 50,
+          &quot;epoch&quot;: 0.1,
+          &quot;loss&quot;: 7.2357,
+          &quot;learning_rate&quot;: 9.755e-06,
+          &quot;grad_norm&quot;: 9.59675121307373
+        },
+        {
+          &quot;step&quot;: 100,
+          &quot;epoch&quot;: 0.2,
+          &quot;loss&quot;: 6.3085,
+          &quot;learning_rate&quot;: 9.505000000000001e-06,
+          &quot;grad_norm&quot;: 9.46633529663086
+        },
+        {
+          &quot;step&quot;: 150,
+          &quot;epoch&quot;: 0.3,
+          &quot;loss&quot;: 5.3034,
+          &quot;learning_rate&quot;: 9.255e-06,
+          &quot;grad_norm&quot;: 9.217500686645508
+        },
+        {
+          &quot;step&quot;: 200,
+          &quot;epoch&quot;: 0.4,
+          &quot;loss&quot;: 4.3497,
+          &quot;learning_rate&quot;: 9.005000000000001e-06,
+          &quot;grad_norm&quot;: 9.708257675170898
+        },
+        {
+          &quot;step&quot;: 250,
+          &quot;epoch&quot;: 0.5,
+          &quot;loss&quot;: 3.6074,
+          &quot;learning_rate&quot;: 8.755e-06,
+          &quot;grad_norm&quot;: 9.2684965133667
+        },
+        {
+          &quot;step&quot;: 300,
+          &quot;epoch&quot;: 0.6,
+          &quot;loss&quot;: 3.1006,
+          &quot;learning_rate&quot;: 8.505e-06,
+          &quot;grad_norm&quot;: 8.786808967590332
+        },
+        {
+          &quot;step&quot;: 350,
+          &quot;epoch&quot;: 0.7,
+          &quot;loss&quot;: 2.7325,
+          &quot;learning_rate&quot;: 8.255000000000001e-06,
+          &quot;grad_norm&quot;: 8.221004486083984
+        },
+        {
+          &quot;step&quot;: 400,
+          &quot;epoch&quot;: 0.8,
+          &quot;loss&quot;: 2.4115,
+          &quot;learning_rate&quot;: 8.005e-06,
+          &quot;grad_norm&quot;: 8.116663932800293
+        },
+        {
+          &quot;step&quot;: 450,
+          &quot;epoch&quot;: 0.9,
+          &quot;loss&quot;: 2.2032,
+          &quot;learning_rate&quot;: 7.755000000000001e-06,
+          &quot;grad_norm&quot;: 7.029781341552734
+        },
+        {
+          &quot;step&quot;: 500,
+          &quot;epoch&quot;: 1.0,
+          &quot;loss&quot;: 2.019,
+          &quot;learning_rate&quot;: 7.505e-06,
+          &quot;grad_norm&quot;: 6.080847263336182
+        },
+        {
+          &quot;step&quot;: 550,
+          &quot;epoch&quot;: 1.1,
+          &quot;loss&quot;: 1.8862,
+          &quot;learning_rate&quot;: 7.255000000000001e-06,
+          &quot;grad_norm&quot;: 5.56242561340332
+        },
+        {
+          &quot;step&quot;: 600,
+          &quot;epoch&quot;: 1.2,
+          &quot;loss&quot;: 1.7957,
+          &quot;learning_rate&quot;: 7.005000000000001e-06,
+          &quot;grad_norm&quot;: 5.643189907073975
+        },
+        {
+          &quot;step&quot;: 650,
+          &quot;epoch&quot;: 1.3,
+          &quot;loss&quot;: 1.7225,
+          &quot;learning_rate&quot;: 6.7550000000000005e-06,
+          &quot;grad_norm&quot;: 5.414541721343994
+        },
+        {
+          &quot;step&quot;: 700,
+          &quot;epoch&quot;: 1.4,
+          &quot;loss&quot;: 1.6794,
+          &quot;learning_rate&quot;: 6.505e-06,
+          &quot;grad_norm&quot;: 5.344488143920898
+        },
+        {
+          &quot;step&quot;: 750,
+          &quot;epoch&quot;: 1.5,
+          &quot;loss&quot;: 1.6466,
+          &quot;learning_rate&quot;: 6.255e-06,
+          &quot;grad_norm&quot;: 5.180177688598633
+        },
+        {
+          &quot;step&quot;: 800,
+          &quot;epoch&quot;: 1.6,
+          &quot;loss&quot;: 1.6332,
+          &quot;learning_rate&quot;: 6.005000000000001e-06,
+          &quot;grad_norm&quot;: 5.023495674133301
+        },
+        {
+          &quot;step&quot;: 850,
+          &quot;epoch&quot;: 1.7,
+          &quot;loss&quot;: 1.6123,
+          &quot;learning_rate&quot;: 5.755000000000001e-06,
+          &quot;grad_norm&quot;: 4.984021186828613
+        },
+        {
+          &quot;step&quot;: 900,
+          &quot;epoch&quot;: 1.8,
+          &quot;loss&quot;: 1.6033,
+          &quot;learning_rate&quot;: 5.505000000000001e-06,
+          &quot;grad_norm&quot;: 5.0956525802612305
+        },
+        {
+          &quot;step&quot;: 950,
+          &quot;epoch&quot;: 1.9,
+          &quot;loss&quot;: 1.6123,
+          &quot;learning_rate&quot;: 5.2550000000000005e-06,
+          &quot;grad_norm&quot;: 5.13600492477417
+        },
+        {
+          &quot;step&quot;: 1000,
+          &quot;epoch&quot;: 2.0,
+          &quot;loss&quot;: 1.5871,
+          &quot;learning_rate&quot;: 5.0049999999999995e-06,
+          &quot;grad_norm&quot;: 5.246798992156982
+        },
+        {
+          &quot;step&quot;: 1050,
+          &quot;epoch&quot;: 2.1,
+          &quot;loss&quot;: 1.5986,
+          &quot;learning_rate&quot;: 4.755e-06,
+          &quot;grad_norm&quot;: 5.249762535095215
+        },
+        {
+          &quot;step&quot;: 1100,
+          &quot;epoch&quot;: 2.2,
+          &quot;loss&quot;: 1.595,
+          &quot;learning_rate&quot;: 4.505e-06,
+          &quot;grad_norm&quot;: 5.175485610961914
+        },
+        {
+          &quot;step&quot;: 1150,
+          &quot;epoch&quot;: 2.3,
+          &quot;loss&quot;: 1.5902,
+          &quot;learning_rate&quot;: 4.255e-06,
+          &quot;grad_norm&quot;: 5.175736904144287
+        },
+        {
+          &quot;step&quot;: 1200,
+          &quot;epoch&quot;: 2.4,
+          &quot;loss&quot;: 1.5754,
+          &quot;learning_rate&quot;: 4.005000000000001e-06,
+          &quot;grad_norm&quot;: 5.052944183349609
+        },
+        {
+          &quot;step&quot;: 1250,
+          &quot;epoch&quot;: 2.5,
+          &quot;loss&quot;: 1.5805,
+          &quot;learning_rate&quot;: 3.7550000000000005e-06,
+          &quot;grad_norm&quot;: 5.01609992980957
+        },
+        {
+          &quot;step&quot;: 1300,
+          &quot;epoch&quot;: 2.6,
+          &quot;loss&quot;: 1.5771,
+          &quot;learning_rate&quot;: 3.505e-06,
+          &quot;grad_norm&quot;: 5.098010540008545
+        },
+        {
+          &quot;step&quot;: 1350,
+          &quot;epoch&quot;: 2.7,
+          &quot;loss&quot;: 1.5675,
+          &quot;learning_rate&quot;: 3.255e-06,
+          &quot;grad_norm&quot;: 5.235655784606934
+        },
+        {
+          &quot;step&quot;: 1400,
+          &quot;epoch&quot;: 2.8,
+          &quot;loss&quot;: 1.5932,
+          &quot;learning_rate&quot;: 3.005e-06,
+          &quot;grad_norm&quot;: 5.384719371795654
+        },
+        {
+          &quot;step&quot;: 1450,
+          &quot;epoch&quot;: 2.9,
+          &quot;loss&quot;: 1.582,
+          &quot;learning_rate&quot;: 2.7550000000000003e-06,
+          &quot;grad_norm&quot;: 4.910191059112549
+        },
+        {
+          &quot;step&quot;: 1500,
+          &quot;epoch&quot;: 3.0,
+          &quot;loss&quot;: 1.5796,
+          &quot;learning_rate&quot;: 2.505e-06,
+          &quot;grad_norm&quot;: 4.966928958892822
+        },
+        {
+          &quot;step&quot;: 1550,
+          &quot;epoch&quot;: 3.1,
+          &quot;loss&quot;: 1.5815,
+          &quot;learning_rate&quot;: 2.2550000000000004e-06,
+          &quot;grad_norm&quot;: 4.916866302490234
+        },
+        {
+          &quot;step&quot;: 1600,
+          &quot;epoch&quot;: 3.2,
+          &quot;loss&quot;: 1.5846,
+          &quot;learning_rate&quot;: 2.0050000000000003e-06,
+          &quot;grad_norm&quot;: 5.144704818725586
+        },
+        {
+          &quot;step&quot;: 1650,
+          &quot;epoch&quot;: 3.3,
+          &quot;loss&quot;: 1.5898,
+          &quot;learning_rate&quot;: 1.7550000000000001e-06,
+          &quot;grad_norm&quot;: 4.950036525726318
+        },
+        {
+          &quot;step&quot;: 1700,
+          &quot;epoch&quot;: 3.4,
+          &quot;loss&quot;: 1.5781,
+          &quot;learning_rate&quot;: 1.505e-06,
+          &quot;grad_norm&quot;: 5.142336845397949
+        },
+        {
+          &quot;step&quot;: 1750,
+          &quot;epoch&quot;: 3.5,
+          &quot;loss&quot;: 1.5783,
+          &quot;learning_rate&quot;: 1.255e-06,
+          &quot;grad_norm&quot;: 5.125971794128418
+        },
+        {
+          &quot;step&quot;: 1800,
+          &quot;epoch&quot;: 3.6,
+          &quot;loss&quot;: 1.5776,
+          &quot;learning_rate&quot;: 1.0050000000000001e-06,
+          &quot;grad_norm&quot;: 5.21378755569458
+        },
+        {
+          &quot;step&quot;: 1850,
+          &quot;epoch&quot;: 3.7,
+          &quot;loss&quot;: 1.5782,
+          &quot;learning_rate&quot;: 7.550000000000001e-07,
+          &quot;grad_norm&quot;: 4.859058380126953
+        },
+        {
+          &quot;step&quot;: 1900,
+          &quot;epoch&quot;: 3.8,
+          &quot;loss&quot;: 1.5789,
+          &quot;learning_rate&quot;: 5.05e-07,
+          &quot;grad_norm&quot;: 5.005826473236084
+        },
+        {
+          &quot;step&quot;: 1950,
+          &quot;epoch&quot;: 3.9,
+          &quot;loss&quot;: 1.5873,
+          &quot;learning_rate&quot;: 2.55e-07,
+          &quot;grad_norm&quot;: 5.0568671226501465
+        },
+        {
+          &quot;step&quot;: 2000,
+          &quot;epoch&quot;: 4.0,
+          &quot;loss&quot;: 1.5721,
+          &quot;learning_rate&quot;: 5e-09,
+          &quot;grad_norm&quot;: 5.033012866973877
+        }
+      ],
+      &quot;train_loss&quot;: 2.1923938407897947,
+      &quot;train_runtime&quot;: 1416.271,
+      &quot;train_samples_per_second&quot;: 22.595,
+      &quot;train_steps_per_second&quot;: 1.412,
+      &quot;final_log_loss&quot;: 1.5721,
+      &quot;min_log_loss&quot;: 1.5675,
+      &quot;eval_status&quot;: &quot;evaluated&quot;,
+      &quot;eval_count&quot;: 2000,
+      &quot;eval_matches&quot;: 0,
+      &quot;eval_exact_match&quot;: 0.0,
+      &quot;eval_startswith_matches&quot;: 0,
+      &quot;eval_startswith&quot;: 0.0,
+      &quot;eval_first_line_matches&quot;: 0,
+      &quot;eval_first_line_exact&quot;: 0.0,
+      &quot;eval_contains_matches&quot;: 0,
+      &quot;eval_contains_ground_truth&quot;: 0.0,
+      &quot;eval_mean_generated_chars&quot;: 122.8575,
+      &quot;sample_mismatches&quot;: [
+        {
+          &quot;index&quot;: 0,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines not having the string &#x27;dog&#x27; followed by a number, 3 or more times&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^dog|3|1|3|4|5|6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|&quot;,
+          &quot;ground_truth&quot;: &quot;~((dog.*[0-9].*){3,})&quot;
+        },
+        {
+          &quot;index&quot;: 1,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines containing ending with a vowel, zero or more times&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[aeiouAEIOU])^[aeiouAEIOU]([^aeiouAEIOU])* This regular expression matches any sequence of characters that ends with a vowel, zero or more times, and contains at least one of the following characters: - A vowel -&quot;,
+          &quot;ground_truth&quot;: &quot;.*(.*)(([AEIOUaeiou])*).*&quot;
+        },
+        {
+          &quot;index&quot;: 2,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a number or a character before a vowel&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[0-9a-fA-F])^[0-9a-fA-F] This regular expression matches any sequence of characters that starts with a number or a character, followed by a vowel. It also includes a dot (.) to indicate the start of a word.&quot;,
+          &quot;ground_truth&quot;: &quot;(([0-9])|(.)).*([AEIOUaeiou]).*&quot;
+        },
+        {
+          &quot;index&quot;: 3,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a capital letter followed by the string &#x27;dog&#x27; and ending with a lower-case letter&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(dog) followed by a capital letter and ending with a lower-case letter.&quot;,
+          &quot;ground_truth&quot;: &quot;([A-Z].*dog.*)&amp;((.*)([a-z]))&quot;
+        },
+        {
+          &quot;index&quot;: 4,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a vowel followed by a letter at least once&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[aeiouAEIOU])^[aeiouAEIOU]((\\w+))$ This regular expression matches any sequence of a vowel followed by a letter at least once, and a non-letter followed by a letter at least once. It uses the `^` and `$&quot;,
+          &quot;ground_truth&quot;: &quot;([AEIOUaeiou].*[A-Za-z].*)+&quot;
+        },
+        {
+          &quot;index&quot;: 5,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines ending with a vowel or starting with a character&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(.){1,3} This regular expression matches any sequence of one or more characters that are either a vowel or a non-letter. It is case-insensitive and matches any character that is not a letter.&quot;,
+          &quot;ground_truth&quot;: &quot;((.*)([AEIOUaeiou]))|((.)(.*))&quot;
+        },
+        {
+          &quot;index&quot;: 6,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines containing either a lower-case letter, a vowel, or a letter&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[a-zA-Z0-9_]) This regular expression matches any sequence of lowercase letters, a vowel, or a letter, and it includes a forward slash (`/`) to match the start of a line.&quot;,
+          &quot;ground_truth&quot;: &quot;.*([a-z])|([AEIOUaeiou])|([A-Za-z]).*&quot;
+        },
+        {
+          &quot;index&quot;: 7,
+          &quot;prompt&quot;: &quot;&lt;|im_start|&gt;system Convert natural language to regular expression.&lt;|im_end|&gt; &lt;|im_start|&gt;user lines with a vowel at least once before a character&lt;|im_end|&gt; &lt;|im_start|&gt;assistant&quot;,
+          &quot;generated_response&quot;: &quot;(^[aeiouAEIOU])^[aeiouAEIOU]([^aeiouAEIOU])$ This regular expression matches any sequence of a vowel followed by a character that is not a vowel. It uses the `^` and `$` anchors to capture the beginning and end&quot;,
+          &quot;ground_truth&quot;: &quot;(([AEIOUaeiou])+).*(.).*&quot;
+        }
+      ]
+    }
+  ]
+}</pre></article>
+  </main>
+</body>
+</html>

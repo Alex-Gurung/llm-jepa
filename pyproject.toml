@@ -12,6 +12,7 @@ dependencies = [
 [project.optional-dependencies]
 experiments = [
     "matplotlib>=3.8",
+    "seaborn>=0.13",
     "torchvision>=0.17",
     "tqdm>=4.66",
 ]
