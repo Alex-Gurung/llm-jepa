@@ -1129,10 +1129,16 @@ def run_reading_notes(run: dict[str, Any]) -> list[str]:
 def fig_card(src: str | None, title: str, note_key: str) -> str:
     if not src:
         return ""
+    asset_path = f"assets/dashboard/{html.escape(src)}"
     return f"""
     <article class="figure-card">
-      <h4>{html.escape(title)}</h4>
-      <img src="assets/dashboard/{html.escape(src)}" alt="{html.escape(title)}">
+      <div class="figure-head">
+        <h4>{html.escape(title)}</h4>
+        <a href="{asset_path}" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="{asset_path}" target="_blank" rel="noopener" aria-label="Open {html.escape(title)} full-size">
+        <img src="{asset_path}" alt="{html.escape(title)}" loading="lazy" decoding="async">
+      </a>
       <p>{html.escape(FIGURE_NOTES[note_key])}</p>
     </article>
     """
@@ -1297,9 +1303,9 @@ def build_html(runs: list[dict[str, Any]], overview: dict[str, str | None], per_
     .subtitle {{ margin: 4px 0 0; color: var(--muted); font-size: 13px; }}
     nav {{ display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }}
     nav a, .links a {{ border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 6px 9px; font-size: 12px; color: var(--ink); }}
-    main {{ max-width: 1440px; margin: 0 auto; padding: 18px; }}
+    main {{ max-width: 1760px; margin: 0 auto; padding: 18px; }}
     .panel {{ background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 18px; margin-bottom: 18px; box-shadow: 0 10px 26px rgba(30,41,36,0.06); }}
-    .hero {{ display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr); gap: 18px; align-items: start; }}
+    .hero {{ display: grid; grid-template-columns: 1fr; gap: 18px; align-items: start; }}
     .callout {{ background: #eef5ee; border-left: 5px solid var(--green); padding: 12px 14px; border-radius: 7px; }}
     .two-col {{ display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 18px; align-items: start; }}
     h2 {{ margin: 0 0 10px; font-size: 22px; }}
@@ -1310,8 +1316,13 @@ def build_html(runs: list[dict[str, Any]], overview: dict[str, str | None], per_
     .task-note {{ margin-top: 8px; color: #405047; }}
     .eyebrow {{ margin: 0 0 4px; color: var(--green); font-size: 12px; font-weight: 750; text-transform: uppercase; letter-spacing: 0; }}
     .figure-card, .text-card {{ background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 13px; min-width: 0; }}
-    .figure-card img {{ display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 7px; background: white; }}
-    .fig-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 14px; margin-top: 14px; }}
+    .figure-head {{ display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 9px; }}
+    .figure-head h4 {{ margin: 0; }}
+    .figure-head a {{ flex: 0 0 auto; font-size: 12px; font-weight: 700; border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; background: #fff; color: var(--accent); }}
+    .figure-link {{ display: block; cursor: zoom-in; }}
+    .figure-link:hover img {{ border-color: var(--accent); box-shadow: 0 0 0 3px rgba(39, 106, 140, 0.14); }}
+    .figure-card img {{ display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 7px; background: white; transition: border-color 0.12s ease, box-shadow 0.12s ease; }}
+    .fig-grid {{ display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; margin-top: 14px; }}
     .run-grid {{ display: grid; grid-template-columns: minmax(320px, 0.9fr) minmax(420px, 1.1fr); gap: 14px; }}
     .run-head {{ display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: start; border-bottom: 1px solid var(--line); padding-bottom: 13px; margin-bottom: 14px; }}
     .links {{ display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }}
@@ -1335,7 +1346,7 @@ def build_html(runs: list[dict[str, Any]], overview: dict[str, str | None], per_
     <div class="top">
       <div>
         <h1>Sphere-JEPA Results Report</h1>
-        <p class="subtitle">Matplotlib/seaborn figures with a glossary and reading notes for every experiment.</p>
+        <p class="subtitle">Matplotlib/seaborn figures with a glossary and reading notes for every experiment. Click any figure to open the full-size PNG.</p>
       </div>
       <nav><a href="#glossary">How to read</a><a href="#overview">Overview</a>{nav}</nav>
     </div>

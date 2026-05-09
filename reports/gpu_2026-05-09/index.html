@@ -27,9 +27,9 @@
     .subtitle { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
     nav { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
     nav a, .links a { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 6px 9px; font-size: 12px; color: var(--ink); }
-    main { max-width: 1440px; margin: 0 auto; padding: 18px; }
+    main { max-width: 1760px; margin: 0 auto; padding: 18px; }
     .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 18px; margin-bottom: 18px; box-shadow: 0 10px 26px rgba(30,41,36,0.06); }
-    .hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr); gap: 18px; align-items: start; }
+    .hero { display: grid; grid-template-columns: 1fr; gap: 18px; align-items: start; }
     .callout { background: #eef5ee; border-left: 5px solid var(--green); padding: 12px 14px; border-radius: 7px; }
     .two-col { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 18px; align-items: start; }
     h2 { margin: 0 0 10px; font-size: 22px; }
@@ -40,8 +40,13 @@
     .task-note { margin-top: 8px; color: #405047; }
     .eyebrow { margin: 0 0 4px; color: var(--green); font-size: 12px; font-weight: 750; text-transform: uppercase; letter-spacing: 0; }
     .figure-card, .text-card { background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 13px; min-width: 0; }
-    .figure-card img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 7px; background: white; }
-    .fig-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 14px; margin-top: 14px; }
+    .figure-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 9px; }
+    .figure-head h4 { margin: 0; }
+    .figure-head a { flex: 0 0 auto; font-size: 12px; font-weight: 700; border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; background: #fff; color: var(--accent); }
+    .figure-link { display: block; cursor: zoom-in; }
+    .figure-link:hover img { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(39, 106, 140, 0.14); }
+    .figure-card img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 7px; background: white; transition: border-color 0.12s ease, box-shadow 0.12s ease; }
+    .fig-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; margin-top: 14px; }
     .run-grid { display: grid; grid-template-columns: minmax(320px, 0.9fr) minmax(420px, 1.1fr); gap: 14px; }
     .run-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: start; border-bottom: 1px solid var(--line); padding-bottom: 13px; margin-bottom: 14px; }
     .links { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
@@ -65,7 +70,7 @@
     <div class="top">
       <div>
         <h1>Sphere-JEPA Results Report</h1>
-        <p class="subtitle">Matplotlib/seaborn figures with a glossary and reading notes for every experiment.</p>
+        <p class="subtitle">Matplotlib/seaborn figures with a glossary and reading notes for every experiment. Click any figure to open the full-size PNG.</p>
       </div>
       <nav><a href="#glossary">How to read</a><a href="#overview">Overview</a><a href='#exp0_full'>E0 Toy</a><a href='#exp1_cifar_gpu'>E1 CIFAR</a><a href='#exp2_pythia160m_synth_input_white_anchor_white'>E2 White+White</a><a href='#exp2_pythia160m_synth_sphere'>E2 Sphere</a><a href='#exp2_pythia160m_synth_raw'>E2 Raw</a><a href='#exp2_pythia160m_synth_norm'>E2 Norm</a><a href='#exp2_pythia160m_synth_white'>E2 White</a><a href='#exp3_full_synth'>E3 Synth</a><a href='#exp3_llama1b_synth'>E3 Llama</a></nav>
     </div>
@@ -112,15 +117,25 @@
       <div class="hero">
 
     <article class="figure-card">
-      <h4>Overall Geometry Map</h4>
-      <img src="assets/dashboard/overview_geometry.png" alt="Overall Geometry Map">
+      <div class="figure-head">
+        <h4>Overall Geometry Map</h4>
+        <a href="assets/dashboard/overview_geometry.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/overview_geometry.png" target="_blank" rel="noopener" aria-label="Open Overall Geometry Map full-size">
+        <img src="assets/dashboard/overview_geometry.png" alt="Overall Geometry Map" loading="lazy" decoding="async">
+      </a>
       <p>Read this first. The desired pattern is high RankMe and low mean cosine for noisy external-anchor variants, especially when compared with co-trained self-anchor and clean-anchor controls.</p>
     </article>
 
 
     <article class="figure-card">
-      <h4>Exp2 Preprocessing Sweep</h4>
-      <img src="assets/dashboard/exp2_preprocessing.png" alt="Exp2 Preprocessing Sweep">
+      <div class="figure-head">
+        <h4>Exp2 Preprocessing Sweep</h4>
+        <a href="assets/dashboard/exp2_preprocessing.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_preprocessing.png" target="_blank" rel="noopener" aria-label="Open Exp2 Preprocessing Sweep full-size">
+        <img src="assets/dashboard/exp2_preprocessing.png" alt="Exp2 Preprocessing Sweep" loading="lazy" decoding="async">
+      </a>
       <p>For the frozen LLM run, whitening the source states matters. The best mechanism comparison is inside the source+anchor whitened run.</p>
     </article>
 
@@ -158,44 +173,79 @@
       </div>
       <div class="fig-grid">
     <article class="figure-card">
-      <h4>Metric Overview</h4>
-      <img src="assets/dashboard/exp0_full_metrics.png" alt="Metric Overview">
+      <div class="figure-head">
+        <h4>Metric Overview</h4>
+        <a href="assets/dashboard/exp0_full_metrics.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp0_full_metrics.png" target="_blank" rel="noopener" aria-label="Open Metric Overview full-size">
+        <img src="assets/dashboard/exp0_full_metrics.png" alt="Metric Overview" loading="lazy" decoding="async">
+      </a>
       <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Anchor Geometry</h4>
-      <img src="assets/dashboard/exp0_full_anchors.png" alt="Anchor Geometry">
+      <div class="figure-head">
+        <h4>Anchor Geometry</h4>
+        <a href="assets/dashboard/exp0_full_anchors.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp0_full_anchors.png" target="_blank" rel="noopener" aria-label="Open Anchor Geometry full-size">
+        <img src="assets/dashboard/exp0_full_anchors.png" alt="Anchor Geometry" loading="lazy" decoding="async">
+      </a>
       <p>Anchor diagnostics tell whether the target itself is usable. If anchors are anisotropic, the model can inherit that anisotropy.</p>
     </article>
 
     <article class="figure-card">
-      <h4>PCA Maps</h4>
-      <img src="assets/dashboard/exp0_full_pca.png" alt="PCA Maps">
+      <div class="figure-head">
+        <h4>PCA Maps</h4>
+        <a href="assets/dashboard/exp0_full_pca.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp0_full_pca.png" target="_blank" rel="noopener" aria-label="Open PCA Maps full-size">
+        <img src="assets/dashboard/exp0_full_pca.png" alt="PCA Maps" loading="lazy" decoding="async">
+      </a>
       <p>Look for collapse as a tight dot, a thin line, or all classes stacked together. PCA is qualitative: it helps spot failure modes but does not prove success.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Hypersphere Proxy</h4>
-      <img src="assets/dashboard/exp0_full_sphere.png" alt="Hypersphere Proxy">
+      <div class="figure-head">
+        <h4>Hypersphere Proxy</h4>
+        <a href="assets/dashboard/exp0_full_sphere.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp0_full_sphere.png" target="_blank" rel="noopener" aria-label="Open Hypersphere Proxy full-size">
+        <img src="assets/dashboard/exp0_full_sphere.png" alt="Hypersphere Proxy" loading="lazy" decoding="async">
+      </a>
       <p>This remaps the stored PCA coordinates into a unit disk. A healthy run should use many directions instead of forming one clump.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Cosine Histograms</h4>
-      <img src="assets/dashboard/exp0_full_cosine_hists.png" alt="Cosine Histograms">
+      <div class="figure-head">
+        <h4>Cosine Histograms</h4>
+        <a href="assets/dashboard/exp0_full_cosine_hists.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp0_full_cosine_hists.png" target="_blank" rel="noopener" aria-label="Open Cosine Histograms full-size">
+        <img src="assets/dashboard/exp0_full_cosine_hists.png" alt="Cosine Histograms" loading="lazy" decoding="async">
+      </a>
       <p>Cosine histograms should move away from 1. A spike near 1 means many embeddings are almost identical.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Eigenspectra</h4>
-      <img src="assets/dashboard/exp0_full_spectra.png" alt="Eigenspectra">
+      <div class="figure-head">
+        <h4>Eigenspectra</h4>
+        <a href="assets/dashboard/exp0_full_spectra.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp0_full_spectra.png" target="_blank" rel="noopener" aria-label="Open Eigenspectra full-size">
+        <img src="assets/dashboard/exp0_full_spectra.png" alt="Eigenspectra" loading="lazy" decoding="async">
+      </a>
       <p>A flatter eigenspectrum is healthier. A huge first component means anisotropy.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Training Traces</h4>
-      <img src="assets/dashboard/exp0_full_history.png" alt="Training Traces">
+      <div class="figure-head">
+        <h4>Training Traces</h4>
+        <a href="assets/dashboard/exp0_full_history.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp0_full_history.png" target="_blank" rel="noopener" aria-label="Open Training Traces full-size">
+        <img src="assets/dashboard/exp0_full_history.png" alt="Training Traces" loading="lazy" decoding="async">
+      </a>
       <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
     </article>
     </div>
@@ -243,38 +293,68 @@
       </div>
       <div class="fig-grid">
     <article class="figure-card">
-      <h4>Metric Overview</h4>
-      <img src="assets/dashboard/exp1_cifar_gpu_metrics.png" alt="Metric Overview">
+      <div class="figure-head">
+        <h4>Metric Overview</h4>
+        <a href="assets/dashboard/exp1_cifar_gpu_metrics.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp1_cifar_gpu_metrics.png" target="_blank" rel="noopener" aria-label="Open Metric Overview full-size">
+        <img src="assets/dashboard/exp1_cifar_gpu_metrics.png" alt="Metric Overview" loading="lazy" decoding="async">
+      </a>
       <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Anchor Geometry</h4>
-      <img src="assets/dashboard/exp1_cifar_gpu_anchors.png" alt="Anchor Geometry">
+      <div class="figure-head">
+        <h4>Anchor Geometry</h4>
+        <a href="assets/dashboard/exp1_cifar_gpu_anchors.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp1_cifar_gpu_anchors.png" target="_blank" rel="noopener" aria-label="Open Anchor Geometry full-size">
+        <img src="assets/dashboard/exp1_cifar_gpu_anchors.png" alt="Anchor Geometry" loading="lazy" decoding="async">
+      </a>
       <p>Anchor diagnostics tell whether the target itself is usable. If anchors are anisotropic, the model can inherit that anisotropy.</p>
     </article>
 
     <article class="figure-card">
-      <h4>PCA Maps</h4>
-      <img src="assets/dashboard/exp1_cifar_gpu_pca.png" alt="PCA Maps">
+      <div class="figure-head">
+        <h4>PCA Maps</h4>
+        <a href="assets/dashboard/exp1_cifar_gpu_pca.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp1_cifar_gpu_pca.png" target="_blank" rel="noopener" aria-label="Open PCA Maps full-size">
+        <img src="assets/dashboard/exp1_cifar_gpu_pca.png" alt="PCA Maps" loading="lazy" decoding="async">
+      </a>
       <p>Look for collapse as a tight dot, a thin line, or all classes stacked together. PCA is qualitative: it helps spot failure modes but does not prove success.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Hypersphere Proxy</h4>
-      <img src="assets/dashboard/exp1_cifar_gpu_sphere.png" alt="Hypersphere Proxy">
+      <div class="figure-head">
+        <h4>Hypersphere Proxy</h4>
+        <a href="assets/dashboard/exp1_cifar_gpu_sphere.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp1_cifar_gpu_sphere.png" target="_blank" rel="noopener" aria-label="Open Hypersphere Proxy full-size">
+        <img src="assets/dashboard/exp1_cifar_gpu_sphere.png" alt="Hypersphere Proxy" loading="lazy" decoding="async">
+      </a>
       <p>This remaps the stored PCA coordinates into a unit disk. A healthy run should use many directions instead of forming one clump.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Cosine Histograms</h4>
-      <img src="assets/dashboard/exp1_cifar_gpu_cosine_hists.png" alt="Cosine Histograms">
+      <div class="figure-head">
+        <h4>Cosine Histograms</h4>
+        <a href="assets/dashboard/exp1_cifar_gpu_cosine_hists.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp1_cifar_gpu_cosine_hists.png" target="_blank" rel="noopener" aria-label="Open Cosine Histograms full-size">
+        <img src="assets/dashboard/exp1_cifar_gpu_cosine_hists.png" alt="Cosine Histograms" loading="lazy" decoding="async">
+      </a>
       <p>Cosine histograms should move away from 1. A spike near 1 means many embeddings are almost identical.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Eigenspectra</h4>
-      <img src="assets/dashboard/exp1_cifar_gpu_spectra.png" alt="Eigenspectra">
+      <div class="figure-head">
+        <h4>Eigenspectra</h4>
+        <a href="assets/dashboard/exp1_cifar_gpu_spectra.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp1_cifar_gpu_spectra.png" target="_blank" rel="noopener" aria-label="Open Eigenspectra full-size">
+        <img src="assets/dashboard/exp1_cifar_gpu_spectra.png" alt="Eigenspectra" loading="lazy" decoding="async">
+      </a>
       <p>A flatter eigenspectrum is healthier. A huge first component means anisotropy.</p>
     </article>
     </div>
@@ -322,50 +402,90 @@
       </div>
       <div class="fig-grid">
     <article class="figure-card">
-      <h4>Metric Overview</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_metrics.png" alt="Metric Overview">
+      <div class="figure-head">
+        <h4>Metric Overview</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_metrics.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_metrics.png" target="_blank" rel="noopener" aria-label="Open Metric Overview full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_metrics.png" alt="Metric Overview" loading="lazy" decoding="async">
+      </a>
       <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Anchor Geometry</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_anchors.png" alt="Anchor Geometry">
+      <div class="figure-head">
+        <h4>Anchor Geometry</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_anchors.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_anchors.png" target="_blank" rel="noopener" aria-label="Open Anchor Geometry full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_anchors.png" alt="Anchor Geometry" loading="lazy" decoding="async">
+      </a>
       <p>Anchor diagnostics tell whether the target itself is usable. If anchors are anisotropic, the model can inherit that anisotropy.</p>
     </article>
 
     <article class="figure-card">
-      <h4>PCA Maps</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_pca.png" alt="PCA Maps">
+      <div class="figure-head">
+        <h4>PCA Maps</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_pca.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_pca.png" target="_blank" rel="noopener" aria-label="Open PCA Maps full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_pca.png" alt="PCA Maps" loading="lazy" decoding="async">
+      </a>
       <p>Look for collapse as a tight dot, a thin line, or all classes stacked together. PCA is qualitative: it helps spot failure modes but does not prove success.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Hypersphere Proxy</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_sphere.png" alt="Hypersphere Proxy">
+      <div class="figure-head">
+        <h4>Hypersphere Proxy</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_sphere.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_sphere.png" target="_blank" rel="noopener" aria-label="Open Hypersphere Proxy full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_sphere.png" alt="Hypersphere Proxy" loading="lazy" decoding="async">
+      </a>
       <p>This remaps the stored PCA coordinates into a unit disk. A healthy run should use many directions instead of forming one clump.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Cosine Histograms</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_cosine_hists.png" alt="Cosine Histograms">
+      <div class="figure-head">
+        <h4>Cosine Histograms</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_cosine_hists.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_cosine_hists.png" target="_blank" rel="noopener" aria-label="Open Cosine Histograms full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_cosine_hists.png" alt="Cosine Histograms" loading="lazy" decoding="async">
+      </a>
       <p>Cosine histograms should move away from 1. A spike near 1 means many embeddings are almost identical.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Eigenspectra</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_spectra.png" alt="Eigenspectra">
+      <div class="figure-head">
+        <h4>Eigenspectra</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_spectra.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_spectra.png" target="_blank" rel="noopener" aria-label="Open Eigenspectra full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_spectra.png" alt="Eigenspectra" loading="lazy" decoding="async">
+      </a>
       <p>A flatter eigenspectrum is healthier. A huge first component means anisotropy.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Retrieval Bars</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_retrieval.png" alt="Retrieval Bars">
+      <div class="figure-head">
+        <h4>Retrieval Bars</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_retrieval.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_retrieval.png" target="_blank" rel="noopener" aria-label="Open Retrieval Bars full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_retrieval.png" alt="Retrieval Bars" loading="lazy" decoding="async">
+      </a>
       <p>For retrieval-like figures, a strong diagonal is good. Uniform vertical or horizontal bands mean a small number of embeddings act as hubs.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Similarity Heatmaps</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_heatmaps.png" alt="Similarity Heatmaps">
+      <div class="figure-head">
+        <h4>Similarity Heatmaps</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_heatmaps.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_heatmaps.png" target="_blank" rel="noopener" aria-label="Open Similarity Heatmaps full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_heatmaps.png" alt="Similarity Heatmaps" loading="lazy" decoding="async">
+      </a>
       <p>For retrieval-like figures, a strong diagonal is good. Uniform vertical or horizontal bands mean a small number of embeddings act as hubs.</p>
     </article>
     </div>
@@ -413,50 +533,90 @@
       </div>
       <div class="fig-grid">
     <article class="figure-card">
-      <h4>Metric Overview</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_sphere_metrics.png" alt="Metric Overview">
+      <div class="figure-head">
+        <h4>Metric Overview</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_sphere_metrics.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_sphere_metrics.png" target="_blank" rel="noopener" aria-label="Open Metric Overview full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_sphere_metrics.png" alt="Metric Overview" loading="lazy" decoding="async">
+      </a>
       <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Anchor Geometry</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_sphere_anchors.png" alt="Anchor Geometry">
+      <div class="figure-head">
+        <h4>Anchor Geometry</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_sphere_anchors.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_sphere_anchors.png" target="_blank" rel="noopener" aria-label="Open Anchor Geometry full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_sphere_anchors.png" alt="Anchor Geometry" loading="lazy" decoding="async">
+      </a>
       <p>Anchor diagnostics tell whether the target itself is usable. If anchors are anisotropic, the model can inherit that anisotropy.</p>
     </article>
 
     <article class="figure-card">
-      <h4>PCA Maps</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_sphere_pca.png" alt="PCA Maps">
+      <div class="figure-head">
+        <h4>PCA Maps</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_sphere_pca.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_sphere_pca.png" target="_blank" rel="noopener" aria-label="Open PCA Maps full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_sphere_pca.png" alt="PCA Maps" loading="lazy" decoding="async">
+      </a>
       <p>Look for collapse as a tight dot, a thin line, or all classes stacked together. PCA is qualitative: it helps spot failure modes but does not prove success.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Hypersphere Proxy</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_sphere_sphere.png" alt="Hypersphere Proxy">
+      <div class="figure-head">
+        <h4>Hypersphere Proxy</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_sphere_sphere.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_sphere_sphere.png" target="_blank" rel="noopener" aria-label="Open Hypersphere Proxy full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_sphere_sphere.png" alt="Hypersphere Proxy" loading="lazy" decoding="async">
+      </a>
       <p>This remaps the stored PCA coordinates into a unit disk. A healthy run should use many directions instead of forming one clump.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Cosine Histograms</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_sphere_cosine_hists.png" alt="Cosine Histograms">
+      <div class="figure-head">
+        <h4>Cosine Histograms</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_sphere_cosine_hists.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_sphere_cosine_hists.png" target="_blank" rel="noopener" aria-label="Open Cosine Histograms full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_sphere_cosine_hists.png" alt="Cosine Histograms" loading="lazy" decoding="async">
+      </a>
       <p>Cosine histograms should move away from 1. A spike near 1 means many embeddings are almost identical.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Eigenspectra</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_sphere_spectra.png" alt="Eigenspectra">
+      <div class="figure-head">
+        <h4>Eigenspectra</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_sphere_spectra.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_sphere_spectra.png" target="_blank" rel="noopener" aria-label="Open Eigenspectra full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_sphere_spectra.png" alt="Eigenspectra" loading="lazy" decoding="async">
+      </a>
       <p>A flatter eigenspectrum is healthier. A huge first component means anisotropy.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Retrieval Bars</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_sphere_retrieval.png" alt="Retrieval Bars">
+      <div class="figure-head">
+        <h4>Retrieval Bars</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_sphere_retrieval.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_sphere_retrieval.png" target="_blank" rel="noopener" aria-label="Open Retrieval Bars full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_sphere_retrieval.png" alt="Retrieval Bars" loading="lazy" decoding="async">
+      </a>
       <p>For retrieval-like figures, a strong diagonal is good. Uniform vertical or horizontal bands mean a small number of embeddings act as hubs.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Similarity Heatmaps</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_sphere_heatmaps.png" alt="Similarity Heatmaps">
+      <div class="figure-head">
+        <h4>Similarity Heatmaps</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_sphere_heatmaps.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_sphere_heatmaps.png" target="_blank" rel="noopener" aria-label="Open Similarity Heatmaps full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_sphere_heatmaps.png" alt="Similarity Heatmaps" loading="lazy" decoding="async">
+      </a>
       <p>For retrieval-like figures, a strong diagonal is good. Uniform vertical or horizontal bands mean a small number of embeddings act as hubs.</p>
     </article>
     </div>
@@ -504,50 +664,90 @@
       </div>
       <div class="fig-grid">
     <article class="figure-card">
-      <h4>Metric Overview</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_raw_metrics.png" alt="Metric Overview">
+      <div class="figure-head">
+        <h4>Metric Overview</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_raw_metrics.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_raw_metrics.png" target="_blank" rel="noopener" aria-label="Open Metric Overview full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_raw_metrics.png" alt="Metric Overview" loading="lazy" decoding="async">
+      </a>
       <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Anchor Geometry</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_raw_anchors.png" alt="Anchor Geometry">
+      <div class="figure-head">
+        <h4>Anchor Geometry</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_raw_anchors.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_raw_anchors.png" target="_blank" rel="noopener" aria-label="Open Anchor Geometry full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_raw_anchors.png" alt="Anchor Geometry" loading="lazy" decoding="async">
+      </a>
       <p>Anchor diagnostics tell whether the target itself is usable. If anchors are anisotropic, the model can inherit that anisotropy.</p>
     </article>
 
     <article class="figure-card">
-      <h4>PCA Maps</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_raw_pca.png" alt="PCA Maps">
+      <div class="figure-head">
+        <h4>PCA Maps</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_raw_pca.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_raw_pca.png" target="_blank" rel="noopener" aria-label="Open PCA Maps full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_raw_pca.png" alt="PCA Maps" loading="lazy" decoding="async">
+      </a>
       <p>Look for collapse as a tight dot, a thin line, or all classes stacked together. PCA is qualitative: it helps spot failure modes but does not prove success.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Hypersphere Proxy</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_raw_sphere.png" alt="Hypersphere Proxy">
+      <div class="figure-head">
+        <h4>Hypersphere Proxy</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_raw_sphere.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_raw_sphere.png" target="_blank" rel="noopener" aria-label="Open Hypersphere Proxy full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_raw_sphere.png" alt="Hypersphere Proxy" loading="lazy" decoding="async">
+      </a>
       <p>This remaps the stored PCA coordinates into a unit disk. A healthy run should use many directions instead of forming one clump.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Cosine Histograms</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_raw_cosine_hists.png" alt="Cosine Histograms">
+      <div class="figure-head">
+        <h4>Cosine Histograms</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_raw_cosine_hists.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_raw_cosine_hists.png" target="_blank" rel="noopener" aria-label="Open Cosine Histograms full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_raw_cosine_hists.png" alt="Cosine Histograms" loading="lazy" decoding="async">
+      </a>
       <p>Cosine histograms should move away from 1. A spike near 1 means many embeddings are almost identical.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Eigenspectra</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_raw_spectra.png" alt="Eigenspectra">
+      <div class="figure-head">
+        <h4>Eigenspectra</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_raw_spectra.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_raw_spectra.png" target="_blank" rel="noopener" aria-label="Open Eigenspectra full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_raw_spectra.png" alt="Eigenspectra" loading="lazy" decoding="async">
+      </a>
       <p>A flatter eigenspectrum is healthier. A huge first component means anisotropy.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Retrieval Bars</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_raw_retrieval.png" alt="Retrieval Bars">
+      <div class="figure-head">
+        <h4>Retrieval Bars</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_raw_retrieval.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_raw_retrieval.png" target="_blank" rel="noopener" aria-label="Open Retrieval Bars full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_raw_retrieval.png" alt="Retrieval Bars" loading="lazy" decoding="async">
+      </a>
       <p>For retrieval-like figures, a strong diagonal is good. Uniform vertical or horizontal bands mean a small number of embeddings act as hubs.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Similarity Heatmaps</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_raw_heatmaps.png" alt="Similarity Heatmaps">
+      <div class="figure-head">
+        <h4>Similarity Heatmaps</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_raw_heatmaps.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_raw_heatmaps.png" target="_blank" rel="noopener" aria-label="Open Similarity Heatmaps full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_raw_heatmaps.png" alt="Similarity Heatmaps" loading="lazy" decoding="async">
+      </a>
       <p>For retrieval-like figures, a strong diagonal is good. Uniform vertical or horizontal bands mean a small number of embeddings act as hubs.</p>
     </article>
     </div>
@@ -595,50 +795,90 @@
       </div>
       <div class="fig-grid">
     <article class="figure-card">
-      <h4>Metric Overview</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_norm_metrics.png" alt="Metric Overview">
+      <div class="figure-head">
+        <h4>Metric Overview</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_norm_metrics.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_norm_metrics.png" target="_blank" rel="noopener" aria-label="Open Metric Overview full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_norm_metrics.png" alt="Metric Overview" loading="lazy" decoding="async">
+      </a>
       <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Anchor Geometry</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_norm_anchors.png" alt="Anchor Geometry">
+      <div class="figure-head">
+        <h4>Anchor Geometry</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_norm_anchors.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_norm_anchors.png" target="_blank" rel="noopener" aria-label="Open Anchor Geometry full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_norm_anchors.png" alt="Anchor Geometry" loading="lazy" decoding="async">
+      </a>
       <p>Anchor diagnostics tell whether the target itself is usable. If anchors are anisotropic, the model can inherit that anisotropy.</p>
     </article>
 
     <article class="figure-card">
-      <h4>PCA Maps</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_norm_pca.png" alt="PCA Maps">
+      <div class="figure-head">
+        <h4>PCA Maps</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_norm_pca.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_norm_pca.png" target="_blank" rel="noopener" aria-label="Open PCA Maps full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_norm_pca.png" alt="PCA Maps" loading="lazy" decoding="async">
+      </a>
       <p>Look for collapse as a tight dot, a thin line, or all classes stacked together. PCA is qualitative: it helps spot failure modes but does not prove success.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Hypersphere Proxy</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_norm_sphere.png" alt="Hypersphere Proxy">
+      <div class="figure-head">
+        <h4>Hypersphere Proxy</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_norm_sphere.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_norm_sphere.png" target="_blank" rel="noopener" aria-label="Open Hypersphere Proxy full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_norm_sphere.png" alt="Hypersphere Proxy" loading="lazy" decoding="async">
+      </a>
       <p>This remaps the stored PCA coordinates into a unit disk. A healthy run should use many directions instead of forming one clump.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Cosine Histograms</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_norm_cosine_hists.png" alt="Cosine Histograms">
+      <div class="figure-head">
+        <h4>Cosine Histograms</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_norm_cosine_hists.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_norm_cosine_hists.png" target="_blank" rel="noopener" aria-label="Open Cosine Histograms full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_norm_cosine_hists.png" alt="Cosine Histograms" loading="lazy" decoding="async">
+      </a>
       <p>Cosine histograms should move away from 1. A spike near 1 means many embeddings are almost identical.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Eigenspectra</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_norm_spectra.png" alt="Eigenspectra">
+      <div class="figure-head">
+        <h4>Eigenspectra</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_norm_spectra.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_norm_spectra.png" target="_blank" rel="noopener" aria-label="Open Eigenspectra full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_norm_spectra.png" alt="Eigenspectra" loading="lazy" decoding="async">
+      </a>
       <p>A flatter eigenspectrum is healthier. A huge first component means anisotropy.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Retrieval Bars</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_norm_retrieval.png" alt="Retrieval Bars">
+      <div class="figure-head">
+        <h4>Retrieval Bars</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_norm_retrieval.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_norm_retrieval.png" target="_blank" rel="noopener" aria-label="Open Retrieval Bars full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_norm_retrieval.png" alt="Retrieval Bars" loading="lazy" decoding="async">
+      </a>
       <p>For retrieval-like figures, a strong diagonal is good. Uniform vertical or horizontal bands mean a small number of embeddings act as hubs.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Similarity Heatmaps</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_norm_heatmaps.png" alt="Similarity Heatmaps">
+      <div class="figure-head">
+        <h4>Similarity Heatmaps</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_norm_heatmaps.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_norm_heatmaps.png" target="_blank" rel="noopener" aria-label="Open Similarity Heatmaps full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_norm_heatmaps.png" alt="Similarity Heatmaps" loading="lazy" decoding="async">
+      </a>
       <p>For retrieval-like figures, a strong diagonal is good. Uniform vertical or horizontal bands mean a small number of embeddings act as hubs.</p>
     </article>
     </div>
@@ -686,50 +926,90 @@
       </div>
       <div class="fig-grid">
     <article class="figure-card">
-      <h4>Metric Overview</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_white_metrics.png" alt="Metric Overview">
+      <div class="figure-head">
+        <h4>Metric Overview</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_white_metrics.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_white_metrics.png" target="_blank" rel="noopener" aria-label="Open Metric Overview full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_white_metrics.png" alt="Metric Overview" loading="lazy" decoding="async">
+      </a>
       <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Anchor Geometry</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_white_anchors.png" alt="Anchor Geometry">
+      <div class="figure-head">
+        <h4>Anchor Geometry</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_white_anchors.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_white_anchors.png" target="_blank" rel="noopener" aria-label="Open Anchor Geometry full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_white_anchors.png" alt="Anchor Geometry" loading="lazy" decoding="async">
+      </a>
       <p>Anchor diagnostics tell whether the target itself is usable. If anchors are anisotropic, the model can inherit that anisotropy.</p>
     </article>
 
     <article class="figure-card">
-      <h4>PCA Maps</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_white_pca.png" alt="PCA Maps">
+      <div class="figure-head">
+        <h4>PCA Maps</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_white_pca.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_white_pca.png" target="_blank" rel="noopener" aria-label="Open PCA Maps full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_white_pca.png" alt="PCA Maps" loading="lazy" decoding="async">
+      </a>
       <p>Look for collapse as a tight dot, a thin line, or all classes stacked together. PCA is qualitative: it helps spot failure modes but does not prove success.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Hypersphere Proxy</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_white_sphere.png" alt="Hypersphere Proxy">
+      <div class="figure-head">
+        <h4>Hypersphere Proxy</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_white_sphere.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_white_sphere.png" target="_blank" rel="noopener" aria-label="Open Hypersphere Proxy full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_white_sphere.png" alt="Hypersphere Proxy" loading="lazy" decoding="async">
+      </a>
       <p>This remaps the stored PCA coordinates into a unit disk. A healthy run should use many directions instead of forming one clump.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Cosine Histograms</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_white_cosine_hists.png" alt="Cosine Histograms">
+      <div class="figure-head">
+        <h4>Cosine Histograms</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_white_cosine_hists.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_white_cosine_hists.png" target="_blank" rel="noopener" aria-label="Open Cosine Histograms full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_white_cosine_hists.png" alt="Cosine Histograms" loading="lazy" decoding="async">
+      </a>
       <p>Cosine histograms should move away from 1. A spike near 1 means many embeddings are almost identical.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Eigenspectra</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_white_spectra.png" alt="Eigenspectra">
+      <div class="figure-head">
+        <h4>Eigenspectra</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_white_spectra.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_white_spectra.png" target="_blank" rel="noopener" aria-label="Open Eigenspectra full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_white_spectra.png" alt="Eigenspectra" loading="lazy" decoding="async">
+      </a>
       <p>A flatter eigenspectrum is healthier. A huge first component means anisotropy.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Retrieval Bars</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_white_retrieval.png" alt="Retrieval Bars">
+      <div class="figure-head">
+        <h4>Retrieval Bars</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_white_retrieval.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_white_retrieval.png" target="_blank" rel="noopener" aria-label="Open Retrieval Bars full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_white_retrieval.png" alt="Retrieval Bars" loading="lazy" decoding="async">
+      </a>
       <p>For retrieval-like figures, a strong diagonal is good. Uniform vertical or horizontal bands mean a small number of embeddings act as hubs.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Similarity Heatmaps</h4>
-      <img src="assets/dashboard/exp2_pythia160m_synth_white_heatmaps.png" alt="Similarity Heatmaps">
+      <div class="figure-head">
+        <h4>Similarity Heatmaps</h4>
+        <a href="assets/dashboard/exp2_pythia160m_synth_white_heatmaps.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_white_heatmaps.png" target="_blank" rel="noopener" aria-label="Open Similarity Heatmaps full-size">
+        <img src="assets/dashboard/exp2_pythia160m_synth_white_heatmaps.png" alt="Similarity Heatmaps" loading="lazy" decoding="async">
+      </a>
       <p>For retrieval-like figures, a strong diagonal is good. Uniform vertical or horizontal bands mean a small number of embeddings act as hubs.</p>
     </article>
     </div>
@@ -777,14 +1057,24 @@
       </div>
       <div class="fig-grid">
     <article class="figure-card">
-      <h4>Metric Overview</h4>
-      <img src="assets/dashboard/exp3_full_synth_metrics.png" alt="Metric Overview">
+      <div class="figure-head">
+        <h4>Metric Overview</h4>
+        <a href="assets/dashboard/exp3_full_synth_metrics.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp3_full_synth_metrics.png" target="_blank" rel="noopener" aria-label="Open Metric Overview full-size">
+        <img src="assets/dashboard/exp3_full_synth_metrics.png" alt="Metric Overview" loading="lazy" decoding="async">
+      </a>
       <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Training Traces</h4>
-      <img src="assets/dashboard/exp3_full_synth_history.png" alt="Training Traces">
+      <div class="figure-head">
+        <h4>Training Traces</h4>
+        <a href="assets/dashboard/exp3_full_synth_history.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp3_full_synth_history.png" target="_blank" rel="noopener" aria-label="Open Training Traces full-size">
+        <img src="assets/dashboard/exp3_full_synth_history.png" alt="Training Traces" loading="lazy" decoding="async">
+      </a>
       <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
     </article>
     </div>
@@ -832,14 +1122,24 @@
       </div>
       <div class="fig-grid">
     <article class="figure-card">
-      <h4>Metric Overview</h4>
-      <img src="assets/dashboard/exp3_llama1b_synth_metrics.png" alt="Metric Overview">
+      <div class="figure-head">
+        <h4>Metric Overview</h4>
+        <a href="assets/dashboard/exp3_llama1b_synth_metrics.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp3_llama1b_synth_metrics.png" target="_blank" rel="noopener" aria-label="Open Metric Overview full-size">
+        <img src="assets/dashboard/exp3_llama1b_synth_metrics.png" alt="Metric Overview" loading="lazy" decoding="async">
+      </a>
       <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
     </article>
 
     <article class="figure-card">
-      <h4>Training Traces</h4>
-      <img src="assets/dashboard/exp3_llama1b_synth_history.png" alt="Training Traces">
+      <div class="figure-head">
+        <h4>Training Traces</h4>
+        <a href="assets/dashboard/exp3_llama1b_synth_history.png" target="_blank" rel="noopener">Open full-size PNG</a>
+      </div>
+      <a class="figure-link" href="assets/dashboard/exp3_llama1b_synth_history.png" target="_blank" rel="noopener" aria-label="Open Training Traces full-size">
+        <img src="assets/dashboard/exp3_llama1b_synth_history.png" alt="Training Traces" loading="lazy" decoding="async">
+      </a>
       <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
     </article>
     </div>
