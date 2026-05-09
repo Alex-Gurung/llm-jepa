@@ -21,6 +21,8 @@ GPU pass. Open the files in `html/` directly in a browser.
   and anchor-whitened diagnostic. This is the useful Exp2 run.
 - `html/exp3_full_synth.html`: full SmolLM2 synth fine-tune report using
   exact-match downstream evaluation.
+- `html/exp3_llama1b_synth.html`: full Llama-3.2-1B-Instruct synth
+  fine-tune report using the same downstream evaluation.
 
 Rebuild the aggregate dashboard with:
 
@@ -125,11 +127,56 @@ Important implementation fixes from this run:
 - Cap heads now stay fp32 while the LM can run bf16, avoiding a backward dtype
   error.
 
+## Exp3 Full LLM-JEPA
+
+Task: natural-language-to-regex generation. Metric: strict exact string match
+on the 2k held-out `datasets/synth_test.jsonl` examples. The HTML pages also
+show first-line exact match, contains-target rate, training traces, and sample
+mismatches.
+
+### Llama 1B Full Sweep
+
+Model: `meta-llama/Llama-3.2-1B-Instruct`, dataset:
+`datasets/synth_train.jsonl` with 8k examples, four epochs.
+
+| Variant | Exact Match | Contains Target | Matches | Train Loss | Runtime |
+|---|---:|---:|---:|---:|---:|
+| Regular | 61.45% | 85.95% | 1229/2000 | 0.192 | 834 s |
+| C | 49.30% | 85.10% | 986/2000 | 0.209 | 2408 s |
+| C_ema | 50.30% | 84.25% | 1006/2000 | 0.691 | 2991 s |
+| D0 | 41.10% | 83.75% | 822/2000 | 1.087 | 2906 s |
+| D1 | 42.10% | 83.40% | 842/2000 | 1.142 | 2906 s |
+| Cross | 47.75% | 82.00% | 955/2000 | 1.501 | 2907 s |
+| Both | 40.95% | 83.60% | 819/2000 | 1.272 | 2940 s |
+
+Read:
+
+- The regular supervised fine-tune is the clear downstream winner on strict
+  exact match.
+- D1 beats D0 by only 1.0 point, so noisy frozen own-view anchoring shows a
+  small internal ablation win but not a task win.
+- Cross beats D1 by 5.65 points, but still trails the regular fine-tune by
+  13.7 points.
+- Both is slightly worse than D1, so combining own-view and cross-view caps did
+  not help in this run.
+- C_ema beats C by 1.0 point, but both self-anchor variants remain below the
+  regular fine-tune.
+
+### SmolLM2 Full Sweep
+
+Model: `HuggingFaceTB/SmolLM2-135M-Instruct`, same 8k/2k synth split and four
+epochs.
+
+All seven variants scored 0/2000 strict exact match. This is a format-capacity
+failure for the 135M model on the full regex-generation task, not evidence that
+the task metric is broken: the Llama 1B regular fine-tune reaches 61.45% exact
+match on the same data and evaluator.
+
 ## Recommendation
 
 Do not treat SmolLM2 Exp3 as a task-performance result. The strongest current
-downstream check is the Llama 1B full fine-tune: compare plain fine-tune,
-co-trained/momentum self-anchor, clean frozen anchor, and noisy frozen anchor
-once those runs finish evaluating. The main mechanism pattern to reproduce is
-noisy frozen own-anchor beating clean frozen own-anchor and co-trained
-self-anchor.
+downstream result is the Llama 1B full sweep, and it does not show a downstream
+accuracy win for the cap/JEPA variants. The useful signal is diagnostic: D1
+slightly beats D0, Cross beats D1, and self-anchor EMA slightly beats the
+co-trained self-anchor, but the plain supervised fine-tune remains the baseline
+to beat in the next GPU pass.

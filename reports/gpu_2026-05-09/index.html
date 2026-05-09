@@ -67,7 +67,7 @@
         <h1>Sphere-JEPA Results Report</h1>
         <p class="subtitle">Matplotlib/seaborn figures with a glossary and reading notes for every experiment.</p>
       </div>
-      <nav><a href="#glossary">How to read</a><a href="#overview">Overview</a><a href='#exp0_full'>E0 Toy</a><a href='#exp1_cifar_gpu'>E1 CIFAR</a><a href='#exp2_pythia160m_synth_input_white_anchor_white'>E2 White+White</a><a href='#exp2_pythia160m_synth_sphere'>E2 Sphere</a><a href='#exp2_pythia160m_synth_raw'>E2 Raw</a><a href='#exp2_pythia160m_synth_norm'>E2 Norm</a><a href='#exp2_pythia160m_synth_white'>E2 White</a><a href='#exp3_full_synth'>E3 Synth</a></nav>
+      <nav><a href="#glossary">How to read</a><a href="#overview">Overview</a><a href='#exp0_full'>E0 Toy</a><a href='#exp1_cifar_gpu'>E1 CIFAR</a><a href='#exp2_pythia160m_synth_input_white_anchor_white'>E2 White+White</a><a href='#exp2_pythia160m_synth_sphere'>E2 Sphere</a><a href='#exp2_pythia160m_synth_raw'>E2 Raw</a><a href='#exp2_pythia160m_synth_norm'>E2 Norm</a><a href='#exp2_pythia160m_synth_white'>E2 White</a><a href='#exp3_full_synth'>E3 Synth</a><a href='#exp3_llama1b_synth'>E3 Llama</a></nav>
     </div>
   </header>
   <main>
@@ -795,6 +795,61 @@
       <table>
         <thead><tr><th>Variant</th><th>Code</th><th>Exact Match</th></tr></thead>
         <tbody><tr><td>Plain fine-tune</td><td><code>Regular</code></td><td class='num'>0.0%</td></tr><tr><td>Co-trained self-anchor</td><td><code>C</code></td><td class='num'>0.0%</td></tr><tr><td>Momentum self-anchor</td><td><code>C_ema</code></td><td class='num'>0.0%</td></tr><tr><td>Clean frozen anchor</td><td><code>D0</code></td><td class='num'>0.0%</td></tr><tr><td>Noisy frozen anchor</td><td><code>D1</code></td><td class='num'>0.0%</td></tr><tr><td>Frozen cross-view anchor</td><td><code>Cross</code></td><td class='num'>0.0%</td></tr><tr><td>Own + cross frozen anchors</td><td><code>Both</code></td><td class='num'>0.0%</td></tr></tbody>
+      </table>
+    </div>
+
+      </details>
+    </section>
+
+    <section class="panel run" id="exp3_llama1b_synth">
+      <div class="run-head">
+        <div>
+          <p class="eyebrow">Full LLM fine-tune</p>
+          <h2>Exp3 Full LLM-JEPA: Llama 1B Synth</h2>
+          <p>Full 8k-example Llama-3.2-1B synthetic NL-to-regex fine-tune sweep.</p>
+          <p class="task-note"><strong>Task:</strong> Full Llama 1B fine-tune. This repeats the actual regex-generation task with a stronger base model.</p>
+        </div>
+        <div class="links"><a href='json/exp3_llama1b_synth_summary.json'>summary JSON</a> / <a href='html/exp3_llama1b_synth.html'>old per-run HTML</a></div>
+      </div>
+      <div class="run-grid">
+        <article class="text-card">
+          <h3>What to Look For</h3>
+          <ul><li>Read this as the stronger-base full ablation. It checks whether the SmolLM2 downstream pattern changes when the base model is Llama 1B.</li><li>Use noisy frozen anchor minus clean frozen anchor for the matched noise comparison, and noisy frozen anchor minus co-trained/momentum self-anchor for the external-anchor comparison.</li></ul>
+          <h3>Current Read</h3>
+          <ul><li>This is the larger-model pass for the same full fine-tuning ablations as SmolLM2.</li><li>Plain fine-tune, co-trained self-anchor, clean frozen anchor, noisy frozen anchor, momentum self-anchor, cross-view anchor, and combined anchors test the matched controls from the handoff.</li><li>Read noisy frozen minus clean frozen as the sphere-noise contribution, and noisy frozen minus self-anchor as the external-anchor contribution.</li></ul>
+        </article>
+        <article class="text-card">
+          <h3>Headline Contrasts</h3>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Question</th><th>Pair</th><th>Delta RankMe</th><th>Delta Cos</th><th>Delta Pred R@1</th><th>Delta EM</th></tr></thead>
+        <tbody><tr><td>Sphere noise on frozen anchor</td><td>Noisy frozen anchor (D1) - Clean frozen anchor (D0)</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>1.0 pp</td></tr><tr><td>Frozen anchor vs co-trained self-anchor</td><td>Noisy frozen anchor (D1) - Co-trained self-anchor (C)</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>-7.2 pp</td></tr><tr><td>Noisy frozen anchor vs plain fine-tune</td><td>Noisy frozen anchor (D1) - Plain fine-tune (Regular)</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>-19.4 pp</td></tr><tr><td>Co-trained self-anchor vs plain fine-tune</td><td>Co-trained self-anchor (C) - Plain fine-tune (Regular)</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>-12.2 pp</td></tr><tr><td>Momentum self-anchor vs co-trained self-anchor</td><td>Momentum self-anchor (C_ema) - Co-trained self-anchor (C)</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>1.0 pp</td></tr><tr><td>Combined anchors vs noisy own-anchor</td><td>Own + cross frozen anchors (Both) - Noisy frozen anchor (D1)</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>-1.2 pp</td></tr><tr><td>Cross-view anchor vs noisy own-anchor</td><td>Frozen cross-view anchor (Cross) - Noisy frozen anchor (D1)</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>5.6 pp</td></tr></tbody>
+      </table>
+    </div>
+
+        </article>
+      </div>
+      <div class="fig-grid">
+    <article class="figure-card">
+      <h4>Metric Overview</h4>
+      <img src="assets/dashboard/exp3_llama1b_synth_metrics.png" alt="Metric Overview">
+      <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
+    </article>
+
+    <article class="figure-card">
+      <h4>Training Traces</h4>
+      <img src="assets/dashboard/exp3_llama1b_synth_history.png" alt="Training Traces">
+      <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
+    </article>
+    </div>
+      <details>
+        <summary>Metrics table</summary>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Variant</th><th>Code</th><th>Exact Match</th></tr></thead>
+        <tbody><tr><td>Plain fine-tune</td><td><code>Regular</code></td><td class='num'>61.5%</td></tr><tr><td>Co-trained self-anchor</td><td><code>C</code></td><td class='num'>49.3%</td></tr><tr><td>Momentum self-anchor</td><td><code>C_ema</code></td><td class='num'>50.3%</td></tr><tr><td>Clean frozen anchor</td><td><code>D0</code></td><td class='num'>41.1%</td></tr><tr><td>Noisy frozen anchor</td><td><code>D1</code></td><td class='num'>42.1%</td></tr><tr><td>Frozen cross-view anchor</td><td><code>Cross</code></td><td class='num'>47.8%</td></tr><tr><td>Own + cross frozen anchors</td><td><code>Both</code></td><td class='num'>40.9%</td></tr></tbody>
       </table>
     </div>
 
