@@ -57,6 +57,27 @@ uv run --no-sync python experiments/viewer/build_viewer.py \
   --out results/exp1_cifar_cpu/index.html
 ```
 
+Small real-CIFAR CPU subset:
+
+```bash
+uv run --no-sync python experiments/exp1_cifar/train_teacher_autoencoder.py \
+  --train-limit 1024 \
+  --epochs 1 \
+  --batch-size 64 \
+  --output results/exp1_cifar_real_cpu/teacher_subset.pt
+uv run --no-sync python experiments/exp1_cifar/run.py \
+  --cpu \
+  --arch tiny \
+  --train-limit 1024 \
+  --test-limit 512 \
+  --epochs 1 \
+  --probe-epochs 1 \
+  --batch-size 64 \
+  --teacher-ckpt results/exp1_cifar_real_cpu/teacher_subset.pt \
+  --variants D0 D1 \
+  --output-dir results/exp1_cifar_real_cpu
+```
+
 ## Experiment 2
 
 Cache frozen LLM hidden states once, then train lightweight heads over the

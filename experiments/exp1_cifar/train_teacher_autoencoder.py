@@ -6,7 +6,7 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 
 
 class CifarAutoencoderTeacher(nn.Module):
@@ -65,12 +65,15 @@ def main() -> None:
     parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--fake-data", action="store_true")
+    parser.add_argument("--train-limit", type=int, default=None, help="Optional subset size for CPU/debug runs.")
     parser.add_argument("--threads", type=int, default=1)
     args = parser.parse_args()
     torch.set_num_threads(args.threads)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     dataset = build_dataset(args.data_root, train=True, fake_data=args.fake_data)
+    if args.train_limit is not None and args.train_limit > 0 and args.train_limit < len(dataset):
+        dataset = Subset(dataset, list(range(args.train_limit)))
     loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=2, drop_last=True)
     model = CifarAutoencoderTeacher(feature_dim=args.feature_dim).to(device)
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)

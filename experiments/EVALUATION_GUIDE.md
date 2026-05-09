@@ -226,6 +226,9 @@ hidden states and lightweight projection/cap heads.
 - Train `g_text`, `g_code`, predictors, and cap predictors on cached tensors.
 - Run anchor preprocessing modes: `raw`, `norm`, `white`, `sphere`, at least
   for the D_own family.
+- If raw frozen states are highly anisotropic, also run `--input-preprocess
+  white`. This distinguishes failure from the source representation geometry
+  from failure of the cap-anchor target itself.
 
 ### Required Variants
 
@@ -257,12 +260,25 @@ Train heads for one preprocessing mode:
 ```bash
 uv run --no-sync python experiments/exp2_frozen_llm/train_heads.py \
   --cache results/exp2_frozen_llm/cache.pt \
+  --input-preprocess raw \
   --anchor-preprocess sphere \
   --variants D_own_0 D_own_1 C C_detach C_ema D_cross_0 D_cross_1 F G H \
   --output-dir results/exp2_frozen_llm
 ```
 
 Repeat with `--anchor-preprocess raw`, `norm`, and `white`.
+
+If anchor diagnostics show pairwise cosine concentrated near 1.0, run the
+source-whitened diagnostic:
+
+```bash
+uv run --no-sync python experiments/exp2_frozen_llm/train_heads.py \
+  --cache results/exp2_frozen_llm/cache.pt \
+  --input-preprocess white \
+  --anchor-preprocess white \
+  --variants D_own_0 D_own_1 C C_ema F G H \
+  --output-dir results/exp2_frozen_llm
+```
 
 ### Evaluation
 

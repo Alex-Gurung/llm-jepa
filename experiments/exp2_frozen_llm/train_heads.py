@@ -209,6 +209,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Train projection heads over cached frozen LLM states.")
     parser.add_argument("--cache", type=Path, default=Path("results/exp2_frozen_llm/cache.pt"))
     parser.add_argument("--output-dir", type=Path, default=Path("results/exp2_frozen_llm"))
+    parser.add_argument("--input-preprocess", choices=["raw", "norm", "white", "sphere"], default="raw")
     parser.add_argument("--anchor-preprocess", choices=["raw", "norm", "white", "sphere"], default="sphere")
     parser.add_argument("--variants", nargs="*", default=["D_own_0", "D_own_1", "C", "F", "G", "H"])
     parser.add_argument("--train-fraction", type=float, default=0.8)
@@ -234,19 +235,24 @@ def main() -> None:
     if unknown:
         raise SystemExit(f"unknown variants: {unknown}")
 
-    payload = torch.load(args.cache, map_location="cpu")
+    payload = torch.load(args.cache, map_location="cpu", weights_only=False)
     raw_text = payload["anchor_text"].float()
     raw_code = payload["anchor_code"].float()
     train_idx, eval_idx = split_indices(len(raw_text), args.train_fraction, args.seed)
+    input_text_proc, input_code_proc = fit_preprocessors(raw_text[train_idx], raw_code[train_idx], args.input_preprocess)
+    source_text = input_text_proc.transform(raw_text)
+    source_code = input_code_proc.transform(raw_code)
     text_proc, code_proc = fit_preprocessors(raw_text[train_idx], raw_code[train_idx], args.anchor_preprocess)
     anchor_text = text_proc.transform(raw_text)
     anchor_code = code_proc.transform(raw_code)
-    train_data = TensorDataset(raw_text[train_idx], raw_code[train_idx], anchor_text[train_idx], anchor_code[train_idx])
-    eval_tensors = (raw_text[eval_idx], raw_code[eval_idx], anchor_text[eval_idx], anchor_code[eval_idx])
+    train_data = TensorDataset(source_text[train_idx], source_code[train_idx], anchor_text[train_idx], anchor_code[train_idx])
+    eval_tensors = (source_text[eval_idx], source_code[eval_idx], anchor_text[eval_idx], anchor_code[eval_idx])
 
     diagnostics = {
         "raw_text": anchor_geometry_diagnostics(raw_text),
         "raw_code": anchor_geometry_diagnostics(raw_code),
+        f"source_{args.input_preprocess}_text": anchor_geometry_diagnostics(source_text),
+        f"source_{args.input_preprocess}_code": anchor_geometry_diagnostics(source_code),
         f"{args.anchor_preprocess}_text": anchor_geometry_diagnostics(anchor_text),
         f"{args.anchor_preprocess}_code": anchor_geometry_diagnostics(anchor_code),
     }
@@ -264,7 +270,8 @@ def main() -> None:
             "preprocessing": "Run once per anchor_preprocess mode and compare D_own_sphere to D_own_raw.",
         },
     }
-    out = args.output_dir / f"summary_{args.anchor_preprocess}.json"
+    suffix = args.anchor_preprocess if args.input_preprocess == "raw" else f"input_{args.input_preprocess}_anchor_{args.anchor_preprocess}"
+    out = args.output_dir / f"summary_{suffix}.json"
     out.write_text(json.dumps(out_payload, indent=2))
     print(f"wrote {out}")
 

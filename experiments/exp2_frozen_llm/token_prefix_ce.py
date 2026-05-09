@@ -80,7 +80,7 @@ def main() -> None:
 
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
-    cache = torch.load(args.cache, map_location="cpu")
+    cache = torch.load(args.cache, map_location="cpu", weights_only=False)
     anchors = cache["anchor_text"].float()
     codes = cache["code"]
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

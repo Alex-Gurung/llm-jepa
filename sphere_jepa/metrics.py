@@ -50,10 +50,20 @@ def alignment_loss(z_a: torch.Tensor, z_b: torch.Tensor) -> float:
     return (z_a - z_b).pow(2).sum(dim=-1).mean().item()
 
 
-def cosine_pair_stats(z: torch.Tensor) -> dict:
+def _subsample_for_pairwise(z: torch.Tensor, max_pairs: int) -> torch.Tensor:
+    n = len(z)
+    if n * (n - 1) // 2 <= max_pairs:
+        return z
+    sample_n = max(2, int((2 * max_pairs) ** 0.5))
+    idx = torch.arange(sample_n, device=z.device) * n // sample_n
+    return z[idx]
+
+
+def cosine_pair_stats(z: torch.Tensor, max_pairs: int = 50_000) -> dict:
     z = F.normalize(z, dim=-1)
     if len(z) < 2:
         return {"mean": math.nan, "std": math.nan, "p95": math.nan}
+    z = _subsample_for_pairwise(z, max_pairs)
     c = z @ z.T
     mask = ~torch.eye(len(z), dtype=torch.bool, device=z.device)
     c_off = c[mask]
@@ -64,10 +74,11 @@ def cosine_pair_stats(z: torch.Tensor) -> dict:
     }
 
 
-def cosine_histogram(z: torch.Tensor, bins: int = 40) -> dict:
+def cosine_histogram(z: torch.Tensor, bins: int = 40, max_pairs: int = 50_000) -> dict:
     z = F.normalize(z, dim=-1)
     if len(z) < 2:
         return {"bin_edges": [], "counts": []}
+    z = _subsample_for_pairwise(z, max_pairs)
     c = z @ z.T
     mask = ~torch.eye(len(z), dtype=torch.bool, device=z.device)
     c_off = c[mask].float().cpu()

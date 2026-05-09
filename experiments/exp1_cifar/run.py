@@ -7,7 +7,7 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, Subset
 
 from train_teacher_autoencoder import CifarAutoencoderTeacher
 from sphere_jepa.heads import MLP, make_ema_copy, update_ema
@@ -97,6 +97,12 @@ def build_base_dataset(root: Path, train: bool, fake_data: bool):
         size = 256 if train else 128
         return datasets.FakeData(size=size, image_size=(3, 32, 32), num_classes=10, transform=None)
     return datasets.CIFAR10(root=str(root), train=train, download=True, transform=None)
+
+
+def maybe_limit_dataset(dataset: Dataset, limit: int | None) -> Dataset:
+    if limit is None or limit <= 0 or limit >= len(dataset):
+        return dataset
+    return Subset(dataset, list(range(limit)))
 
 
 def load_teacher(path: Path | None, feature_dim: int, allow_random: bool, device: torch.device) -> CifarAutoencoderTeacher:
@@ -289,6 +295,8 @@ def main() -> None:
     parser.add_argument("--lambda-cap", type=float, default=1.0)
     parser.add_argument("--ema-momentum", type=float, default=0.99)
     parser.add_argument("--fake-data", action="store_true")
+    parser.add_argument("--train-limit", type=int, default=None, help="Optional subset size for CPU/debug runs.")
+    parser.add_argument("--test-limit", type=int, default=None, help="Optional test subset size for CPU/debug runs.")
     parser.add_argument("--allow-random-teacher", action="store_true")
     parser.add_argument("--cpu", action="store_true")
     parser.add_argument("--diagnostic-samples", type=int, default=2048)
@@ -302,8 +310,8 @@ def main() -> None:
         raise SystemExit(f"unknown variants: {unknown}")
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
-    train_base = build_base_dataset(args.data_root, train=True, fake_data=args.fake_data)
-    test_base = build_base_dataset(args.data_root, train=False, fake_data=args.fake_data)
+    train_base = maybe_limit_dataset(build_base_dataset(args.data_root, train=True, fake_data=args.fake_data), args.train_limit)
+    test_base = maybe_limit_dataset(build_base_dataset(args.data_root, train=False, fake_data=args.fake_data), args.test_limit)
     train_ds = TwoViewDataset(train_base, ssl_transform())
     train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, num_workers=2, drop_last=True)
     anchor_geometry = teacher_anchor_diagnostics(args, train_base) if any(v in {"D0", "D1"} for v in args.variants) else {}

@@ -741,7 +741,11 @@ class RepresentationTrainer(Trainer):
         return anchor_user, anchor_assistant, True
 
     def _compute_cap_loss(self, user_embedding, assistant_embedding, anchor_user, anchor_assistant, detach_anchor):
-        self.cap_predictors.to(device=user_embedding.device, dtype=user_embedding.dtype)
+        self.cap_predictors.to(device=user_embedding.device)
+        user_embedding = user_embedding.float()
+        assistant_embedding = assistant_embedding.float()
+        anchor_user = anchor_user.float()
+        anchor_assistant = anchor_assistant.float()
         cap_terms = []
         if self.cap_mode in {"own", "both"}:
             cap_terms.append(noisy_cap_anchor_loss(
