@@ -222,6 +222,106 @@ EXPECTED_PATTERN_GUIDE = [
 ]
 
 
+PAPER_REVIEW_GUIDE = [
+    (
+        "Research question",
+        "The project asks whether a JEPA-style predictor benefits from reconstructing a sample-specific frozen anchor after spherical perturbation. The concrete mechanism claim is not just 'avoid collapse'; it is that fixed external anchors plus sphere noise create a representation space that remains spread out and preserves per-sample information.",
+    ),
+    (
+        "Experimental ladder",
+        "The experiments deliberately move from controlled geometry to more realistic tasks: toy synthetic data tests the mechanism, CIFAR checks transfer to images, frozen LLM heads isolate text/code representation geometry without changing the LLM, and full LLM fine-tuning tests whether the mechanism helps actual regex generation.",
+    ),
+    (
+        "Primary causal comparisons",
+        "The important comparisons are matched controls. Noisy frozen anchor minus clean frozen anchor estimates the contribution of sphere noise. Noisy frozen anchor minus co-trained or momentum self-anchor estimates the contribution of using a fixed external target.",
+    ),
+    (
+        "What does not count as proof",
+        "A high RankMe plot by itself is not a downstream win. A lower training loss is not necessarily better when variants have different loss terms. A contrastive baseline winning direct retrieval does not automatically disprove the cap-anchor mechanism because it is optimized for direct retrieval.",
+    ),
+    (
+        "Best current evidence",
+        "The strongest representation evidence is Exp2 Source + Anchor Whitening: noisy frozen own-anchor improves geometry and predicted-code retrieval over clean frozen own-anchor and strongly beats co-trained self-anchor. The strongest downstream check is the Llama full fine-tune, where plain fine-tune is already a working baseline.",
+    ),
+]
+
+
+PCA_AND_WHITENING_PROTOCOL = [
+    (
+        "How can we know to whiten a priori?",
+        "We can inspect the frozen vectors before training any heads. If raw source or anchor vectors have high mean cosine, a dominant first eigenvalue, or strong hubness, that is an unsupervised warning that the geometry is anisotropic. Whitening is then a preprocessing ablation to test whether the method failed because the target space was bad.",
+    ),
+    (
+        "What data fits the whitening transform?",
+        "The whitening transform should be fit on the training split of the cached vectors, then applied to held-out vectors. It should not use labels or evaluation outcomes. In this report, whitening is best read as a diagnostic control because it was motivated by observed frozen-state anisotropy.",
+    ),
+    (
+        "What PCA is doing here",
+        "PCA in the plots is a post-training visualization of embeddings, not a training objective. It projects high-dimensional vectors onto the two directions with the most variance so humans can see collapse, lines, clusters, or broad clouds.",
+    ),
+    (
+        "Why PCA can be misleading",
+        "PCA only shows two directions. A method can look compressed in 2-D while still using many dimensions, or look visually spread while having poor retrieval. That is why the report pairs PCA with RankMe, cosine histograms, eigenspectra, and retrieval.",
+    ),
+    (
+        "How to treat preprocessing conclusions",
+        "If source+anchor whitening beats raw/norm/sphere preprocessing, the correct claim is that frozen LLM anisotropy was an important confound. It does not mean whitening is a supervised trick or that the downstream task is solved.",
+    ),
+]
+
+
+FIGURE_READING_GUIDE = [
+    (
+        "Metric Overview",
+        "Bar charts for the main scalar metrics in a run.",
+        "For geometry, prefer higher RankMe and lower cosine. For task metrics, prefer higher probe accuracy, retrieval recall, or exact match.",
+        "Do not compare raw training losses across methods with different loss terms.",
+    ),
+    (
+        "PCA Maps",
+        "A 2-D projection of the learned embeddings after training.",
+        "A healthy representation usually forms a broad cloud or meaningful structure rather than one dot, one thin line, or all classes stacked together.",
+        "PCA is qualitative. Use it to identify failure modes, then verify with RankMe, cosine, and retrieval.",
+    ),
+    (
+        "Hypersphere Proxy",
+        "A visualization derived from the stored 2-D PCA coordinates: the plot recenters and rescales points, then maps them into a unit disk to show angular coverage.",
+        "A healthier embedding should occupy many directions on the disk. A collapsed embedding clumps into one region or a narrow arc.",
+        "This is not the true high-dimensional sphere. It is a visual proxy for angular spread, so trust it only alongside cosine histograms and eigenspectra.",
+    ),
+    (
+        "Cosine Histograms",
+        "The distribution of pairwise cosine similarities between different samples.",
+        "Collapse shows up as a spike near 1. Better spread shifts mass left, often closer to 0 or below depending on the data.",
+        "A low mean can hide subgroups, so also inspect the histogram shape and heatmaps.",
+    ),
+    (
+        "Eigenspectra",
+        "How variance is distributed across principal directions.",
+        "A flatter spectrum means many dimensions are used. A huge first component means one common direction dominates.",
+        "Some tasks naturally need fewer dimensions, so this is a collapse/anisotropy diagnostic rather than a universal objective.",
+    ),
+    (
+        "Anchor Geometry",
+        "Diagnostics on fixed targets before or outside model training.",
+        "Good anchors should not already be collapsed or dominated by one direction. If the anchor is bad, a model trained to reconstruct it can inherit that geometry.",
+        "Anchor quality does not prove downstream usefulness; it tells whether the target is a reasonable thing to reconstruct.",
+    ),
+    (
+        "Retrieval Bars",
+        "Recall@1 for finding the paired target from a query representation.",
+        "Direct embedding retrieval rewards methods like InfoNCE. Predicted-code or cap-to-anchor retrieval is more relevant for cap-anchor variants.",
+        "Always check which space is being retrieved: learned embedding space, predicted embedding space, or frozen-anchor space.",
+    ),
+    (
+        "Similarity Heatmaps",
+        "Rows are queries and columns are targets, with brightness indicating similarity.",
+        "A bright diagonal means each query most resembles its true pair. Vertical bands mean some targets act as hubs for many queries.",
+        "Small heatmaps are samples, not full metrics. Use them to understand the failure mode behind retrieval numbers.",
+    ),
+]
+
+
 TASK_GLOSSARY = [
     ("Toy geometry", "Synthetic paired views", "Train small networks on controlled synthetic clusters. This is the fastest way to see collapse, spread, and the noise-vs-anchor controls."),
     ("CIFAR bridge", "Image augmentation representation learning", "Train image encoders on CIFAR-10 augmentations, then evaluate both geometry and linear-probe accuracy."),
@@ -1335,6 +1435,48 @@ def run_expected_patterns(run: dict[str, Any]) -> list[str]:
     return ["Use matched controls first; absolute metric values are secondary."]
 
 
+def run_paper_review(run: dict[str, Any]) -> list[str]:
+    slug = run["slug"]
+    if slug == "exp0_full":
+        return [
+            "This is a controlled mechanism experiment. Because the data are synthetic, the purpose is not to prove usefulness on a real task; the purpose is to see whether the loss family behaves as expected when the correct answer is easier to reason about.",
+            "The key failure mode is co-trained collapse: if both predictor and target are learned together, the system can reduce loss while making many examples point in the same direction. That is why co-trained self-anchor is a negative control rather than the desired method.",
+            "The three anchor families ask whether the noise effect depends on what the fixed target contains: raw continuous sample identity, random Fourier features, or a frozen teacher representation. A consistent noisy-over-clean pattern would support the sphere-noise mechanism.",
+        ]
+    if slug == "exp1_cifar_gpu":
+        return [
+            "This is a bridge experiment from synthetic geometry to image augmentations. It uses CIFAR-10 because the representation can be checked both by geometry diagnostics and by a simple linear probe.",
+            "The frozen teacher anchor is an autoencoder-derived image representation, not a class label. The class-anchor control is included to show why class-level targets can look good while discarding within-class sample information.",
+            "The important result is mixed: noisy frozen anchor improves some geometry metrics over clean frozen anchor, but linear-probe accuracy drops. That means the mechanism changed the representation, but this pass does not yet establish task usefulness for images.",
+        ]
+    if slug == "exp2_pythia160m_synth_input_white_anchor_white":
+        return [
+            "This is the main representation experiment before full LLM fine-tuning. Pythia-160M is frozen; the experiment trains only lightweight projection and cap heads on cached hidden states for natural-language/regex pairs.",
+            "Source+anchor whitening is used because raw frozen LLM hidden states are highly anisotropic: many examples share large common directions. Without correcting that, a small head can appear to collapse even if the anchor mechanism is reasonable.",
+            "This run does not contain plain A/B JEPA-only controls. It focuses on the matched cap-anchor comparison: clean frozen own-anchor, noisy frozen own-anchor, co-trained self-anchor, momentum self-anchor, and regularization baselines.",
+            "The most relevant success signal here is not direct embedding retrieval alone. InfoNCE is optimized for direct retrieval, while cap-anchor methods should be read through geometry, predicted-code retrieval, and cap-to-anchor retrieval.",
+        ]
+    if slug.startswith("exp2_pythia160m"):
+        return [
+            "This is a preprocessing ablation for the frozen LLM setting. The model and dataset are the same broad setup as the source+anchor-whitened run, but the input and anchor preprocessing differ.",
+            "Raw, norm-only, sphere-only, and anchor-only whitening runs help identify whether failure comes from the cap-anchor objective or from the geometry of frozen Pythia hidden states.",
+            "These sections are not the strongest mechanism evidence by themselves. Their role is to justify why the source+anchor-whitened diagnostic is the fairer place to compare methods.",
+        ]
+    if slug == "exp3_full_synth":
+        return [
+            "This is a full language-model fine-tuning experiment on synthetic natural-language-to-regex prompts. Unlike Exp2, the language model itself is trained and evaluated by strict generated-string exact match.",
+            "SmolLM2-135M did not produce useful exact-match performance in this sweep, so the run is mostly an execution and instrumentation check rather than strong evidence about the method.",
+            "Because cap objectives add extra loss terms, training loss should not be compared directly to the plain fine-tune baseline. Exact match is the downstream metric that matters.",
+        ]
+    if slug == "exp3_llama1b_synth":
+        return [
+            "This repeats the full fine-tuning setup with Llama-3.2-1B, a stronger base model. This matters because the plain fine-tune baseline is now capable of the task, making downstream comparisons meaningful.",
+            "The decisive paper-level comparisons are plain fine-tune versus each cap-anchor variant, noisy frozen anchor versus clean frozen anchor, and noisy frozen anchor versus co-trained/momentum self-anchor.",
+            "If a cap-anchor variant improves exact match over plain fine-tune, that supports downstream usefulness. If it only improves geometry or training loss, it remains a representation result rather than a generation result.",
+        ]
+    return ["This section should be read through matched controls, not just absolute metrics."]
+
+
 def render_pairs_table(rows: list[tuple[str, str]], first: str, second: str, *, small: bool = True) -> str:
     body = "".join(f"<tr><td>{html.escape(left)}</td><td>{html.escape(right)}</td></tr>" for left, right in rows)
     cls = "table-wrap small" if small else "table-wrap"
@@ -1363,6 +1505,18 @@ def render_setup_table(run: dict[str, Any]) -> str:
 def render_expected_list(run: dict[str, Any]) -> str:
     items = "".join(f"<li>{html.escape(item)}</li>" for item in run_expected_patterns(run))
     return f"<ul>{items}</ul>"
+
+
+def render_paragraphs(paragraphs: list[str]) -> str:
+    return "".join(f"<p>{html.escape(paragraph)}</p>" for paragraph in paragraphs)
+
+
+def render_review_cards(rows: list[tuple[str, str]], *, cls: str = "review-grid") -> str:
+    cards = "".join(
+        f"<article class='review-card'><h3>{html.escape(title)}</h3><p>{html.escape(text)}</p></article>"
+        for title, text in rows
+    )
+    return f"<div class='{cls}'>{cards}</div>"
 
 
 def fig_card(src: str | None, title: str, note_key: str) -> str:
@@ -1401,6 +1555,17 @@ def render_glossary() -> str:
       <div class="callout">
         <p><strong>Are we comparing against JEPA?</strong> Yes, but not only JEPA versus no-JEPA. The JEPA-style family is the predictor/target setup: MSE JEPA, cosine JEPA, co-trained self-anchor, momentum self-anchor, and the frozen-anchor sphere variants. Plain fine-tune is the non-JEPA downstream baseline; InfoNCE, VICReg, and SIGReg are non-JEPA anti-collapse baselines.</p>
         <p><strong>What we are going for:</strong> a useful sphere-cap mechanism should make noisy frozen-anchor variants beat their matched clean-anchor controls, and beat self-anchor targets that can move with the encoder and collapse. High RankMe plus low mean cosine is the main geometry signature.</p>
+      </div>
+      <h3>Paper-Style Review</h3>
+      {render_review_cards(PAPER_REVIEW_GUIDE)}
+      <h3>Whitening And PCA Protocol</h3>
+      {render_review_cards(PCA_AND_WHITENING_PROTOCOL)}
+      <h3>Figure Family Guide</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Figure</th><th>What it shows</th><th>What to look for</th><th>Main caveat</th></tr></thead>
+          <tbody>{''.join(f'<tr><td>{html.escape(name)}</td><td>{html.escape(what)}</td><td>{html.escape(good)}</td><td>{html.escape(caveat)}</td></tr>' for name, what, good, caveat in FIGURE_READING_GUIDE)}</tbody>
+        </table>
       </div>
       <div class="guide-grid">
         <article class="text-card">
@@ -1481,6 +1646,10 @@ def render_run(run: dict[str, Any], figures: dict[str, str | None]) -> str:
         <div class="links">{' / '.join(links)}</div>
       </div>
       <div class="run-grid">
+        <article class="text-card wide-card">
+          <h3>Paper-Style Interpretation</h3>
+          {render_paragraphs(run_paper_review(run))}
+        </article>
         <article class="text-card">
           <h3>What to Look For</h3>
           <ul>{notes}</ul>
@@ -1569,12 +1738,13 @@ def build_html(runs: list[dict[str, Any]], overview: dict[str, str | None], per_
     .subtitle {{ margin: 4px 0 0; color: var(--muted); font-size: 13px; }}
     nav {{ display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }}
     nav a, .links a {{ border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 6px 9px; font-size: 12px; color: var(--ink); }}
-    main {{ max-width: 1760px; margin: 0 auto; padding: 18px; }}
+    main {{ max-width: 1500px; margin: 0 auto; padding: 18px; }}
     .panel {{ background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 18px; margin-bottom: 18px; box-shadow: 0 10px 26px rgba(30,41,36,0.06); }}
-    .hero {{ display: grid; grid-template-columns: 1fr; gap: 18px; align-items: start; }}
+    .hero {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(560px, 1fr)); gap: 18px; align-items: start; }}
     .callout {{ background: #eef5ee; border-left: 5px solid var(--green); padding: 12px 14px; border-radius: 7px; }}
     .two-col {{ display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 18px; align-items: start; }}
     .guide-grid {{ display: grid; grid-template-columns: repeat(3, minmax(280px, 1fr)); gap: 14px; margin: 14px 0 18px; align-items: start; }}
+    .review-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 14px; margin: 10px 0 18px; }}
     h2 {{ margin: 0 0 10px; font-size: 22px; }}
     h3 {{ margin: 0 0 9px; font-size: 16px; }}
     h4 {{ margin: 0 0 9px; font-size: 15px; }}
@@ -1582,15 +1752,16 @@ def build_html(runs: list[dict[str, Any]], overview: dict[str, str | None], per_
     .muted, .figure-card p {{ color: var(--muted); }}
     .task-note {{ margin-top: 8px; color: #405047; }}
     .eyebrow {{ margin: 0 0 4px; color: var(--green); font-size: 12px; font-weight: 750; text-transform: uppercase; letter-spacing: 0; }}
-    .figure-card, .text-card {{ background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 13px; min-width: 0; }}
+    .figure-card, .text-card, .review-card {{ background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 13px; min-width: 0; }}
     .figure-head {{ display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 9px; }}
     .figure-head h4 {{ margin: 0; }}
     .figure-head a {{ flex: 0 0 auto; font-size: 12px; font-weight: 700; border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; background: #fff; color: var(--accent); }}
     .figure-link {{ display: block; cursor: zoom-in; }}
     .figure-link:hover img {{ border-color: var(--accent); box-shadow: 0 0 0 3px rgba(39, 106, 140, 0.14); }}
     .figure-card img {{ display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: 7px; background: white; transition: border-color 0.12s ease, box-shadow 0.12s ease; }}
-    .fig-grid {{ display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; margin-top: 14px; }}
-    .run-grid {{ display: grid; grid-template-columns: minmax(320px, 0.9fr) minmax(420px, 1.1fr); gap: 14px; }}
+    .fig-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(560px, 1fr)); gap: 18px; margin-top: 14px; }}
+    .run-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(430px, 1fr)); gap: 14px; }}
+    .wide-card {{ grid-column: 1 / -1; }}
     .run-head {{ display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: start; border-bottom: 1px solid var(--line); padding-bottom: 13px; margin-bottom: 14px; }}
     .links {{ display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }}
     .table-wrap {{ width: 100%; overflow: auto; border: 1px solid var(--line); border-radius: 7px; background: white; }}
@@ -1602,7 +1773,7 @@ def build_html(runs: list[dict[str, Any]], overview: dict[str, str | None], per_
     code {{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }}
     summary {{ cursor: pointer; font-weight: 700; padding: 10px 0; }}
     @media (max-width: 900px) {{
-      .top, .hero, .two-col, .guide-grid, .run-grid, .run-head {{ grid-template-columns: 1fr; }}
+      .top, .hero, .two-col, .guide-grid, .review-grid, .run-grid, .run-head {{ grid-template-columns: 1fr; }}
       nav, .links {{ justify-content: flex-start; }}
       .fig-grid {{ grid-template-columns: 1fr; }}
     }}
