@@ -23,6 +23,9 @@ GPU pass. Open the files in `html/` directly in a browser.
   exact-match downstream evaluation.
 - `html/exp3_llama1b_synth.html`: full Llama-3.2-1B-Instruct synth
   fine-tune report using the same downstream evaluation.
+- `html/replicate_llm_jepa_synth.html`: paper-style original LLM-JEPA
+  replication for Llama-3.2-1B-Instruct on NL-RX-SYNTH, comparing regular SFT
+  against original LLM-JEPA before any cap-anchor modifications.
 
 Rebuild the aggregate dashboard with:
 
@@ -162,6 +165,36 @@ Read:
 - C_ema beats C by 1.0 point, but both self-anchor variants remain below the
   regular fine-tune.
 
+### Original LLM-JEPA Replication
+
+Model: `meta-llama/Llama-3.2-1B-Instruct`, dataset: NL-RX-SYNTH, five seeds,
+four epochs, learning rate `2e-5`, original LLM-JEPA objective with
+`lambda=1`, `k=1`, and no sphere cap-anchor modifications.
+
+| Method | Exact Match Mean | Std | Paper Target |
+|---|---:|---:|---:|
+| Regular SFT | 53.52% | 5.40% | 57.29% ± 5.32% |
+| Original LLM-JEPA | 71.77% | 2.43% | 71.46% ± 1.34% |
+| Paired Delta | +18.25 pp | 6.52 pp | +14.17 pp |
+
+| Seed | Regular SFT | Original LLM-JEPA | Delta |
+|---:|---:|---:|---:|
+| 4 | 55.85% | 74.40% | +18.55 pp |
+| 23 | 56.60% | 69.85% | +13.25 pp |
+| 37 | 59.30% | 70.80% | +11.50 pp |
+| 82 | 49.60% | 69.45% | +19.85 pp |
+| 84 | 46.25% | 74.35% | +28.10 pp |
+
+Read:
+
+- This reproduces the original paper direction: original LLM-JEPA clearly
+  beats regular SFT on this setup.
+- The previous Llama cap-anchor sweep is therefore not evidence that normal
+  SFT beats the paper method. It tested our newer cap-anchor variants under a
+  different objective/setup.
+- The next scientific comparison should keep this original replication as the
+  baseline, then introduce one modification at a time.
+
 ### SmolLM2 Full Sweep
 
 Model: `HuggingFaceTB/SmolLM2-135M-Instruct`, same 8k/2k synth split and four
@@ -175,8 +208,8 @@ match on the same data and evaluator.
 ## Recommendation
 
 Do not treat SmolLM2 Exp3 as a task-performance result. The strongest current
-downstream result is the Llama 1B full sweep, and it does not show a downstream
-accuracy win for the cap/JEPA variants. The useful signal is diagnostic: D1
-slightly beats D0, Cross beats D1, and self-anchor EMA slightly beats the
-co-trained self-anchor, but the plain supervised fine-tune remains the baseline
-to beat in the next GPU pass.
+downstream result for the original paper objective is the Llama 1B replication:
+original LLM-JEPA beats regular SFT by 18.25 paired points across five seeds.
+The Llama cap-anchor sweep remains useful as a diagnostic modification run, but
+its weaker cap variants should be interpreted against this replicated original
+LLM-JEPA baseline, not as a contradiction of the paper result.

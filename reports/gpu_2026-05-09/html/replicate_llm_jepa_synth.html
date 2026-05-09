@@ -40,11 +40,11 @@
     <p>Faithful NL-RX-SYNTH replication pass for Llama-3.2-1B-Instruct: original regular SFT versus original LLM-JEPA, lambda=1, k=1, lr=2e-5, four epochs, large effective batch. This intentionally excludes the new cap-anchor variants.</p>
   </header>
   <main>
-    <section class="stats"><article class='stat'><div class='label'>Completed pairs</div><div class='value'>4</div><div class='note'>Seeds with both methods evaluated.</div></article><article class='stat'><div class='label'>Regular mean</div><div class='value'>52.94%</div><div class='note'>Paper: 57.29%.</div></article><article class='stat'><div class='label'>LLM-JEPA mean</div><div class='value'>71.11%</div><div class='note'>Paper: 71.46%.</div></article><article class='stat'><div class='label'>JEPA - Regular</div><div class='value'>18.18%</div><div class='note'>Mean paired exact-match delta.</div></article></section>
+    <section class="stats"><article class='stat'><div class='label'>Completed pairs</div><div class='value'>5</div><div class='note'>Seeds with both methods evaluated.</div></article><article class='stat'><div class='label'>Regular mean</div><div class='value'>53.52%</div><div class='note'>Paper: 57.29%.</div></article><article class='stat'><div class='label'>LLM-JEPA mean</div><div class='value'>71.77%</div><div class='note'>Paper: 71.46%.</div></article><article class='stat'><div class='label'>JEPA - Regular</div><div class='value'>18.25%</div><div class='note'>Mean paired exact-match delta.</div></article></section>
     <h2>Plots</h2>
     <section class="grid"><article class='card'><a href='../assets/replication/replicate_llm_jepa_synth_means.png'><img src='../assets/replication/replicate_llm_jepa_synth_means.png' alt='means plot'></a></article><article class='card'><a href='../assets/replication/replicate_llm_jepa_synth_paired.png'><img src='../assets/replication/replicate_llm_jepa_synth_paired.png' alt='paired plot'></a></article></section>
     <h2>Runs</h2>
-    <div class='table-wrap'><table><thead><tr><th>Seed</th><th>Method</th><th>Exact</th><th>Contains Target</th><th>Matches</th><th>Train Loss</th><th>Runtime</th><th>Status</th></tr></thead><tbody><tr><td>82</td><td>Regular SFT</td><td class='num'>49.60%</td><td class='num'>84.55%</td><td class='num'>992/2000</td><td class='num'>0.271</td><td class='num'>407.76 s</td><td>trained/evaluated</td></tr><tr><td>82</td><td>Original LLM-JEPA</td><td class='num'>69.45%</td><td class='num'>84.95%</td><td class='num'>1389/2000</td><td class='num'>2.252</td><td class='num'>690.64 s</td><td>trained/evaluated</td></tr><tr><td>23</td><td>Regular SFT</td><td class='num'>56.60%</td><td class='num'>84.50%</td><td class='num'>1132/2000</td><td class='num'>0.271</td><td class='num'>341.27 s</td><td>trained/evaluated</td></tr><tr><td>23</td><td>Original LLM-JEPA</td><td class='num'>69.85%</td><td class='num'>85.35%</td><td class='num'>1397/2000</td><td class='num'>2.253</td><td class='num'>617.77 s</td><td>trained/evaluated</td></tr><tr><td>37</td><td>Regular SFT</td><td class='num'>59.30%</td><td class='num'>84.95%</td><td class='num'>1186/2000</td><td class='num'>0.271</td><td class='num'>322.23 s</td><td>trained/evaluated</td></tr><tr><td>37</td><td>Original LLM-JEPA</td><td class='num'>70.80%</td><td class='num'>84.75%</td><td class='num'>1416/2000</td><td class='num'>2.261</td><td class='num'>612.27 s</td><td>trained/evaluated</td></tr><tr><td>84</td><td>Regular SFT</td><td class='num'>46.25%</td><td class='num'>84.70%</td><td class='num'>925/2000</td><td class='num'>0.270</td><td class='num'>330.77 s</td><td>trained/evaluated</td></tr><tr><td>84</td><td>Original LLM-JEPA</td><td class='num'>74.35%</td><td class='num'>84.90%</td><td class='num'>1487/2000</td><td class='num'>2.251</td><td class='num'>612.85 s</td><td>trained/evaluated</td></tr><tr><td>4</td><td>Regular SFT</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>0/0</td><td class='num'>n/a</td><td class='num'>n/a s</td><td>missing/missing</td></tr><tr><td>4</td><td>Original LLM-JEPA</td><td class='num'>n/a</td><td class='num'>n/a</td><td class='num'>0/0</td><td class='num'>n/a</td><td class='num'>n/a s</td><td>missing/missing</td></tr></tbody></table></div>
+    <div class='table-wrap'><table><thead><tr><th>Seed</th><th>Method</th><th>Exact</th><th>Contains Target</th><th>Matches</th><th>Train Loss</th><th>Runtime</th><th>Status</th></tr></thead><tbody><tr><td>82</td><td>Regular SFT</td><td class='num'>49.60%</td><td class='num'>84.55%</td><td class='num'>992/2000</td><td class='num'>0.271</td><td class='num'>407.76 s</td><td>trained/evaluated</td></tr><tr><td>82</td><td>Original LLM-JEPA</td><td class='num'>69.45%</td><td class='num'>84.95%</td><td class='num'>1389/2000</td><td class='num'>2.252</td><td class='num'>690.64 s</td><td>trained/evaluated</td></tr><tr><td>23</td><td>Regular SFT</td><td class='num'>56.60%</td><td class='num'>84.50%</td><td class='num'>1132/2000</td><td class='num'>0.271</td><td class='num'>341.27 s</td><td>trained/evaluated</td></tr><tr><td>23</td><td>Original LLM-JEPA</td><td class='num'>69.85%</td><td class='num'>85.35%</td><td class='num'>1397/2000</td><td class='num'>2.253</td><td class='num'>617.77 s</td><td>trained/evaluated</td></tr><tr><td>37</td><td>Regular SFT</td><td class='num'>59.30%</td><td class='num'>84.95%</td><td class='num'>1186/2000</td><td class='num'>0.271</td><td class='num'>322.23 s</td><td>trained/evaluated</td></tr><tr><td>37</td><td>Original LLM-JEPA</td><td class='num'>70.80%</td><td class='num'>84.75%</td><td class='num'>1416/2000</td><td class='num'>2.261</td><td class='num'>612.27 s</td><td>trained/evaluated</td></tr><tr><td>84</td><td>Regular SFT</td><td class='num'>46.25%</td><td class='num'>84.70%</td><td class='num'>925/2000</td><td class='num'>0.270</td><td class='num'>330.77 s</td><td>trained/evaluated</td></tr><tr><td>84</td><td>Original LLM-JEPA</td><td class='num'>74.35%</td><td class='num'>84.90%</td><td class='num'>1487/2000</td><td class='num'>2.251</td><td class='num'>612.85 s</td><td>trained/evaluated</td></tr><tr><td>4</td><td>Regular SFT</td><td class='num'>55.85%</td><td class='num'>85.20%</td><td class='num'>1117/2000</td><td class='num'>0.270</td><td class='num'>323.70 s</td><td>trained/evaluated</td></tr><tr><td>4</td><td>Original LLM-JEPA</td><td class='num'>74.40%</td><td class='num'>84.35%</td><td class='num'>1488/2000</td><td class='num'>2.249</td><td class='num'>611.23 s</td><td>trained/evaluated</td></tr></tbody></table></div>
     <h2>Embedded JSON</h2>
     <article class="card"><pre>{
   &quot;summary&quot;: {
@@ -53,32 +53,40 @@
         &quot;label&quot;: &quot;Regular SFT&quot;,
         &quot;paper_exact_match&quot;: 0.5729,
         &quot;paper_std&quot;: 0.0532,
-        &quot;n&quot;: 4,
-        &quot;mean_exact_match&quot;: 0.5293749999999999,
-        &quot;std_exact_match&quot;: 0.06048605211120987,
+        &quot;n&quot;: 5,
+        &quot;mean_exact_match&quot;: 0.5352,
+        &quot;std_exact_match&quot;: 0.05397754162612445,
         &quot;values&quot;: [
           0.496,
           0.566,
           0.593,
-          0.4625
+          0.4625,
+          0.5585
         ]
       },
       &quot;jepa_l1_p1&quot;: {
         &quot;label&quot;: &quot;Original LLM-JEPA&quot;,
         &quot;paper_exact_match&quot;: 0.7146,
         &quot;paper_std&quot;: 0.0134,
-        &quot;n&quot;: 4,
-        &quot;mean_exact_match&quot;: 0.711125,
-        &quot;std_exact_match&quot;: 0.02231357957238897,
+        &quot;n&quot;: 5,
+        &quot;mean_exact_match&quot;: 0.7177,
+        &quot;std_exact_match&quot;: 0.02428116554039366,
         &quot;values&quot;: [
           0.6945,
           0.6985,
           0.708,
-          0.7435
+          0.7435,
+          0.744
         ]
       }
     },
     &quot;paired&quot;: [
+      {
+        &quot;seed&quot;: 4,
+        &quot;regular&quot;: 0.5585,
+        &quot;jepa_l1_p1&quot;: 0.744,
+        &quot;delta&quot;: 0.1855
+      },
       {
         &quot;seed&quot;: 23,
         &quot;regular&quot;: 0.566,
@@ -104,8 +112,8 @@
         &quot;delta&quot;: 0.281
       }
     ],
-    &quot;mean_delta&quot;: 0.18175000000000002,
-    &quot;std_delta&quot;: 0.07530438234259677
+    &quot;mean_delta&quot;: 0.18250000000000002,
+    &quot;std_delta&quot;: 0.06523706768394791
   },
   &quot;records&quot;: [
     {
@@ -1501,9 +1509,169 @@
       &quot;description&quot;: &quot;Original next-token fine-tuning baseline.&quot;,
       &quot;model_dir&quot;: &quot;results/replicate_llm_jepa_synth/seed4_regular&quot;,
       &quot;eval_file&quot;: &quot;results/replicate_llm_jepa_synth/eval/seed4_regular.jsonl&quot;,
-      &quot;train_status&quot;: &quot;missing&quot;,
-      &quot;eval_status&quot;: &quot;missing&quot;,
-      &quot;eval_count&quot;: 0
+      &quot;train_status&quot;: &quot;trained&quot;,
+      &quot;global_step&quot;: 252,
+      &quot;history&quot;: [
+        {
+          &quot;step&quot;: 10,
+          &quot;epoch&quot;: 0.16,
+          &quot;loss&quot;: 1.5164,
+          &quot;learning_rate&quot;: 1.928571428571429e-05
+        },
+        {
+          &quot;step&quot;: 20,
+          &quot;epoch&quot;: 0.32,
+          &quot;loss&quot;: 0.6022,
+          &quot;learning_rate&quot;: 1.8492063492063493e-05
+        },
+        {
+          &quot;step&quot;: 30,
+          &quot;epoch&quot;: 0.48,
+          &quot;loss&quot;: 0.485,
+          &quot;learning_rate&quot;: 1.7698412698412698e-05
+        },
+        {
+          &quot;step&quot;: 40,
+          &quot;epoch&quot;: 0.64,
+          &quot;loss&quot;: 0.3356,
+          &quot;learning_rate&quot;: 1.6904761904761906e-05
+        },
+        {
+          &quot;step&quot;: 50,
+          &quot;epoch&quot;: 0.8,
+          &quot;loss&quot;: 0.2412,
+          &quot;learning_rate&quot;: 1.6111111111111115e-05
+        },
+        {
+          &quot;step&quot;: 60,
+          &quot;epoch&quot;: 0.96,
+          &quot;loss&quot;: 0.2076,
+          &quot;learning_rate&quot;: 1.531746031746032e-05
+        },
+        {
+          &quot;step&quot;: 70,
+          &quot;epoch&quot;: 1.112,
+          &quot;loss&quot;: 0.1969,
+          &quot;learning_rate&quot;: 1.4523809523809524e-05
+        },
+        {
+          &quot;step&quot;: 80,
+          &quot;epoch&quot;: 1.272,
+          &quot;loss&quot;: 0.1937,
+          &quot;learning_rate&quot;: 1.3730158730158731e-05
+        },
+        {
+          &quot;step&quot;: 90,
+          &quot;epoch&quot;: 1.432,
+          &quot;loss&quot;: 0.1882,
+          &quot;learning_rate&quot;: 1.2936507936507937e-05
+        },
+        {
+          &quot;step&quot;: 100,
+          &quot;epoch&quot;: 1.592,
+          &quot;loss&quot;: 0.1849,
+          &quot;learning_rate&quot;: 1.2142857142857142e-05
+        },
+        {
+          &quot;step&quot;: 110,
+          &quot;epoch&quot;: 1.752,
+          &quot;loss&quot;: 0.1832,
+          &quot;learning_rate&quot;: 1.134920634920635e-05
+        },
+        {
+          &quot;step&quot;: 120,
+          &quot;epoch&quot;: 1.912,
+          &quot;loss&quot;: 0.1816,
+          &quot;learning_rate&quot;: 1.0555555555555557e-05
+        },
+        {
+          &quot;step&quot;: 130,
+          &quot;epoch&quot;: 2.064,
+          &quot;loss&quot;: 0.1789,
+          &quot;learning_rate&quot;: 9.761904761904762e-06
+        },
+        {
+          &quot;step&quot;: 140,
+          &quot;epoch&quot;: 2.224,
+          &quot;loss&quot;: 0.175,
+          &quot;learning_rate&quot;: 8.968253968253968e-06
+        },
+        {
+          &quot;step&quot;: 150,
+          &quot;epoch&quot;: 2.384,
+          &quot;loss&quot;: 0.1777,
+          &quot;learning_rate&quot;: 8.174603174603175e-06
+        },
+        {
+          &quot;step&quot;: 160,
+          &quot;epoch&quot;: 2.544,
+          &quot;loss&quot;: 0.1747,
+          &quot;learning_rate&quot;: 7.380952380952382e-06
+        },
+        {
+          &quot;step&quot;: 170,
+          &quot;epoch&quot;: 2.7039999999999997,
+          &quot;loss&quot;: 0.1741,
+          &quot;learning_rate&quot;: 6.587301587301588e-06
+        },
+        {
+          &quot;step&quot;: 180,
+          &quot;epoch&quot;: 2.864,
+          &quot;loss&quot;: 0.1748,
+          &quot;learning_rate&quot;: 5.793650793650795e-06
+        },
+        {
+          &quot;step&quot;: 190,
+          &quot;epoch&quot;: 3.016,
+          &quot;loss&quot;: 0.1745,
+          &quot;learning_rate&quot;: 5e-06
+        },
+        {
+          &quot;step&quot;: 200,
+          &quot;epoch&quot;: 3.176,
+          &quot;loss&quot;: 0.1732,
+          &quot;learning_rate&quot;: 4.206349206349207e-06
+        },
+        {
+          &quot;step&quot;: 210,
+          &quot;epoch&quot;: 3.336,
+          &quot;loss&quot;: 0.1714,
+          &quot;learning_rate&quot;: 3.412698412698413e-06
+        },
+        {
+          &quot;step&quot;: 220,
+          &quot;epoch&quot;: 3.496,
+          &quot;loss&quot;: 0.1704,
+          &quot;learning_rate&quot;: 2.6190476190476192e-06
+        },
+        {
+          &quot;step&quot;: 230,
+          &quot;epoch&quot;: 3.656,
+          &quot;loss&quot;: 0.1728,
+          &quot;learning_rate&quot;: 1.8253968253968254e-06
+        },
+        {
+          &quot;step&quot;: 240,
+          &quot;epoch&quot;: 3.816,
+          &quot;loss&quot;: 0.1711,
+          &quot;learning_rate&quot;: 1.0317460317460317e-06
+        },
+        {
+          &quot;step&quot;: 250,
+          &quot;epoch&quot;: 3.976,
+          &quot;loss&quot;: 0.1711,
+          &quot;learning_rate&quot;: 2.3809523809523811e-07
+        }
+      ],
+      &quot;train_loss&quot;: 0.2702344919717501,
+      &quot;train_runtime&quot;: 323.6992,
+      &quot;train_samples_per_second&quot;: 98.857,
+      &quot;eval_status&quot;: &quot;evaluated&quot;,
+      &quot;eval_count&quot;: 2000,
+      &quot;eval_matches&quot;: 1117,
+      &quot;eval_exact_match&quot;: 0.5585,
+      &quot;eval_first_line_exact&quot;: 0.5585,
+      &quot;eval_contains_target&quot;: 0.852
     },
     {
       &quot;seed&quot;: 4,
@@ -1514,9 +1682,169 @@
       &quot;description&quot;: &quot;Original LLM-JEPA with lambda=1, k=1, no cap-anchor modifications.&quot;,
       &quot;model_dir&quot;: &quot;results/replicate_llm_jepa_synth/seed4_jepa_l1_p1&quot;,
       &quot;eval_file&quot;: &quot;results/replicate_llm_jepa_synth/eval/seed4_jepa_l1_p1.jsonl&quot;,
-      &quot;train_status&quot;: &quot;missing&quot;,
-      &quot;eval_status&quot;: &quot;missing&quot;,
-      &quot;eval_count&quot;: 0
+      &quot;train_status&quot;: &quot;trained&quot;,
+      &quot;global_step&quot;: 252,
+      &quot;history&quot;: [
+        {
+          &quot;step&quot;: 10,
+          &quot;epoch&quot;: 0.16,
+          &quot;loss&quot;: 13.7736,
+          &quot;learning_rate&quot;: 1.928571428571429e-05
+        },
+        {
+          &quot;step&quot;: 20,
+          &quot;epoch&quot;: 0.32,
+          &quot;loss&quot;: 4.9533,
+          &quot;learning_rate&quot;: 1.8492063492063493e-05
+        },
+        {
+          &quot;step&quot;: 30,
+          &quot;epoch&quot;: 0.48,
+          &quot;loss&quot;: 3.9634,
+          &quot;learning_rate&quot;: 1.7698412698412698e-05
+        },
+        {
+          &quot;step&quot;: 40,
+          &quot;epoch&quot;: 0.64,
+          &quot;loss&quot;: 2.7347,
+          &quot;learning_rate&quot;: 1.6904761904761906e-05
+        },
+        {
+          &quot;step&quot;: 50,
+          &quot;epoch&quot;: 0.8,
+          &quot;loss&quot;: 1.9685,
+          &quot;learning_rate&quot;: 1.6111111111111115e-05
+        },
+        {
+          &quot;step&quot;: 60,
+          &quot;epoch&quot;: 0.96,
+          &quot;loss&quot;: 1.6944,
+          &quot;learning_rate&quot;: 1.531746031746032e-05
+        },
+        {
+          &quot;step&quot;: 70,
+          &quot;epoch&quot;: 1.112,
+          &quot;loss&quot;: 1.5318,
+          &quot;learning_rate&quot;: 1.4523809523809524e-05
+        },
+        {
+          &quot;step&quot;: 80,
+          &quot;epoch&quot;: 1.272,
+          &quot;loss&quot;: 1.5771,
+          &quot;learning_rate&quot;: 1.3730158730158731e-05
+        },
+        {
+          &quot;step&quot;: 90,
+          &quot;epoch&quot;: 1.432,
+          &quot;loss&quot;: 1.5297,
+          &quot;learning_rate&quot;: 1.2936507936507937e-05
+        },
+        {
+          &quot;step&quot;: 100,
+          &quot;epoch&quot;: 1.592,
+          &quot;loss&quot;: 1.5088,
+          &quot;learning_rate&quot;: 1.2142857142857142e-05
+        },
+        {
+          &quot;step&quot;: 110,
+          &quot;epoch&quot;: 1.752,
+          &quot;loss&quot;: 1.4961,
+          &quot;learning_rate&quot;: 1.134920634920635e-05
+        },
+        {
+          &quot;step&quot;: 120,
+          &quot;epoch&quot;: 1.912,
+          &quot;loss&quot;: 1.4796,
+          &quot;learning_rate&quot;: 1.0555555555555557e-05
+        },
+        {
+          &quot;step&quot;: 130,
+          &quot;epoch&quot;: 2.064,
+          &quot;loss&quot;: 1.3881,
+          &quot;learning_rate&quot;: 9.761904761904762e-06
+        },
+        {
+          &quot;step&quot;: 140,
+          &quot;epoch&quot;: 2.224,
+          &quot;loss&quot;: 1.4263,
+          &quot;learning_rate&quot;: 8.968253968253968e-06
+        },
+        {
+          &quot;step&quot;: 150,
+          &quot;epoch&quot;: 2.384,
+          &quot;loss&quot;: 1.4451,
+          &quot;learning_rate&quot;: 8.174603174603175e-06
+        },
+        {
+          &quot;step&quot;: 160,
+          &quot;epoch&quot;: 2.544,
+          &quot;loss&quot;: 1.4225,
+          &quot;learning_rate&quot;: 7.380952380952382e-06
+        },
+        {
+          &quot;step&quot;: 170,
+          &quot;epoch&quot;: 2.7039999999999997,
+          &quot;loss&quot;: 1.417,
+          &quot;learning_rate&quot;: 6.587301587301588e-06
+        },
+        {
+          &quot;step&quot;: 180,
+          &quot;epoch&quot;: 2.864,
+          &quot;loss&quot;: 1.4229,
+          &quot;learning_rate&quot;: 5.793650793650795e-06
+        },
+        {
+          &quot;step&quot;: 190,
+          &quot;epoch&quot;: 3.016,
+          &quot;loss&quot;: 1.3487,
+          &quot;learning_rate&quot;: 5e-06
+        },
+        {
+          &quot;step&quot;: 200,
+          &quot;epoch&quot;: 3.176,
+          &quot;loss&quot;: 1.4099,
+          &quot;learning_rate&quot;: 4.206349206349207e-06
+        },
+        {
+          &quot;step&quot;: 210,
+          &quot;epoch&quot;: 3.336,
+          &quot;loss&quot;: 1.3957,
+          &quot;learning_rate&quot;: 3.412698412698413e-06
+        },
+        {
+          &quot;step&quot;: 220,
+          &quot;epoch&quot;: 3.496,
+          &quot;loss&quot;: 1.3886,
+          &quot;learning_rate&quot;: 2.6190476190476192e-06
+        },
+        {
+          &quot;step&quot;: 230,
+          &quot;epoch&quot;: 3.656,
+          &quot;loss&quot;: 1.4072,
+          &quot;learning_rate&quot;: 1.8253968253968254e-06
+        },
+        {
+          &quot;step&quot;: 240,
+          &quot;epoch&quot;: 3.816,
+          &quot;loss&quot;: 1.3954,
+          &quot;learning_rate&quot;: 1.0317460317460317e-06
+        },
+        {
+          &quot;step&quot;: 250,
+          &quot;epoch&quot;: 3.976,
+          &quot;loss&quot;: 1.3926,
+          &quot;learning_rate&quot;: 2.3809523809523811e-07
+        }
+      ],
+      &quot;train_loss&quot;: 2.2492837451753163,
+      &quot;train_runtime&quot;: 611.2322,
+      &quot;train_samples_per_second&quot;: 52.353,
+      &quot;eval_status&quot;: &quot;evaluated&quot;,
+      &quot;eval_count&quot;: 2000,
+      &quot;eval_matches&quot;: 1488,
+      &quot;eval_exact_match&quot;: 0.744,
+      &quot;eval_first_line_exact&quot;: 0.744,
+      &quot;eval_contains_target&quot;: 0.8435
     }
   ]
 }</pre></article>
