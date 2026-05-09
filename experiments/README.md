@@ -3,11 +3,15 @@
 The experiment code is designed so small CPU smoke tests work now and the same
 entry points scale to GPU runs later.
 
+Read [EVALUATION_GUIDE.md](EVALUATION_GUIDE.md) before interpreting any result.
+It defines the required controls, metrics, headline contrasts, report
+checklists, and go/no-go decisions for each experiment.
+
 ## Experiment 0
 
 ```bash
-uv run python experiments/exp0_toy/run.py --preset smoke --output-dir results/exp0_smoke
-uv run python experiments/viewer/build_viewer.py results/exp0_smoke/summary.json --out results/exp0_smoke/index.html
+uv run --no-sync python experiments/exp0_toy/run.py --preset smoke --output-dir results/exp0_smoke
+uv run --no-sync python experiments/viewer/build_viewer.py results/exp0_smoke/summary.json --out results/exp0_smoke/index.html
 ```
 
 ## Experiment 1
