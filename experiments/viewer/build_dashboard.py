@@ -153,11 +153,80 @@ VARIANT_GLOSSARY = [
 ]
 
 
+METHOD_GUIDE = [
+    (
+        "View",
+        "One representation of the same example. In toy runs the views are two synthetic augmentations; in CIFAR they are two image augmentations; in frozen LLM runs they are the natural-language side and regex/code side.",
+    ),
+    (
+        "JEPA alignment",
+        "A predictor takes one view's embedding and tries to match the paired view's embedding. It learns representations without directly generating the original input.",
+    ),
+    (
+        "Co-trained self-anchor",
+        "The target is produced by a network being trained at the same time as the predictor. Because the target can move, this can make the loss easy by letting both sides collapse together.",
+    ),
+    (
+        "Frozen anchor",
+        "The target is fixed before training. The model cannot move the target to make the loss easier, so this is the control that tests whether a stable external target prevents collapse.",
+    ),
+    (
+        "Sphere noise",
+        "The learned embedding is normalized onto a sphere, perturbed, then asked to recover the same sample's anchor. The intended effect is to make the local neighborhood around each sample meaningful instead of brittle.",
+    ),
+    (
+        "InfoNCE",
+        "A contrastive baseline. It pulls true pairs together and pushes all other batch items apart. It often wins direct retrieval because direct retrieval is exactly what it trains for.",
+    ),
+    (
+        "VICReg",
+        "A non-contrastive baseline with three terms: match paired embeddings, keep each dimension from collapsing, and reduce correlation between dimensions.",
+    ),
+    (
+        "SIGReg",
+        "An isotropy regularizer. In Exp2 it is added to JEPA alignment and pushes embeddings toward a centered, roughly identity-covariance distribution; it does not use frozen anchors or sphere-noise recovery.",
+    ),
+]
+
+
+WHITENING_GUIDE = [
+    (
+        "What whitening does",
+        "It subtracts the training-set mean, rotates into principal-component coordinates, and rescales directions so the covariance is close to identity.",
+    ),
+    (
+        "Why it matters here",
+        "Frozen LLM hidden states often have a few huge common directions. Without whitening, many examples look artificially similar, which can create high cosine, hubness, and misleading retrieval.",
+    ),
+    (
+        "Source whitening",
+        "Whitening the input vectors fed into the trainable projection heads. This fixes the geometry the small heads start from.",
+    ),
+    (
+        "Anchor whitening",
+        "Whitening the fixed target vectors that cap heads reconstruct. This makes the target space itself less dominated by a few directions.",
+    ),
+    (
+        "What it is not",
+        "It is not a supervised label and not a task answer. It is preprocessing that makes the frozen representation space numerically better behaved.",
+    ),
+]
+
+
+EXPECTED_PATTERN_GUIDE = [
+    ("Noise contribution", "Noisy frozen anchor should beat clean frozen anchor in the same run. This isolates sphere noise because the anchor and model setup are otherwise matched."),
+    ("External-anchor contribution", "Noisy frozen anchor should beat co-trained or momentum self-anchor. This asks whether a fixed target is better than a target that moves with training."),
+    ("Geometry health", "Good geometry usually means high RankMe and low mean cosine together. High RankMe alone is not enough if task metrics get worse."),
+    ("Downstream usefulness", "For full fine-tuning, exact-match generation must improve over plain fine-tune. Geometry-only wins do not automatically prove a better generator."),
+    ("Baseline sanity", "InfoNCE/VICReg/SIGReg should prevent trivial collapse. If they win direct retrieval, that means retrieval favors their objective; it does not automatically disprove the anchor mechanism."),
+]
+
+
 TASK_GLOSSARY = [
-    ("Toy geometry", "Synthetic paired views", "Can the objective avoid collapse and produce a spread-out sample-level embedding space?"),
-    ("CIFAR bridge", "Image augmentation representation learning", "Does better geometry transfer to a simple linear-probe image task?"),
-    ("Frozen LLM heads", "Natural-language/regex pairs with a frozen Pythia backbone", "Can small heads learn useful text/code geometry without changing the LLM?"),
-    ("Full LLM fine-tune", "Generate a regex from a natural-language prompt", "Does the cap-anchor objective improve strict downstream exact match over plain supervised fine-tuning?"),
+    ("Toy geometry", "Synthetic paired views", "Train small networks on controlled synthetic clusters. This is the fastest way to see collapse, spread, and the noise-vs-anchor controls."),
+    ("CIFAR bridge", "Image augmentation representation learning", "Train image encoders on CIFAR-10 augmentations, then evaluate both geometry and linear-probe accuracy."),
+    ("Frozen LLM heads", "Natural-language/regex pairs with a frozen Pythia backbone", "Cache frozen LLM hidden states, train only small projection/cap heads, and evaluate text-code geometry/retrieval without changing the LLM."),
+    ("Full LLM fine-tune", "Generate a regex from a natural-language prompt", "Fine-tune the language model itself and score strict exact-match regex generation on held-out synthetic prompts."),
 ]
 
 
@@ -233,26 +302,29 @@ BASE_VARIANT_SHORT_NAMES = {
 
 
 METRIC_GLOSSARY = [
-    ("RankMe", "Higher is better. Effective embedding dimensionality. Collapse usually means very low RankMe."),
-    ("Mean off-diagonal cosine", "Lower is better. Near 1 means most samples point in the same direction."),
-    ("Uniformity", "More negative is better. It measures how evenly normalized points spread on the hypersphere."),
-    ("Top eig mass", "Lower is better. High mass means one principal direction dominates."),
-    ("PCA maps", "A 2-D diagnostic only. Broad clouds are healthier than dots or thin lines, but use metrics for claims."),
-    ("Hypersphere maps", "A normalized PCA disk. It shows whether points occupy many angular directions or clump at a pole."),
-    ("Retrieval heatmaps", "A bright diagonal means the intended pair ranks highly. Bands or blocks indicate hubness/collapse."),
+    ("RankMe", "Effective dimensionality. If all samples collapse to one direction, RankMe is near 1. Higher means information is spread across more independent directions, but it is only a geometry metric."),
+    ("Mean off-diagonal cosine", "Average similarity between different samples. Lower is better. Near 1 means most samples point in almost the same direction."),
+    ("Uniformity", "How evenly normalized points cover the sphere. More negative is usually better; use it with RankMe and cosine, not alone."),
+    ("Top eig mass", "Share of variance in the largest principal direction. Lower is better. High values mean one direction dominates the embedding space."),
+    ("PCA maps", "A 2-D projection of high-dimensional embeddings. Use it to spot obvious collapse, thin lines, or separated clusters; use metrics for claims."),
+    ("Hypersphere maps", "A normalized PCA disk. It is a visual proxy for angular spread: many directions is healthier than one clump at a pole."),
+    ("Retrieval heatmaps", "Rows are queries and columns are targets. A bright diagonal is good; bright columns or rows away from the diagonal mean hubness."),
+    ("Exact match", "Full fine-tune task metric. The generated regex string must exactly equal the held-out target string."),
 ]
 
 
 FIGURE_NOTES = {
-    "overview": "Read this first. The desired pattern is high RankMe and low mean cosine for noisy external-anchor variants, especially when compared with co-trained self-anchor and clean-anchor controls.",
-    "preprocessing": "For the frozen LLM run, whitening the source states matters. The best mechanism comparison is inside the source+anchor whitened run.",
-    "metrics": "Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.",
-    "pca": "Look for collapse as a tight dot, a thin line, or all classes stacked together. PCA is qualitative: it helps spot failure modes but does not prove success.",
-    "sphere": "This remaps the stored PCA coordinates into a unit disk. A healthy run should use many directions instead of forming one clump.",
-    "hist": "Cosine histograms should move away from 1. A spike near 1 means many embeddings are almost identical.",
-    "spectrum": "A flatter eigenspectrum is healthier. A huge first component means anisotropy.",
-    "heatmap": "For retrieval-like figures, a strong diagonal is good. Uniform vertical or horizontal bands mean a small number of embeddings act as hubs.",
-    "anchors": "Anchor diagnostics tell whether the target itself is usable. If anchors are anisotropic, the model can inherit that anisotropy.",
+    "overview": "Start here. The upper-left area is best for geometry: high RankMe and low mean cosine. The key comparisons are noisy frozen anchor vs clean frozen anchor, and noisy frozen anchor vs self-anchor.",
+    "preprocessing": "This explains why whitening matters. Source+anchor whitening is the cleanest Exp2 comparison because both the inputs and fixed targets have the worst common-direction bias removed.",
+    "metrics": "Read RankMe and cosine together. A good geometry result has higher RankMe and lower cosine than its matched control; direct retrieval can favor InfoNCE because InfoNCE trains for direct retrieval.",
+    "pca": "Each panel is a 2-D projection of a high-dimensional embedding. A tiny dot, line, or stacked classes suggest collapse; a broad cloud suggests spread. PCA is visual evidence, not the final metric.",
+    "sphere": "This reprojects points into a unit disk to show angular spread. Healthy embeddings occupy many directions; collapsed embeddings clump in one region.",
+    "hist": "These histograms show all pairwise cosines, not just the mean. A spike near 1 means many examples are almost identical; a distribution shifted left is healthier.",
+    "spectrum": "This shows how variance is distributed across principal components. A huge first component means anisotropy; a flatter spectrum means more directions are being used.",
+    "retrieval": "Recall@1 asks whether each query retrieves its paired target. Direct embedding retrieval and cap-to-anchor retrieval are different spaces, so compare the matching retrieval metric for the method.",
+    "heatmap": "Rows are queries and columns are targets. A bright diagonal is good. Bright vertical bands mean some targets are hubs that many queries retrieve.",
+    "anchors": "Anchor diagnostics tell whether the fixed target space is usable before training. If anchors are anisotropic, the model can inherit that problem.",
+    "history": "Training loss is an optimization trace, not the scientific result. Variants can have different loss terms, so compare final metrics rather than raw loss scale.",
 }
 
 
@@ -1126,6 +1198,173 @@ def run_reading_notes(run: dict[str, Any]) -> list[str]:
     return ["Use matched pairs first, then compare against co-trained and regularizer baselines."]
 
 
+def variant_method_description(code: str, run: dict[str, Any]) -> str:
+    slug = run["slug"]
+    if code == "A":
+        return "Plain JEPA alignment: one view predicts the paired view with MSE. No frozen anchor and no sphere-noise recovery."
+    if code == "B":
+        return "Cosine JEPA alignment on normalized embeddings. No frozen anchor and no sphere-noise recovery."
+    if code == "C":
+        return "Co-trained self-anchor: the target is produced by the model being trained now. This is the collapse-prone moving-target control."
+    if code == "C_detach":
+        return "Detached self-anchor: the current target is stopped from receiving gradient, but it still comes from the current moving model."
+    if code == "C_ema":
+        return "Momentum self-anchor: the target comes from a slow-moving EMA copy. More stable than co-trained, but still not a fixed external anchor."
+    if code in {"D0", "D_own_0"}:
+        return "Clean frozen anchor: use the same fixed sample-specific anchor as the noisy variant, but with no sphere noise."
+    if code in {"D1", "D_own_1"}:
+        return "Noisy frozen anchor: perturb the spherical embedding and reconstruct that same sample's fixed anchor. This is the main sphere-anchor method."
+    if code in {"D0a", "D1a"}:
+        return "Toy continuous anchor: reconstruct the original synthetic point; the D1 version adds sphere noise and the D0 version does not."
+    if code in {"D0b", "D1b"}:
+        return "Toy random-feature anchor: reconstruct random Fourier features; the D1 version adds sphere noise and the D0 version does not."
+    if code in {"D0c", "D1c"}:
+        return "Toy frozen-teacher anchor: reconstruct features from a fixed teacher; the D1 version adds sphere noise and the D0 version does not."
+    if code in {"D2", "D3"}:
+        return "Class-anchor control: predict a low-cardinality class label. Useful warning case because class spread can hide within-class collapse."
+    if code in {"D_cross_0", "D_cross_1"}:
+        return "Frozen cross-view anchor: text-side cap reconstructs the paired code-side anchor. The _1 version adds sphere noise."
+    if code in {"D_cross_sym_0", "D_cross_sym_1"}:
+        return "Two-way frozen cross-view anchor: text predicts code anchor and code predicts text anchor. The _1 version adds sphere noise."
+    if code == "F":
+        if slug.startswith("exp2_pythia160m"):
+            return "InfoNCE contrastive baseline: pulls true text/code pairs together and pushes other batch pairs apart."
+        return "VICReg baseline: matches paired views while explicitly discouraging variance collapse and correlated dimensions."
+    if code == "G":
+        if slug.startswith("exp2_pythia160m"):
+            return "VICReg baseline: matches paired text/code views while discouraging variance collapse and correlated dimensions."
+        return "SIGReg baseline: alignment plus an isotropic Gaussian-style regularizer on the learned embeddings."
+    if code == "H":
+        return "SIGReg baseline: JEPA alignment plus a centered, identity-covariance regularizer. No frozen anchor and no sphere-noise recovery."
+    if code == "Regular":
+        return "Plain supervised fine-tune. The model learns to generate regex strings without any cap-anchor objective."
+    if code == "Cross":
+        return "Full fine-tune with a frozen cross-view cap objective in addition to language-model training."
+    if code == "Both":
+        return "Full fine-tune with both own-view and cross-view frozen cap objectives."
+    return "See the variant glossary for this method."
+
+
+def config_value(value: Any) -> str:
+    if value is None:
+        return "not set"
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    if isinstance(value, float):
+        return f"{value:g}"
+    return str(value)
+
+
+def run_setup_rows(run: dict[str, Any]) -> list[tuple[str, str]]:
+    slug = run["slug"]
+    cfg = run.get("config", {})
+    cache = run.get("cache_config", {})
+    variants = ", ".join(str(record.get("variant")) for record in run.get("records", []))
+    if slug == "exp0_full":
+        return [
+            ("Data", f"{config_value(cfg.get('clusters'))} synthetic clusters, {config_value(cfg.get('samples_per_cluster'))} samples per cluster."),
+            ("Views", "Two noisy paired views of the same synthetic point."),
+            ("Training", f"{config_value(cfg.get('steps'))} steps, embedding dim {config_value(cfg.get('emb_dim'))}, sigma_max {config_value(cfg.get('sigma_max'))}."),
+            ("Methods", variants),
+            ("Task output", "No downstream generator. This run is only about representation geometry and collapse controls."),
+        ]
+    if slug == "exp1_cifar_gpu":
+        return [
+            ("Data", f"CIFAR-10 subset: {config_value(cfg.get('train_limit'))} train images and {config_value(cfg.get('test_limit'))} test images."),
+            ("Views", "Two image augmentations of the same image."),
+            ("Backbone", f"{config_value(cfg.get('arch'))} encoder with frozen autoencoder teacher anchors from {config_value(cfg.get('teacher_ckpt'))}."),
+            ("Training", f"{config_value(cfg.get('epochs'))} representation epochs, {config_value(cfg.get('probe_epochs'))} probe epochs, batch {config_value(cfg.get('batch_size'))}."),
+            ("Methods", variants),
+        ]
+    if slug.startswith("exp2_pythia160m"):
+        input_pre = cfg.get("input_preprocess", "raw")
+        anchor_pre = cfg.get("anchor_preprocess", "raw")
+        return [
+            ("Data", f"Natural-language/regex synthetic pairs from {config_value(cache.get('input') or cfg.get('cache'))}."),
+            ("Frozen model", f"{config_value(cache.get('model_name'))}, {config_value(cache.get('pooling'))}-token pooled hidden states. The LLM itself is not trained."),
+            ("Trainable parts", f"Small text/code projection heads and cap heads for {config_value(cfg.get('epochs'))} epochs; embedding dim {config_value(cfg.get('emb_dim'))}."),
+            ("Preprocessing", f"Source/input states: {config_value(input_pre)}. Frozen anchors: {config_value(anchor_pre)}."),
+            ("Split", f"{config_value(cfg.get('train_fraction'))} train fraction, seed {config_value(cfg.get('seed'))}."),
+            ("Methods", variants),
+        ]
+    if slug.startswith("exp3"):
+        return [
+            ("Task", config_value(cfg.get("task"))),
+            ("Base model", config_value(cfg.get("base_model"))),
+            ("Data", f"{config_value(cfg.get('train_examples'))} train prompts and {config_value(cfg.get('test_examples'))} held-out prompts."),
+            ("Training", f"{config_value(cfg.get('epochs'))} epochs, batch {config_value(cfg.get('batch_size'))}, learning rate {config_value(cfg.get('learning_rate'))}."),
+            ("Evaluation", config_value(cfg.get("eval_metric"))),
+            ("Methods", variants),
+        ]
+    return [("Methods", variants)]
+
+
+def run_expected_patterns(run: dict[str, Any]) -> list[str]:
+    slug = run["slug"]
+    if slug == "exp0_full":
+        return [
+            "Co-trained self-anchor should have very low RankMe or very high cosine if the collapse failure mode is present.",
+            "Noisy anchors should beat their matched clean anchors if sphere noise is useful.",
+            "Class-anchor can look strong globally; within-class RankMe tells whether it actually preserves sample-level variation.",
+        ]
+    if slug == "exp1_cifar_gpu":
+        return [
+            "Noisy frozen anchor should beat clean frozen anchor on geometry if the mechanism transfers to images.",
+            "Linear-probe accuracy is the task sanity check. Geometry improving while probe drops means the representation changed, but not in a task-useful way here.",
+            "Class-anchor is supervised and should not be counted as an unsupervised mechanism win.",
+        ]
+    if slug == "exp2_pythia160m_synth_input_white_anchor_white":
+        return [
+            "This source+anchor-whitened run is the cleanest Exp2 mechanism comparison. It focuses on D_own/C/C_ema/F/G/H and does not include the plain A/B JEPA-only controls.",
+            "Noisy frozen own-anchor should beat clean frozen own-anchor if sphere noise helps.",
+            "Noisy frozen own-anchor should beat co-trained and momentum self-anchors if fixed external anchors matter.",
+            "InfoNCE may win direct embedding retrieval because it trains directly for paired retrieval. The cap-anchor question is better read through predicted-code and cap-to-anchor retrieval.",
+        ]
+    if slug.startswith("exp2_pythia160m"):
+        return [
+            "Use this as a preprocessing ablation, not the main mechanism claim.",
+            "If raw or norm-only runs collapse, that mainly says frozen Pythia states are anisotropic and hard for small heads.",
+            "Compare clean/noisy frozen own-anchor within this preprocessing mode, then compare the whole mode against source+anchor whitening.",
+        ]
+    if slug.startswith("exp3"):
+        return [
+            "Plain fine-tune is the baseline to beat for downstream generation.",
+            "Noisy frozen anchor minus clean frozen anchor isolates the sphere-noise contribution.",
+            "Exact match matters more than training loss because cap objectives change the loss scale across variants.",
+        ]
+    return ["Use matched controls first; absolute metric values are secondary."]
+
+
+def render_pairs_table(rows: list[tuple[str, str]], first: str, second: str, *, small: bool = True) -> str:
+    body = "".join(f"<tr><td>{html.escape(left)}</td><td>{html.escape(right)}</td></tr>" for left, right in rows)
+    cls = "table-wrap small" if small else "table-wrap"
+    return f"""
+    <div class="{cls}">
+      <table>
+        <thead><tr><th>{html.escape(first)}</th><th>{html.escape(second)}</th></tr></thead>
+        <tbody>{body}</tbody>
+      </table>
+    </div>
+    """
+
+
+def render_method_table(run: dict[str, Any]) -> str:
+    rows = [
+        (variant_label(record.get("variant"), run), variant_method_description(str(record.get("variant")), run))
+        for record in run.get("records", [])
+    ]
+    return render_pairs_table(rows, "Method", "What it does in this section")
+
+
+def render_setup_table(run: dict[str, Any]) -> str:
+    return render_pairs_table(run_setup_rows(run), "Run detail", "Value")
+
+
+def render_expected_list(run: dict[str, Any]) -> str:
+    items = "".join(f"<li>{html.escape(item)}</li>" for item in run_expected_patterns(run))
+    return f"<ul>{items}</ul>"
+
+
 def fig_card(src: str | None, title: str, note_key: str) -> str:
     if not src:
         return ""
@@ -1139,7 +1378,7 @@ def fig_card(src: str | None, title: str, note_key: str) -> str:
       <a class="figure-link" href="{asset_path}" target="_blank" rel="noopener" aria-label="Open {html.escape(title)} full-size">
         <img src="{asset_path}" alt="{html.escape(title)}" loading="lazy" decoding="async">
       </a>
-      <p>{html.escape(FIGURE_NOTES[note_key])}</p>
+      <p><strong>How to read:</strong> {html.escape(FIGURE_NOTES[note_key])}</p>
     </article>
     """
 
@@ -1162,6 +1401,21 @@ def render_glossary() -> str:
       <div class="callout">
         <p><strong>Are we comparing against JEPA?</strong> Yes, but not only JEPA versus no-JEPA. The JEPA-style family is the predictor/target setup: MSE JEPA, cosine JEPA, co-trained self-anchor, momentum self-anchor, and the frozen-anchor sphere variants. Plain fine-tune is the non-JEPA downstream baseline; InfoNCE, VICReg, and SIGReg are non-JEPA anti-collapse baselines.</p>
         <p><strong>What we are going for:</strong> a useful sphere-cap mechanism should make noisy frozen-anchor variants beat their matched clean-anchor controls, and beat self-anchor targets that can move with the encoder and collapse. High RankMe plus low mean cosine is the main geometry signature.</p>
+      </div>
+      <div class="guide-grid">
+        <article class="text-card">
+          <h3>Method Ideas In Plain Language</h3>
+          {render_pairs_table(METHOD_GUIDE, 'Term', 'Meaning')}
+        </article>
+        <article class="text-card">
+          <h3>Whitening</h3>
+          <p>Whitening is especially important in the frozen LLM sections. It makes the source or anchor cloud less dominated by a few common directions before small heads are trained.</p>
+          {render_pairs_table(WHITENING_GUIDE, 'Term', 'Meaning')}
+        </article>
+        <article class="text-card">
+          <h3>Expected Patterns</h3>
+          {render_pairs_table(EXPECTED_PATTERN_GUIDE, 'Question', 'What would support it?')}
+        </article>
       </div>
       <div class="two-col">
         <div>
@@ -1210,9 +1464,9 @@ def render_run(run: dict[str, Any], figures: dict[str, str | None]) -> str:
             fig_card(figures.get("sphere"), "Hypersphere Proxy", "sphere"),
             fig_card(figures.get("hist"), "Cosine Histograms", "hist"),
             fig_card(figures.get("spectrum"), "Eigenspectra", "spectrum"),
-            fig_card(figures.get("retrieval"), "Retrieval Bars", "heatmap"),
+            fig_card(figures.get("retrieval"), "Retrieval Bars", "retrieval"),
             fig_card(figures.get("heatmap"), "Similarity Heatmaps", "heatmap"),
-            fig_card(figures.get("history"), "Training Traces", "metrics"),
+            fig_card(figures.get("history"), "Training Traces", "history"),
         ]
     )
     return f"""
@@ -1232,6 +1486,18 @@ def render_run(run: dict[str, Any], figures: dict[str, str | None]) -> str:
           <ul>{notes}</ul>
           <h3>Current Read</h3>
           <ul>{takeaways}</ul>
+        </article>
+        <article class="text-card">
+          <h3>How This Was Run</h3>
+          {render_setup_table(run)}
+        </article>
+        <article class="text-card">
+          <h3>Methods In This Section</h3>
+          {render_method_table(run)}
+        </article>
+        <article class="text-card">
+          <h3>Expected Pattern</h3>
+          {render_expected_list(run)}
         </article>
         <article class="text-card">
           <h3>Headline Contrasts</h3>
@@ -1308,6 +1574,7 @@ def build_html(runs: list[dict[str, Any]], overview: dict[str, str | None], per_
     .hero {{ display: grid; grid-template-columns: 1fr; gap: 18px; align-items: start; }}
     .callout {{ background: #eef5ee; border-left: 5px solid var(--green); padding: 12px 14px; border-radius: 7px; }}
     .two-col {{ display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 18px; align-items: start; }}
+    .guide-grid {{ display: grid; grid-template-columns: repeat(3, minmax(280px, 1fr)); gap: 14px; margin: 14px 0 18px; align-items: start; }}
     h2 {{ margin: 0 0 10px; font-size: 22px; }}
     h3 {{ margin: 0 0 9px; font-size: 16px; }}
     h4 {{ margin: 0 0 9px; font-size: 15px; }}
@@ -1335,7 +1602,7 @@ def build_html(runs: list[dict[str, Any]], overview: dict[str, str | None], per_
     code {{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }}
     summary {{ cursor: pointer; font-weight: 700; padding: 10px 0; }}
     @media (max-width: 900px) {{
-      .top, .hero, .two-col, .run-grid, .run-head {{ grid-template-columns: 1fr; }}
+      .top, .hero, .two-col, .guide-grid, .run-grid, .run-head {{ grid-template-columns: 1fr; }}
       nav, .links {{ justify-content: flex-start; }}
       .fig-grid {{ grid-template-columns: 1fr; }}
     }}

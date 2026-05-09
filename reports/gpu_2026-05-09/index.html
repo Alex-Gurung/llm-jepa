@@ -32,6 +32,7 @@
     .hero { display: grid; grid-template-columns: 1fr; gap: 18px; align-items: start; }
     .callout { background: #eef5ee; border-left: 5px solid var(--green); padding: 12px 14px; border-radius: 7px; }
     .two-col { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 18px; align-items: start; }
+    .guide-grid { display: grid; grid-template-columns: repeat(3, minmax(280px, 1fr)); gap: 14px; margin: 14px 0 18px; align-items: start; }
     h2 { margin: 0 0 10px; font-size: 22px; }
     h3 { margin: 0 0 9px; font-size: 16px; }
     h4 { margin: 0 0 9px; font-size: 15px; }
@@ -59,7 +60,7 @@
     code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
     summary { cursor: pointer; font-weight: 700; padding: 10px 0; }
     @media (max-width: 900px) {
-      .top, .hero, .two-col, .run-grid, .run-head { grid-template-columns: 1fr; }
+      .top, .hero, .two-col, .guide-grid, .run-grid, .run-head { grid-template-columns: 1fr; }
       nav, .links { justify-content: flex-start; }
       .fig-grid { grid-template-columns: 1fr; }
     }
@@ -83,6 +84,42 @@
         <p><strong>Are we comparing against JEPA?</strong> Yes, but not only JEPA versus no-JEPA. The JEPA-style family is the predictor/target setup: MSE JEPA, cosine JEPA, co-trained self-anchor, momentum self-anchor, and the frozen-anchor sphere variants. Plain fine-tune is the non-JEPA downstream baseline; InfoNCE, VICReg, and SIGReg are non-JEPA anti-collapse baselines.</p>
         <p><strong>What we are going for:</strong> a useful sphere-cap mechanism should make noisy frozen-anchor variants beat their matched clean-anchor controls, and beat self-anchor targets that can move with the encoder and collapse. High RankMe plus low mean cosine is the main geometry signature.</p>
       </div>
+      <div class="guide-grid">
+        <article class="text-card">
+          <h3>Method Ideas In Plain Language</h3>
+
+    <div class="table-wrap small">
+      <table>
+        <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+        <tbody><tr><td>View</td><td>One representation of the same example. In toy runs the views are two synthetic augmentations; in CIFAR they are two image augmentations; in frozen LLM runs they are the natural-language side and regex/code side.</td></tr><tr><td>JEPA alignment</td><td>A predictor takes one view&#x27;s embedding and tries to match the paired view&#x27;s embedding. It learns representations without directly generating the original input.</td></tr><tr><td>Co-trained self-anchor</td><td>The target is produced by a network being trained at the same time as the predictor. Because the target can move, this can make the loss easy by letting both sides collapse together.</td></tr><tr><td>Frozen anchor</td><td>The target is fixed before training. The model cannot move the target to make the loss easier, so this is the control that tests whether a stable external target prevents collapse.</td></tr><tr><td>Sphere noise</td><td>The learned embedding is normalized onto a sphere, perturbed, then asked to recover the same sample&#x27;s anchor. The intended effect is to make the local neighborhood around each sample meaningful instead of brittle.</td></tr><tr><td>InfoNCE</td><td>A contrastive baseline. It pulls true pairs together and pushes all other batch items apart. It often wins direct retrieval because direct retrieval is exactly what it trains for.</td></tr><tr><td>VICReg</td><td>A non-contrastive baseline with three terms: match paired embeddings, keep each dimension from collapsing, and reduce correlation between dimensions.</td></tr><tr><td>SIGReg</td><td>An isotropy regularizer. In Exp2 it is added to JEPA alignment and pushes embeddings toward a centered, roughly identity-covariance distribution; it does not use frozen anchors or sphere-noise recovery.</td></tr></tbody>
+      </table>
+    </div>
+
+        </article>
+        <article class="text-card">
+          <h3>Whitening</h3>
+          <p>Whitening is especially important in the frozen LLM sections. It makes the source or anchor cloud less dominated by a few common directions before small heads are trained.</p>
+
+    <div class="table-wrap small">
+      <table>
+        <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+        <tbody><tr><td>What whitening does</td><td>It subtracts the training-set mean, rotates into principal-component coordinates, and rescales directions so the covariance is close to identity.</td></tr><tr><td>Why it matters here</td><td>Frozen LLM hidden states often have a few huge common directions. Without whitening, many examples look artificially similar, which can create high cosine, hubness, and misleading retrieval.</td></tr><tr><td>Source whitening</td><td>Whitening the input vectors fed into the trainable projection heads. This fixes the geometry the small heads start from.</td></tr><tr><td>Anchor whitening</td><td>Whitening the fixed target vectors that cap heads reconstruct. This makes the target space itself less dominated by a few directions.</td></tr><tr><td>What it is not</td><td>It is not a supervised label and not a task answer. It is preprocessing that makes the frozen representation space numerically better behaved.</td></tr></tbody>
+      </table>
+    </div>
+
+        </article>
+        <article class="text-card">
+          <h3>Expected Patterns</h3>
+
+    <div class="table-wrap small">
+      <table>
+        <thead><tr><th>Question</th><th>What would support it?</th></tr></thead>
+        <tbody><tr><td>Noise contribution</td><td>Noisy frozen anchor should beat clean frozen anchor in the same run. This isolates sphere noise because the anchor and model setup are otherwise matched.</td></tr><tr><td>External-anchor contribution</td><td>Noisy frozen anchor should beat co-trained or momentum self-anchor. This asks whether a fixed target is better than a target that moves with training.</td></tr><tr><td>Geometry health</td><td>Good geometry usually means high RankMe and low mean cosine together. High RankMe alone is not enough if task metrics get worse.</td></tr><tr><td>Downstream usefulness</td><td>For full fine-tuning, exact-match generation must improve over plain fine-tune. Geometry-only wins do not automatically prove a better generator.</td></tr><tr><td>Baseline sanity</td><td>InfoNCE/VICReg/SIGReg should prevent trivial collapse. If they win direct retrieval, that means retrieval favors their objective; it does not automatically disprove the anchor mechanism.</td></tr></tbody>
+      </table>
+    </div>
+
+        </article>
+      </div>
       <div class="two-col">
         <div>
           <h3>Variant Glossary</h3>
@@ -98,7 +135,7 @@
           <div class="table-wrap small">
             <table>
               <thead><tr><th>Metric/Figure</th><th>Reading rule</th></tr></thead>
-              <tbody><tr><td>RankMe</td><td>Higher is better. Effective embedding dimensionality. Collapse usually means very low RankMe.</td></tr><tr><td>Mean off-diagonal cosine</td><td>Lower is better. Near 1 means most samples point in the same direction.</td></tr><tr><td>Uniformity</td><td>More negative is better. It measures how evenly normalized points spread on the hypersphere.</td></tr><tr><td>Top eig mass</td><td>Lower is better. High mass means one principal direction dominates.</td></tr><tr><td>PCA maps</td><td>A 2-D diagnostic only. Broad clouds are healthier than dots or thin lines, but use metrics for claims.</td></tr><tr><td>Hypersphere maps</td><td>A normalized PCA disk. It shows whether points occupy many angular directions or clump at a pole.</td></tr><tr><td>Retrieval heatmaps</td><td>A bright diagonal means the intended pair ranks highly. Bands or blocks indicate hubness/collapse.</td></tr></tbody>
+              <tbody><tr><td>RankMe</td><td>Effective dimensionality. If all samples collapse to one direction, RankMe is near 1. Higher means information is spread across more independent directions, but it is only a geometry metric.</td></tr><tr><td>Mean off-diagonal cosine</td><td>Average similarity between different samples. Lower is better. Near 1 means most samples point in almost the same direction.</td></tr><tr><td>Uniformity</td><td>How evenly normalized points cover the sphere. More negative is usually better; use it with RankMe and cosine, not alone.</td></tr><tr><td>Top eig mass</td><td>Share of variance in the largest principal direction. Lower is better. High values mean one direction dominates the embedding space.</td></tr><tr><td>PCA maps</td><td>A 2-D projection of high-dimensional embeddings. Use it to spot obvious collapse, thin lines, or separated clusters; use metrics for claims.</td></tr><tr><td>Hypersphere maps</td><td>A normalized PCA disk. It is a visual proxy for angular spread: many directions is healthier than one clump at a pole.</td></tr><tr><td>Retrieval heatmaps</td><td>Rows are queries and columns are targets. A bright diagonal is good; bright columns or rows away from the diagonal mean hubness.</td></tr><tr><td>Exact match</td><td>Full fine-tune task metric. The generated regex string must exactly equal the held-out target string.</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -107,7 +144,7 @@
       <div class="table-wrap small">
         <table>
           <thead><tr><th>Experiment</th><th>Task</th><th>Question</th></tr></thead>
-          <tbody><tr><td>Toy geometry</td><td>Synthetic paired views</td><td>Can the objective avoid collapse and produce a spread-out sample-level embedding space?</td></tr><tr><td>CIFAR bridge</td><td>Image augmentation representation learning</td><td>Does better geometry transfer to a simple linear-probe image task?</td></tr><tr><td>Frozen LLM heads</td><td>Natural-language/regex pairs with a frozen Pythia backbone</td><td>Can small heads learn useful text/code geometry without changing the LLM?</td></tr><tr><td>Full LLM fine-tune</td><td>Generate a regex from a natural-language prompt</td><td>Does the cap-anchor objective improve strict downstream exact match over plain supervised fine-tuning?</td></tr></tbody>
+          <tbody><tr><td>Toy geometry</td><td>Synthetic paired views</td><td>Train small networks on controlled synthetic clusters. This is the fastest way to see collapse, spread, and the noise-vs-anchor controls.</td></tr><tr><td>CIFAR bridge</td><td>Image augmentation representation learning</td><td>Train image encoders on CIFAR-10 augmentations, then evaluate both geometry and linear-probe accuracy.</td></tr><tr><td>Frozen LLM heads</td><td>Natural-language/regex pairs with a frozen Pythia backbone</td><td>Cache frozen LLM hidden states, train only small projection/cap heads, and evaluate text-code geometry/retrieval without changing the LLM.</td></tr><tr><td>Full LLM fine-tune</td><td>Generate a regex from a natural-language prompt</td><td>Fine-tune the language model itself and score strict exact-match regex generation on held-out synthetic prompts.</td></tr></tbody>
         </table>
       </div>
     </section>
@@ -124,7 +161,7 @@
       <a class="figure-link" href="assets/dashboard/overview_geometry.png" target="_blank" rel="noopener" aria-label="Open Overall Geometry Map full-size">
         <img src="assets/dashboard/overview_geometry.png" alt="Overall Geometry Map" loading="lazy" decoding="async">
       </a>
-      <p>Read this first. The desired pattern is high RankMe and low mean cosine for noisy external-anchor variants, especially when compared with co-trained self-anchor and clean-anchor controls.</p>
+      <p><strong>How to read:</strong> Start here. The upper-left area is best for geometry: high RankMe and low mean cosine. The key comparisons are noisy frozen anchor vs clean frozen anchor, and noisy frozen anchor vs self-anchor.</p>
     </article>
 
 
@@ -136,7 +173,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_preprocessing.png" target="_blank" rel="noopener" aria-label="Open Exp2 Preprocessing Sweep full-size">
         <img src="assets/dashboard/exp2_preprocessing.png" alt="Exp2 Preprocessing Sweep" loading="lazy" decoding="async">
       </a>
-      <p>For the frozen LLM run, whitening the source states matters. The best mechanism comparison is inside the source+anchor whitened run.</p>
+      <p><strong>How to read:</strong> This explains why whitening matters. Source+anchor whitening is the cleanest Exp2 comparison because both the inputs and fixed targets have the worst common-direction bias removed.</p>
     </article>
 
       </div>
@@ -160,6 +197,32 @@
           <ul><li>Co-trained self-anchor collapses hard: low RankMe and cosine near 1.</li><li>Noisy continuous and noisy frozen-teacher anchors improve over their matched clean-anchor controls, which is the cleanest evidence that noise can help.</li><li>The class-anchor control uses labels. It can look good globally while missing sample-level spread, so within-class RankMe matters.</li></ul>
         </article>
         <article class="text-card">
+          <h3>How This Was Run</h3>
+
+    <div class="table-wrap small">
+      <table>
+        <thead><tr><th>Run detail</th><th>Value</th></tr></thead>
+        <tbody><tr><td>Data</td><td>8 synthetic clusters, 1000 samples per cluster.</td></tr><tr><td>Views</td><td>Two noisy paired views of the same synthetic point.</td></tr><tr><td>Training</td><td>1000 steps, embedding dim 16, sigma_max 0.5.</td></tr><tr><td>Methods</td><td>A, B, C, C_detach, C_ema, D0a, D1a, D0b, D1b, D0c, D1c, D3, F, G</td></tr><tr><td>Task output</td><td>No downstream generator. This run is only about representation geometry and collapse controls.</td></tr></tbody>
+      </table>
+    </div>
+
+        </article>
+        <article class="text-card">
+          <h3>Methods In This Section</h3>
+
+    <div class="table-wrap small">
+      <table>
+        <thead><tr><th>Method</th><th>What it does in this section</th></tr></thead>
+        <tbody><tr><td>MSE JEPA baseline (A)</td><td>Plain JEPA alignment: one view predicts the paired view with MSE. No frozen anchor and no sphere-noise recovery.</td></tr><tr><td>Cosine JEPA baseline (B)</td><td>Cosine JEPA alignment on normalized embeddings. No frozen anchor and no sphere-noise recovery.</td></tr><tr><td>Co-trained self-anchor (C)</td><td>Co-trained self-anchor: the target is produced by the model being trained now. This is the collapse-prone moving-target control.</td></tr><tr><td>Detached self-anchor (C_detach)</td><td>Detached self-anchor: the current target is stopped from receiving gradient, but it still comes from the current moving model.</td></tr><tr><td>Momentum self-anchor (C_ema)</td><td>Momentum self-anchor: the target comes from a slow-moving EMA copy. More stable than co-trained, but still not a fixed external anchor.</td></tr><tr><td>Clean continuous anchor (D0a)</td><td>Toy continuous anchor: reconstruct the original synthetic point; the D1 version adds sphere noise and the D0 version does not.</td></tr><tr><td>Noisy continuous anchor (D1a)</td><td>Toy continuous anchor: reconstruct the original synthetic point; the D1 version adds sphere noise and the D0 version does not.</td></tr><tr><td>Clean RFF anchor (D0b)</td><td>Toy random-feature anchor: reconstruct random Fourier features; the D1 version adds sphere noise and the D0 version does not.</td></tr><tr><td>Noisy RFF anchor (D1b)</td><td>Toy random-feature anchor: reconstruct random Fourier features; the D1 version adds sphere noise and the D0 version does not.</td></tr><tr><td>Clean frozen-teacher anchor (D0c)</td><td>Toy frozen-teacher anchor: reconstruct features from a fixed teacher; the D1 version adds sphere noise and the D0 version does not.</td></tr><tr><td>Noisy frozen-teacher anchor (D1c)</td><td>Toy frozen-teacher anchor: reconstruct features from a fixed teacher; the D1 version adds sphere noise and the D0 version does not.</td></tr><tr><td>Class anchor (D3)</td><td>Class-anchor control: predict a low-cardinality class label. Useful warning case because class spread can hide within-class collapse.</td></tr><tr><td>VICReg baseline (F)</td><td>VICReg baseline: matches paired views while explicitly discouraging variance collapse and correlated dimensions.</td></tr><tr><td>SIGReg baseline (G)</td><td>SIGReg baseline: alignment plus an isotropic Gaussian-style regularizer on the learned embeddings.</td></tr></tbody>
+      </table>
+    </div>
+
+        </article>
+        <article class="text-card">
+          <h3>Expected Pattern</h3>
+          <ul><li>Co-trained self-anchor should have very low RankMe or very high cosine if the collapse failure mode is present.</li><li>Noisy anchors should beat their matched clean anchors if sphere noise is useful.</li><li>Class-anchor can look strong globally; within-class RankMe tells whether it actually preserves sample-level variation.</li></ul>
+        </article>
+        <article class="text-card">
           <h3>Headline Contrasts</h3>
 
     <div class="table-wrap">
@@ -180,7 +243,7 @@
       <a class="figure-link" href="assets/dashboard/exp0_full_metrics.png" target="_blank" rel="noopener" aria-label="Open Metric Overview full-size">
         <img src="assets/dashboard/exp0_full_metrics.png" alt="Metric Overview" loading="lazy" decoding="async">
       </a>
-      <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
+      <p><strong>How to read:</strong> Read RankMe and cosine together. A good geometry result has higher RankMe and lower cosine than its matched control; direct retrieval can favor InfoNCE because InfoNCE trains for direct retrieval.</p>
     </article>
 
     <article class="figure-card">
@@ -191,7 +254,7 @@
       <a class="figure-link" href="assets/dashboard/exp0_full_anchors.png" target="_blank" rel="noopener" aria-label="Open Anchor Geometry full-size">
         <img src="assets/dashboard/exp0_full_anchors.png" alt="Anchor Geometry" loading="lazy" decoding="async">
       </a>
-      <p>Anchor diagnostics tell whether the target itself is usable. If anchors are anisotropic, the model can inherit that anisotropy.</p>
+      <p><strong>How to read:</strong> Anchor diagnostics tell whether the fixed target space is usable before training. If anchors are anisotropic, the model can inherit that problem.</p>
     </article>
 
     <article class="figure-card">
@@ -202,7 +265,7 @@
       <a class="figure-link" href="assets/dashboard/exp0_full_pca.png" target="_blank" rel="noopener" aria-label="Open PCA Maps full-size">
         <img src="assets/dashboard/exp0_full_pca.png" alt="PCA Maps" loading="lazy" decoding="async">
       </a>
-      <p>Look for collapse as a tight dot, a thin line, or all classes stacked together. PCA is qualitative: it helps spot failure modes but does not prove success.</p>
+      <p><strong>How to read:</strong> Each panel is a 2-D projection of a high-dimensional embedding. A tiny dot, line, or stacked classes suggest collapse; a broad cloud suggests spread. PCA is visual evidence, not the final metric.</p>
     </article>
 
     <article class="figure-card">
@@ -213,7 +276,7 @@
       <a class="figure-link" href="assets/dashboard/exp0_full_sphere.png" target="_blank" rel="noopener" aria-label="Open Hypersphere Proxy full-size">
         <img src="assets/dashboard/exp0_full_sphere.png" alt="Hypersphere Proxy" loading="lazy" decoding="async">
       </a>
-      <p>This remaps the stored PCA coordinates into a unit disk. A healthy run should use many directions instead of forming one clump.</p>
+      <p><strong>How to read:</strong> This reprojects points into a unit disk to show angular spread. Healthy embeddings occupy many directions; collapsed embeddings clump in one region.</p>
     </article>
 
     <article class="figure-card">
@@ -224,7 +287,7 @@
       <a class="figure-link" href="assets/dashboard/exp0_full_cosine_hists.png" target="_blank" rel="noopener" aria-label="Open Cosine Histograms full-size">
         <img src="assets/dashboard/exp0_full_cosine_hists.png" alt="Cosine Histograms" loading="lazy" decoding="async">
       </a>
-      <p>Cosine histograms should move away from 1. A spike near 1 means many embeddings are almost identical.</p>
+      <p><strong>How to read:</strong> These histograms show all pairwise cosines, not just the mean. A spike near 1 means many examples are almost identical; a distribution shifted left is healthier.</p>
     </article>
 
     <article class="figure-card">
@@ -235,7 +298,7 @@
       <a class="figure-link" href="assets/dashboard/exp0_full_spectra.png" target="_blank" rel="noopener" aria-label="Open Eigenspectra full-size">
         <img src="assets/dashboard/exp0_full_spectra.png" alt="Eigenspectra" loading="lazy" decoding="async">
       </a>
-      <p>A flatter eigenspectrum is healthier. A huge first component means anisotropy.</p>
+      <p><strong>How to read:</strong> This shows how variance is distributed across principal components. A huge first component means anisotropy; a flatter spectrum means more directions are being used.</p>
     </article>
 
     <article class="figure-card">
@@ -246,7 +309,7 @@
       <a class="figure-link" href="assets/dashboard/exp0_full_history.png" target="_blank" rel="noopener" aria-label="Open Training Traces full-size">
         <img src="assets/dashboard/exp0_full_history.png" alt="Training Traces" loading="lazy" decoding="async">
       </a>
-      <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
+      <p><strong>How to read:</strong> Training loss is an optimization trace, not the scientific result. Variants can have different loss terms, so compare final metrics rather than raw loss scale.</p>
     </article>
     </div>
       <details>
@@ -280,6 +343,32 @@
           <ul><li>The noisy frozen anchor improves spread over the clean frozen anchor, but linear-probe accuracy drops in this pass.</li><li>The class-anchor control uses labels, so its high probe accuracy is a supervised control rather than evidence for the anchor mechanism.</li><li>Treat this as a bridge/sanity run, not the main downstream result.</li></ul>
         </article>
         <article class="text-card">
+          <h3>How This Was Run</h3>
+
+    <div class="table-wrap small">
+      <table>
+        <thead><tr><th>Run detail</th><th>Value</th></tr></thead>
+        <tbody><tr><td>Data</td><td>CIFAR-10 subset: 10000 train images and 2000 test images.</td></tr><tr><td>Views</td><td>Two image augmentations of the same image.</td></tr><tr><td>Backbone</td><td>resnet18 encoder with frozen autoencoder teacher anchors from results/exp1_cifar_gpu/teacher_10k.pt.</td></tr><tr><td>Training</td><td>5 representation epochs, 5 probe epochs, batch 512.</td></tr><tr><td>Methods</td><td>A, B, C, C_detach, C_ema, D0, D1, D2, F, G</td></tr></tbody>
+      </table>
+    </div>
+
+        </article>
+        <article class="text-card">
+          <h3>Methods In This Section</h3>
+
+    <div class="table-wrap small">
+      <table>
+        <thead><tr><th>Method</th><th>What it does in this section</th></tr></thead>
+        <tbody><tr><td>MSE JEPA baseline (A)</td><td>Plain JEPA alignment: one view predicts the paired view with MSE. No frozen anchor and no sphere-noise recovery.</td></tr><tr><td>Cosine JEPA baseline (B)</td><td>Cosine JEPA alignment on normalized embeddings. No frozen anchor and no sphere-noise recovery.</td></tr><tr><td>Co-trained self-anchor (C)</td><td>Co-trained self-anchor: the target is produced by the model being trained now. This is the collapse-prone moving-target control.</td></tr><tr><td>Detached self-anchor (C_detach)</td><td>Detached self-anchor: the current target is stopped from receiving gradient, but it still comes from the current moving model.</td></tr><tr><td>Momentum self-anchor (C_ema)</td><td>Momentum self-anchor: the target comes from a slow-moving EMA copy. More stable than co-trained, but still not a fixed external anchor.</td></tr><tr><td>Clean frozen anchor (D0)</td><td>Clean frozen anchor: use the same fixed sample-specific anchor as the noisy variant, but with no sphere noise.</td></tr><tr><td>Noisy frozen anchor (D1)</td><td>Noisy frozen anchor: perturb the spherical embedding and reconstruct that same sample&#x27;s fixed anchor. This is the main sphere-anchor method.</td></tr><tr><td>Class anchor (D2)</td><td>Class-anchor control: predict a low-cardinality class label. Useful warning case because class spread can hide within-class collapse.</td></tr><tr><td>VICReg baseline (F)</td><td>VICReg baseline: matches paired views while explicitly discouraging variance collapse and correlated dimensions.</td></tr><tr><td>SIGReg baseline (G)</td><td>SIGReg baseline: alignment plus an isotropic Gaussian-style regularizer on the learned embeddings.</td></tr></tbody>
+      </table>
+    </div>
+
+        </article>
+        <article class="text-card">
+          <h3>Expected Pattern</h3>
+          <ul><li>Noisy frozen anchor should beat clean frozen anchor on geometry if the mechanism transfers to images.</li><li>Linear-probe accuracy is the task sanity check. Geometry improving while probe drops means the representation changed, but not in a task-useful way here.</li><li>Class-anchor is supervised and should not be counted as an unsupervised mechanism win.</li></ul>
+        </article>
+        <article class="text-card">
           <h3>Headline Contrasts</h3>
 
     <div class="table-wrap">
@@ -300,7 +389,7 @@
       <a class="figure-link" href="assets/dashboard/exp1_cifar_gpu_metrics.png" target="_blank" rel="noopener" aria-label="Open Metric Overview full-size">
         <img src="assets/dashboard/exp1_cifar_gpu_metrics.png" alt="Metric Overview" loading="lazy" decoding="async">
       </a>
-      <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
+      <p><strong>How to read:</strong> Read RankMe and cosine together. A good geometry result has higher RankMe and lower cosine than its matched control; direct retrieval can favor InfoNCE because InfoNCE trains for direct retrieval.</p>
     </article>
 
     <article class="figure-card">
@@ -311,7 +400,7 @@
       <a class="figure-link" href="assets/dashboard/exp1_cifar_gpu_anchors.png" target="_blank" rel="noopener" aria-label="Open Anchor Geometry full-size">
         <img src="assets/dashboard/exp1_cifar_gpu_anchors.png" alt="Anchor Geometry" loading="lazy" decoding="async">
       </a>
-      <p>Anchor diagnostics tell whether the target itself is usable. If anchors are anisotropic, the model can inherit that anisotropy.</p>
+      <p><strong>How to read:</strong> Anchor diagnostics tell whether the fixed target space is usable before training. If anchors are anisotropic, the model can inherit that problem.</p>
     </article>
 
     <article class="figure-card">
@@ -322,7 +411,7 @@
       <a class="figure-link" href="assets/dashboard/exp1_cifar_gpu_pca.png" target="_blank" rel="noopener" aria-label="Open PCA Maps full-size">
         <img src="assets/dashboard/exp1_cifar_gpu_pca.png" alt="PCA Maps" loading="lazy" decoding="async">
       </a>
-      <p>Look for collapse as a tight dot, a thin line, or all classes stacked together. PCA is qualitative: it helps spot failure modes but does not prove success.</p>
+      <p><strong>How to read:</strong> Each panel is a 2-D projection of a high-dimensional embedding. A tiny dot, line, or stacked classes suggest collapse; a broad cloud suggests spread. PCA is visual evidence, not the final metric.</p>
     </article>
 
     <article class="figure-card">
@@ -333,7 +422,7 @@
       <a class="figure-link" href="assets/dashboard/exp1_cifar_gpu_sphere.png" target="_blank" rel="noopener" aria-label="Open Hypersphere Proxy full-size">
         <img src="assets/dashboard/exp1_cifar_gpu_sphere.png" alt="Hypersphere Proxy" loading="lazy" decoding="async">
       </a>
-      <p>This remaps the stored PCA coordinates into a unit disk. A healthy run should use many directions instead of forming one clump.</p>
+      <p><strong>How to read:</strong> This reprojects points into a unit disk to show angular spread. Healthy embeddings occupy many directions; collapsed embeddings clump in one region.</p>
     </article>
 
     <article class="figure-card">
@@ -344,7 +433,7 @@
       <a class="figure-link" href="assets/dashboard/exp1_cifar_gpu_cosine_hists.png" target="_blank" rel="noopener" aria-label="Open Cosine Histograms full-size">
         <img src="assets/dashboard/exp1_cifar_gpu_cosine_hists.png" alt="Cosine Histograms" loading="lazy" decoding="async">
       </a>
-      <p>Cosine histograms should move away from 1. A spike near 1 means many embeddings are almost identical.</p>
+      <p><strong>How to read:</strong> These histograms show all pairwise cosines, not just the mean. A spike near 1 means many examples are almost identical; a distribution shifted left is healthier.</p>
     </article>
 
     <article class="figure-card">
@@ -355,7 +444,7 @@
       <a class="figure-link" href="assets/dashboard/exp1_cifar_gpu_spectra.png" target="_blank" rel="noopener" aria-label="Open Eigenspectra full-size">
         <img src="assets/dashboard/exp1_cifar_gpu_spectra.png" alt="Eigenspectra" loading="lazy" decoding="async">
       </a>
-      <p>A flatter eigenspectrum is healthier. A huge first component means anisotropy.</p>
+      <p><strong>How to read:</strong> This shows how variance is distributed across principal components. A huge first component means anisotropy; a flatter spectrum means more directions are being used.</p>
     </article>
     </div>
       <details>
@@ -389,6 +478,32 @@
           <ul><li>Noisy frozen own-anchor beats clean frozen own-anchor on RankMe, mean cosine, and predicted-code retrieval.</li><li>Noisy frozen own-anchor is far stronger than co-trained self-anchor, so external anchoring matters.</li><li>InfoNCE and VICReg still dominate direct embedding retrieval, so retrieval-space choice matters.</li></ul>
         </article>
         <article class="text-card">
+          <h3>How This Was Run</h3>
+
+    <div class="table-wrap small">
+      <table>
+        <thead><tr><th>Run detail</th><th>Value</th></tr></thead>
+        <tbody><tr><td>Data</td><td>Natural-language/regex synthetic pairs from datasets/synth_train.jsonl.</td></tr><tr><td>Frozen model</td><td>EleutherAI/pythia-160m, last-token pooled hidden states. The LLM itself is not trained.</td></tr><tr><td>Trainable parts</td><td>Small text/code projection heads and cap heads for 50 epochs; embedding dim 256.</td></tr><tr><td>Preprocessing</td><td>Source/input states: white. Frozen anchors: white.</td></tr><tr><td>Split</td><td>0.8 train fraction, seed 0.</td></tr><tr><td>Methods</td><td>D_own_0, D_own_1, C, C_ema, F, G, H</td></tr></tbody>
+      </table>
+    </div>
+
+        </article>
+        <article class="text-card">
+          <h3>Methods In This Section</h3>
+
+    <div class="table-wrap small">
+      <table>
+        <thead><tr><th>Method</th><th>What it does in this section</th></tr></thead>
+        <tbody><tr><td>Clean frozen own-anchor (D_own_0)</td><td>Clean frozen anchor: use the same fixed sample-specific anchor as the noisy variant, but with no sphere noise.</td></tr><tr><td>Noisy frozen own-anchor (D_own_1)</td><td>Noisy frozen anchor: perturb the spherical embedding and reconstruct that same sample&#x27;s fixed anchor. This is the main sphere-anchor method.</td></tr><tr><td>Co-trained self-anchor (C)</td><td>Co-trained self-anchor: the target is produced by the model being trained now. This is the collapse-prone moving-target control.</td></tr><tr><td>Momentum self-anchor (C_ema)</td><td>Momentum self-anchor: the target comes from a slow-moving EMA copy. More stable than co-trained, but still not a fixed external anchor.</td></tr><tr><td>InfoNCE baseline (F)</td><td>InfoNCE contrastive baseline: pulls true text/code pairs together and pushes other batch pairs apart.</td></tr><tr><td>VICReg baseline (G)</td><td>VICReg baseline: matches paired text/code views while discouraging variance collapse and correlated dimensions.</td></tr><tr><td>SIGReg baseline (H)</td><td>SIGReg baseline: JEPA alignment plus a centered, identity-covariance regularizer. No frozen anchor and no sphere-noise recovery.</td></tr></tbody>
+      </table>
+    </div>
+
+        </article>
+        <article class="text-card">
+          <h3>Expected Pattern</h3>
+          <ul><li>This source+anchor-whitened run is the cleanest Exp2 mechanism comparison. It focuses on D_own/C/C_ema/F/G/H and does not include the plain A/B JEPA-only controls.</li><li>Noisy frozen own-anchor should beat clean frozen own-anchor if sphere noise helps.</li><li>Noisy frozen own-anchor should beat co-trained and momentum self-anchors if fixed external anchors matter.</li><li>InfoNCE may win direct embedding retrieval because it trains directly for paired retrieval. The cap-anchor question is better read through predicted-code and cap-to-anchor retrieval.</li></ul>
+        </article>
+        <article class="text-card">
           <h3>Headline Contrasts</h3>
 
     <div class="table-wrap">
@@ -409,7 +524,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_metrics.png" target="_blank" rel="noopener" aria-label="Open Metric Overview full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_metrics.png" alt="Metric Overview" loading="lazy" decoding="async">
       </a>
-      <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
+      <p><strong>How to read:</strong> Read RankMe and cosine together. A good geometry result has higher RankMe and lower cosine than its matched control; direct retrieval can favor InfoNCE because InfoNCE trains for direct retrieval.</p>
     </article>
 
     <article class="figure-card">
@@ -420,7 +535,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_anchors.png" target="_blank" rel="noopener" aria-label="Open Anchor Geometry full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_anchors.png" alt="Anchor Geometry" loading="lazy" decoding="async">
       </a>
-      <p>Anchor diagnostics tell whether the target itself is usable. If anchors are anisotropic, the model can inherit that anisotropy.</p>
+      <p><strong>How to read:</strong> Anchor diagnostics tell whether the fixed target space is usable before training. If anchors are anisotropic, the model can inherit that problem.</p>
     </article>
 
     <article class="figure-card">
@@ -431,7 +546,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_pca.png" target="_blank" rel="noopener" aria-label="Open PCA Maps full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_pca.png" alt="PCA Maps" loading="lazy" decoding="async">
       </a>
-      <p>Look for collapse as a tight dot, a thin line, or all classes stacked together. PCA is qualitative: it helps spot failure modes but does not prove success.</p>
+      <p><strong>How to read:</strong> Each panel is a 2-D projection of a high-dimensional embedding. A tiny dot, line, or stacked classes suggest collapse; a broad cloud suggests spread. PCA is visual evidence, not the final metric.</p>
     </article>
 
     <article class="figure-card">
@@ -442,7 +557,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_sphere.png" target="_blank" rel="noopener" aria-label="Open Hypersphere Proxy full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_sphere.png" alt="Hypersphere Proxy" loading="lazy" decoding="async">
       </a>
-      <p>This remaps the stored PCA coordinates into a unit disk. A healthy run should use many directions instead of forming one clump.</p>
+      <p><strong>How to read:</strong> This reprojects points into a unit disk to show angular spread. Healthy embeddings occupy many directions; collapsed embeddings clump in one region.</p>
     </article>
 
     <article class="figure-card">
@@ -453,7 +568,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_cosine_hists.png" target="_blank" rel="noopener" aria-label="Open Cosine Histograms full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_cosine_hists.png" alt="Cosine Histograms" loading="lazy" decoding="async">
       </a>
-      <p>Cosine histograms should move away from 1. A spike near 1 means many embeddings are almost identical.</p>
+      <p><strong>How to read:</strong> These histograms show all pairwise cosines, not just the mean. A spike near 1 means many examples are almost identical; a distribution shifted left is healthier.</p>
     </article>
 
     <article class="figure-card">
@@ -464,7 +579,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_spectra.png" target="_blank" rel="noopener" aria-label="Open Eigenspectra full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_spectra.png" alt="Eigenspectra" loading="lazy" decoding="async">
       </a>
-      <p>A flatter eigenspectrum is healthier. A huge first component means anisotropy.</p>
+      <p><strong>How to read:</strong> This shows how variance is distributed across principal components. A huge first component means anisotropy; a flatter spectrum means more directions are being used.</p>
     </article>
 
     <article class="figure-card">
@@ -475,7 +590,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_retrieval.png" target="_blank" rel="noopener" aria-label="Open Retrieval Bars full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_retrieval.png" alt="Retrieval Bars" loading="lazy" decoding="async">
       </a>
-      <p>For retrieval-like figures, a strong diagonal is good. Uniform vertical or horizontal bands mean a small number of embeddings act as hubs.</p>
+      <p><strong>How to read:</strong> Recall@1 asks whether each query retrieves its paired target. Direct embedding retrieval and cap-to-anchor retrieval are different spaces, so compare the matching retrieval metric for the method.</p>
     </article>
 
     <article class="figure-card">
@@ -486,7 +601,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_heatmaps.png" target="_blank" rel="noopener" aria-label="Open Similarity Heatmaps full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_input_white_anchor_white_heatmaps.png" alt="Similarity Heatmaps" loading="lazy" decoding="async">
       </a>
-      <p>For retrieval-like figures, a strong diagonal is good. Uniform vertical or horizontal bands mean a small number of embeddings act as hubs.</p>
+      <p><strong>How to read:</strong> Rows are queries and columns are targets. A bright diagonal is good. Bright vertical bands mean some targets are hubs that many queries retrieve.</p>
     </article>
     </div>
       <details>
@@ -520,6 +635,32 @@
           <ul><li>Raw source hidden states remain highly anisotropic, so anchor spherification alone is not enough.</li><li>This run keeps the full ablation set, including cross-view cap reconstruction.</li><li>Use it mainly to compare own-view, cross-view, InfoNCE, VICReg, and SIGReg geometry controls.</li></ul>
         </article>
         <article class="text-card">
+          <h3>How This Was Run</h3>
+
+    <div class="table-wrap small">
+      <table>
+        <thead><tr><th>Run detail</th><th>Value</th></tr></thead>
+        <tbody><tr><td>Data</td><td>Natural-language/regex synthetic pairs from datasets/synth_train.jsonl.</td></tr><tr><td>Frozen model</td><td>EleutherAI/pythia-160m, last-token pooled hidden states. The LLM itself is not trained.</td></tr><tr><td>Trainable parts</td><td>Small text/code projection heads and cap heads for 50 epochs; embedding dim 256.</td></tr><tr><td>Preprocessing</td><td>Source/input states: raw. Frozen anchors: sphere.</td></tr><tr><td>Split</td><td>0.8 train fraction, seed 0.</td></tr><tr><td>Methods</td><td>A, B, C, C_detach, C_ema, D_own_0, D_own_1, D_cross_0, D_cross_1, D_cross_sym_0, D_cross_sym_1, F, G, H</td></tr></tbody>
+      </table>
+    </div>
+
+        </article>
+        <article class="text-card">
+          <h3>Methods In This Section</h3>
+
+    <div class="table-wrap small">
+      <table>
+        <thead><tr><th>Method</th><th>What it does in this section</th></tr></thead>
+        <tbody><tr><td>MSE JEPA baseline (A)</td><td>Plain JEPA alignment: one view predicts the paired view with MSE. No frozen anchor and no sphere-noise recovery.</td></tr><tr><td>Cosine JEPA baseline (B)</td><td>Cosine JEPA alignment on normalized embeddings. No frozen anchor and no sphere-noise recovery.</td></tr><tr><td>Co-trained self-anchor (C)</td><td>Co-trained self-anchor: the target is produced by the model being trained now. This is the collapse-prone moving-target control.</td></tr><tr><td>Detached self-anchor (C_detach)</td><td>Detached self-anchor: the current target is stopped from receiving gradient, but it still comes from the current moving model.</td></tr><tr><td>Momentum self-anchor (C_ema)</td><td>Momentum self-anchor: the target comes from a slow-moving EMA copy. More stable than co-trained, but still not a fixed external anchor.</td></tr><tr><td>Clean frozen own-anchor (D_own_0)</td><td>Clean frozen anchor: use the same fixed sample-specific anchor as the noisy variant, but with no sphere noise.</td></tr><tr><td>Noisy frozen own-anchor (D_own_1)</td><td>Noisy frozen anchor: perturb the spherical embedding and reconstruct that same sample&#x27;s fixed anchor. This is the main sphere-anchor method.</td></tr><tr><td>Clean frozen cross-anchor (D_cross_0)</td><td>Frozen cross-view anchor: text-side cap reconstructs the paired code-side anchor. The _1 version adds sphere noise.</td></tr><tr><td>Noisy frozen cross-anchor (D_cross_1)</td><td>Frozen cross-view anchor: text-side cap reconstructs the paired code-side anchor. The _1 version adds sphere noise.</td></tr><tr><td>Clean two-way cross-anchor (D_cross_sym_0)</td><td>Two-way frozen cross-view anchor: text predicts code anchor and code predicts text anchor. The _1 version adds sphere noise.</td></tr><tr><td>Noisy two-way cross-anchor (D_cross_sym_1)</td><td>Two-way frozen cross-view anchor: text predicts code anchor and code predicts text anchor. The _1 version adds sphere noise.</td></tr><tr><td>InfoNCE baseline (F)</td><td>InfoNCE contrastive baseline: pulls true text/code pairs together and pushes other batch pairs apart.</td></tr><tr><td>VICReg baseline (G)</td><td>VICReg baseline: matches paired text/code views while discouraging variance collapse and correlated dimensions.</td></tr><tr><td>SIGReg baseline (H)</td><td>SIGReg baseline: JEPA alignment plus a centered, identity-covariance regularizer. No frozen anchor and no sphere-noise recovery.</td></tr></tbody>
+      </table>
+    </div>
+
+        </article>
+        <article class="text-card">
+          <h3>Expected Pattern</h3>
+          <ul><li>Use this as a preprocessing ablation, not the main mechanism claim.</li><li>If raw or norm-only runs collapse, that mainly says frozen Pythia states are anisotropic and hard for small heads.</li><li>Compare clean/noisy frozen own-anchor within this preprocessing mode, then compare the whole mode against source+anchor whitening.</li></ul>
+        </article>
+        <article class="text-card">
           <h3>Headline Contrasts</h3>
 
     <div class="table-wrap">
@@ -540,7 +681,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_sphere_metrics.png" target="_blank" rel="noopener" aria-label="Open Metric Overview full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_sphere_metrics.png" alt="Metric Overview" loading="lazy" decoding="async">
       </a>
-      <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
+      <p><strong>How to read:</strong> Read RankMe and cosine together. A good geometry result has higher RankMe and lower cosine than its matched control; direct retrieval can favor InfoNCE because InfoNCE trains for direct retrieval.</p>
     </article>
 
     <article class="figure-card">
@@ -551,7 +692,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_sphere_anchors.png" target="_blank" rel="noopener" aria-label="Open Anchor Geometry full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_sphere_anchors.png" alt="Anchor Geometry" loading="lazy" decoding="async">
       </a>
-      <p>Anchor diagnostics tell whether the target itself is usable. If anchors are anisotropic, the model can inherit that anisotropy.</p>
+      <p><strong>How to read:</strong> Anchor diagnostics tell whether the fixed target space is usable before training. If anchors are anisotropic, the model can inherit that problem.</p>
     </article>
 
     <article class="figure-card">
@@ -562,7 +703,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_sphere_pca.png" target="_blank" rel="noopener" aria-label="Open PCA Maps full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_sphere_pca.png" alt="PCA Maps" loading="lazy" decoding="async">
       </a>
-      <p>Look for collapse as a tight dot, a thin line, or all classes stacked together. PCA is qualitative: it helps spot failure modes but does not prove success.</p>
+      <p><strong>How to read:</strong> Each panel is a 2-D projection of a high-dimensional embedding. A tiny dot, line, or stacked classes suggest collapse; a broad cloud suggests spread. PCA is visual evidence, not the final metric.</p>
     </article>
 
     <article class="figure-card">
@@ -573,7 +714,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_sphere_sphere.png" target="_blank" rel="noopener" aria-label="Open Hypersphere Proxy full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_sphere_sphere.png" alt="Hypersphere Proxy" loading="lazy" decoding="async">
       </a>
-      <p>This remaps the stored PCA coordinates into a unit disk. A healthy run should use many directions instead of forming one clump.</p>
+      <p><strong>How to read:</strong> This reprojects points into a unit disk to show angular spread. Healthy embeddings occupy many directions; collapsed embeddings clump in one region.</p>
     </article>
 
     <article class="figure-card">
@@ -584,7 +725,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_sphere_cosine_hists.png" target="_blank" rel="noopener" aria-label="Open Cosine Histograms full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_sphere_cosine_hists.png" alt="Cosine Histograms" loading="lazy" decoding="async">
       </a>
-      <p>Cosine histograms should move away from 1. A spike near 1 means many embeddings are almost identical.</p>
+      <p><strong>How to read:</strong> These histograms show all pairwise cosines, not just the mean. A spike near 1 means many examples are almost identical; a distribution shifted left is healthier.</p>
     </article>
 
     <article class="figure-card">
@@ -595,7 +736,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_sphere_spectra.png" target="_blank" rel="noopener" aria-label="Open Eigenspectra full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_sphere_spectra.png" alt="Eigenspectra" loading="lazy" decoding="async">
       </a>
-      <p>A flatter eigenspectrum is healthier. A huge first component means anisotropy.</p>
+      <p><strong>How to read:</strong> This shows how variance is distributed across principal components. A huge first component means anisotropy; a flatter spectrum means more directions are being used.</p>
     </article>
 
     <article class="figure-card">
@@ -606,7 +747,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_sphere_retrieval.png" target="_blank" rel="noopener" aria-label="Open Retrieval Bars full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_sphere_retrieval.png" alt="Retrieval Bars" loading="lazy" decoding="async">
       </a>
-      <p>For retrieval-like figures, a strong diagonal is good. Uniform vertical or horizontal bands mean a small number of embeddings act as hubs.</p>
+      <p><strong>How to read:</strong> Recall@1 asks whether each query retrieves its paired target. Direct embedding retrieval and cap-to-anchor retrieval are different spaces, so compare the matching retrieval metric for the method.</p>
     </article>
 
     <article class="figure-card">
@@ -617,7 +758,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_sphere_heatmaps.png" target="_blank" rel="noopener" aria-label="Open Similarity Heatmaps full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_sphere_heatmaps.png" alt="Similarity Heatmaps" loading="lazy" decoding="async">
       </a>
-      <p>For retrieval-like figures, a strong diagonal is good. Uniform vertical or horizontal bands mean a small number of embeddings act as hubs.</p>
+      <p><strong>How to read:</strong> Rows are queries and columns are targets. A bright diagonal is good. Bright vertical bands mean some targets are hubs that many queries retrieve.</p>
     </article>
     </div>
       <details>
@@ -651,6 +792,32 @@
           <ul><li>Raw anchors expose the source anisotropy problem directly.</li><li>This is a useful negative control, not the strongest preprocessing choice.</li></ul>
         </article>
         <article class="text-card">
+          <h3>How This Was Run</h3>
+
+    <div class="table-wrap small">
+      <table>
+        <thead><tr><th>Run detail</th><th>Value</th></tr></thead>
+        <tbody><tr><td>Data</td><td>Natural-language/regex synthetic pairs from datasets/synth_train.jsonl.</td></tr><tr><td>Frozen model</td><td>EleutherAI/pythia-160m, last-token pooled hidden states. The LLM itself is not trained.</td></tr><tr><td>Trainable parts</td><td>Small text/code projection heads and cap heads for 50 epochs; embedding dim 256.</td></tr><tr><td>Preprocessing</td><td>Source/input states: raw. Frozen anchors: raw.</td></tr><tr><td>Split</td><td>0.8 train fraction, seed 0.</td></tr><tr><td>Methods</td><td>D_own_0, D_own_1</td></tr></tbody>
+      </table>
+    </div>
+
+        </article>
+        <article class="text-card">
+          <h3>Methods In This Section</h3>
+
+    <div class="table-wrap small">
+      <table>
+        <thead><tr><th>Method</th><th>What it does in this section</th></tr></thead>
+        <tbody><tr><td>Clean frozen own-anchor (D_own_0)</td><td>Clean frozen anchor: use the same fixed sample-specific anchor as the noisy variant, but with no sphere noise.</td></tr><tr><td>Noisy frozen own-anchor (D_own_1)</td><td>Noisy frozen anchor: perturb the spherical embedding and reconstruct that same sample&#x27;s fixed anchor. This is the main sphere-anchor method.</td></tr></tbody>
+      </table>
+    </div>
+
+        </article>
+        <article class="text-card">
+          <h3>Expected Pattern</h3>
+          <ul><li>Use this as a preprocessing ablation, not the main mechanism claim.</li><li>If raw or norm-only runs collapse, that mainly says frozen Pythia states are anisotropic and hard for small heads.</li><li>Compare clean/noisy frozen own-anchor within this preprocessing mode, then compare the whole mode against source+anchor whitening.</li></ul>
+        </article>
+        <article class="text-card">
           <h3>Headline Contrasts</h3>
 
     <div class="table-wrap">
@@ -671,7 +838,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_raw_metrics.png" target="_blank" rel="noopener" aria-label="Open Metric Overview full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_raw_metrics.png" alt="Metric Overview" loading="lazy" decoding="async">
       </a>
-      <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
+      <p><strong>How to read:</strong> Read RankMe and cosine together. A good geometry result has higher RankMe and lower cosine than its matched control; direct retrieval can favor InfoNCE because InfoNCE trains for direct retrieval.</p>
     </article>
 
     <article class="figure-card">
@@ -682,7 +849,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_raw_anchors.png" target="_blank" rel="noopener" aria-label="Open Anchor Geometry full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_raw_anchors.png" alt="Anchor Geometry" loading="lazy" decoding="async">
       </a>
-      <p>Anchor diagnostics tell whether the target itself is usable. If anchors are anisotropic, the model can inherit that anisotropy.</p>
+      <p><strong>How to read:</strong> Anchor diagnostics tell whether the fixed target space is usable before training. If anchors are anisotropic, the model can inherit that problem.</p>
     </article>
 
     <article class="figure-card">
@@ -693,7 +860,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_raw_pca.png" target="_blank" rel="noopener" aria-label="Open PCA Maps full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_raw_pca.png" alt="PCA Maps" loading="lazy" decoding="async">
       </a>
-      <p>Look for collapse as a tight dot, a thin line, or all classes stacked together. PCA is qualitative: it helps spot failure modes but does not prove success.</p>
+      <p><strong>How to read:</strong> Each panel is a 2-D projection of a high-dimensional embedding. A tiny dot, line, or stacked classes suggest collapse; a broad cloud suggests spread. PCA is visual evidence, not the final metric.</p>
     </article>
 
     <article class="figure-card">
@@ -704,7 +871,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_raw_sphere.png" target="_blank" rel="noopener" aria-label="Open Hypersphere Proxy full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_raw_sphere.png" alt="Hypersphere Proxy" loading="lazy" decoding="async">
       </a>
-      <p>This remaps the stored PCA coordinates into a unit disk. A healthy run should use many directions instead of forming one clump.</p>
+      <p><strong>How to read:</strong> This reprojects points into a unit disk to show angular spread. Healthy embeddings occupy many directions; collapsed embeddings clump in one region.</p>
     </article>
 
     <article class="figure-card">
@@ -715,7 +882,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_raw_cosine_hists.png" target="_blank" rel="noopener" aria-label="Open Cosine Histograms full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_raw_cosine_hists.png" alt="Cosine Histograms" loading="lazy" decoding="async">
       </a>
-      <p>Cosine histograms should move away from 1. A spike near 1 means many embeddings are almost identical.</p>
+      <p><strong>How to read:</strong> These histograms show all pairwise cosines, not just the mean. A spike near 1 means many examples are almost identical; a distribution shifted left is healthier.</p>
     </article>
 
     <article class="figure-card">
@@ -726,7 +893,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_raw_spectra.png" target="_blank" rel="noopener" aria-label="Open Eigenspectra full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_raw_spectra.png" alt="Eigenspectra" loading="lazy" decoding="async">
       </a>
-      <p>A flatter eigenspectrum is healthier. A huge first component means anisotropy.</p>
+      <p><strong>How to read:</strong> This shows how variance is distributed across principal components. A huge first component means anisotropy; a flatter spectrum means more directions are being used.</p>
     </article>
 
     <article class="figure-card">
@@ -737,7 +904,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_raw_retrieval.png" target="_blank" rel="noopener" aria-label="Open Retrieval Bars full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_raw_retrieval.png" alt="Retrieval Bars" loading="lazy" decoding="async">
       </a>
-      <p>For retrieval-like figures, a strong diagonal is good. Uniform vertical or horizontal bands mean a small number of embeddings act as hubs.</p>
+      <p><strong>How to read:</strong> Recall@1 asks whether each query retrieves its paired target. Direct embedding retrieval and cap-to-anchor retrieval are different spaces, so compare the matching retrieval metric for the method.</p>
     </article>
 
     <article class="figure-card">
@@ -748,7 +915,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_raw_heatmaps.png" target="_blank" rel="noopener" aria-label="Open Similarity Heatmaps full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_raw_heatmaps.png" alt="Similarity Heatmaps" loading="lazy" decoding="async">
       </a>
-      <p>For retrieval-like figures, a strong diagonal is good. Uniform vertical or horizontal bands mean a small number of embeddings act as hubs.</p>
+      <p><strong>How to read:</strong> Rows are queries and columns are targets. A bright diagonal is good. Bright vertical bands mean some targets are hubs that many queries retrieve.</p>
     </article>
     </div>
       <details>
@@ -782,6 +949,32 @@
           <ul><li>Norm-only preprocessing changes scale without fixing most anisotropy.</li><li>Compare it against raw, sphere, and white before drawing mechanism conclusions.</li></ul>
         </article>
         <article class="text-card">
+          <h3>How This Was Run</h3>
+
+    <div class="table-wrap small">
+      <table>
+        <thead><tr><th>Run detail</th><th>Value</th></tr></thead>
+        <tbody><tr><td>Data</td><td>Natural-language/regex synthetic pairs from datasets/synth_train.jsonl.</td></tr><tr><td>Frozen model</td><td>EleutherAI/pythia-160m, last-token pooled hidden states. The LLM itself is not trained.</td></tr><tr><td>Trainable parts</td><td>Small text/code projection heads and cap heads for 50 epochs; embedding dim 256.</td></tr><tr><td>Preprocessing</td><td>Source/input states: raw. Frozen anchors: norm.</td></tr><tr><td>Split</td><td>0.8 train fraction, seed 0.</td></tr><tr><td>Methods</td><td>D_own_0, D_own_1</td></tr></tbody>
+      </table>
+    </div>
+
+        </article>
+        <article class="text-card">
+          <h3>Methods In This Section</h3>
+
+    <div class="table-wrap small">
+      <table>
+        <thead><tr><th>Method</th><th>What it does in this section</th></tr></thead>
+        <tbody><tr><td>Clean frozen own-anchor (D_own_0)</td><td>Clean frozen anchor: use the same fixed sample-specific anchor as the noisy variant, but with no sphere noise.</td></tr><tr><td>Noisy frozen own-anchor (D_own_1)</td><td>Noisy frozen anchor: perturb the spherical embedding and reconstruct that same sample&#x27;s fixed anchor. This is the main sphere-anchor method.</td></tr></tbody>
+      </table>
+    </div>
+
+        </article>
+        <article class="text-card">
+          <h3>Expected Pattern</h3>
+          <ul><li>Use this as a preprocessing ablation, not the main mechanism claim.</li><li>If raw or norm-only runs collapse, that mainly says frozen Pythia states are anisotropic and hard for small heads.</li><li>Compare clean/noisy frozen own-anchor within this preprocessing mode, then compare the whole mode against source+anchor whitening.</li></ul>
+        </article>
+        <article class="text-card">
           <h3>Headline Contrasts</h3>
 
     <div class="table-wrap">
@@ -802,7 +995,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_norm_metrics.png" target="_blank" rel="noopener" aria-label="Open Metric Overview full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_norm_metrics.png" alt="Metric Overview" loading="lazy" decoding="async">
       </a>
-      <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
+      <p><strong>How to read:</strong> Read RankMe and cosine together. A good geometry result has higher RankMe and lower cosine than its matched control; direct retrieval can favor InfoNCE because InfoNCE trains for direct retrieval.</p>
     </article>
 
     <article class="figure-card">
@@ -813,7 +1006,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_norm_anchors.png" target="_blank" rel="noopener" aria-label="Open Anchor Geometry full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_norm_anchors.png" alt="Anchor Geometry" loading="lazy" decoding="async">
       </a>
-      <p>Anchor diagnostics tell whether the target itself is usable. If anchors are anisotropic, the model can inherit that anisotropy.</p>
+      <p><strong>How to read:</strong> Anchor diagnostics tell whether the fixed target space is usable before training. If anchors are anisotropic, the model can inherit that problem.</p>
     </article>
 
     <article class="figure-card">
@@ -824,7 +1017,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_norm_pca.png" target="_blank" rel="noopener" aria-label="Open PCA Maps full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_norm_pca.png" alt="PCA Maps" loading="lazy" decoding="async">
       </a>
-      <p>Look for collapse as a tight dot, a thin line, or all classes stacked together. PCA is qualitative: it helps spot failure modes but does not prove success.</p>
+      <p><strong>How to read:</strong> Each panel is a 2-D projection of a high-dimensional embedding. A tiny dot, line, or stacked classes suggest collapse; a broad cloud suggests spread. PCA is visual evidence, not the final metric.</p>
     </article>
 
     <article class="figure-card">
@@ -835,7 +1028,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_norm_sphere.png" target="_blank" rel="noopener" aria-label="Open Hypersphere Proxy full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_norm_sphere.png" alt="Hypersphere Proxy" loading="lazy" decoding="async">
       </a>
-      <p>This remaps the stored PCA coordinates into a unit disk. A healthy run should use many directions instead of forming one clump.</p>
+      <p><strong>How to read:</strong> This reprojects points into a unit disk to show angular spread. Healthy embeddings occupy many directions; collapsed embeddings clump in one region.</p>
     </article>
 
     <article class="figure-card">
@@ -846,7 +1039,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_norm_cosine_hists.png" target="_blank" rel="noopener" aria-label="Open Cosine Histograms full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_norm_cosine_hists.png" alt="Cosine Histograms" loading="lazy" decoding="async">
       </a>
-      <p>Cosine histograms should move away from 1. A spike near 1 means many embeddings are almost identical.</p>
+      <p><strong>How to read:</strong> These histograms show all pairwise cosines, not just the mean. A spike near 1 means many examples are almost identical; a distribution shifted left is healthier.</p>
     </article>
 
     <article class="figure-card">
@@ -857,7 +1050,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_norm_spectra.png" target="_blank" rel="noopener" aria-label="Open Eigenspectra full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_norm_spectra.png" alt="Eigenspectra" loading="lazy" decoding="async">
       </a>
-      <p>A flatter eigenspectrum is healthier. A huge first component means anisotropy.</p>
+      <p><strong>How to read:</strong> This shows how variance is distributed across principal components. A huge first component means anisotropy; a flatter spectrum means more directions are being used.</p>
     </article>
 
     <article class="figure-card">
@@ -868,7 +1061,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_norm_retrieval.png" target="_blank" rel="noopener" aria-label="Open Retrieval Bars full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_norm_retrieval.png" alt="Retrieval Bars" loading="lazy" decoding="async">
       </a>
-      <p>For retrieval-like figures, a strong diagonal is good. Uniform vertical or horizontal bands mean a small number of embeddings act as hubs.</p>
+      <p><strong>How to read:</strong> Recall@1 asks whether each query retrieves its paired target. Direct embedding retrieval and cap-to-anchor retrieval are different spaces, so compare the matching retrieval metric for the method.</p>
     </article>
 
     <article class="figure-card">
@@ -879,7 +1072,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_norm_heatmaps.png" target="_blank" rel="noopener" aria-label="Open Similarity Heatmaps full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_norm_heatmaps.png" alt="Similarity Heatmaps" loading="lazy" decoding="async">
       </a>
-      <p>For retrieval-like figures, a strong diagonal is good. Uniform vertical or horizontal bands mean a small number of embeddings act as hubs.</p>
+      <p><strong>How to read:</strong> Rows are queries and columns are targets. A bright diagonal is good. Bright vertical bands mean some targets are hubs that many queries retrieve.</p>
     </article>
     </div>
       <details>
@@ -913,6 +1106,32 @@
           <ul><li>Whitened anchors are much more isotropic than raw anchors.</li><li>Source-side anisotropy still limits the projection-head run unless inputs are whitened too.</li></ul>
         </article>
         <article class="text-card">
+          <h3>How This Was Run</h3>
+
+    <div class="table-wrap small">
+      <table>
+        <thead><tr><th>Run detail</th><th>Value</th></tr></thead>
+        <tbody><tr><td>Data</td><td>Natural-language/regex synthetic pairs from datasets/synth_train.jsonl.</td></tr><tr><td>Frozen model</td><td>EleutherAI/pythia-160m, last-token pooled hidden states. The LLM itself is not trained.</td></tr><tr><td>Trainable parts</td><td>Small text/code projection heads and cap heads for 50 epochs; embedding dim 256.</td></tr><tr><td>Preprocessing</td><td>Source/input states: raw. Frozen anchors: white.</td></tr><tr><td>Split</td><td>0.8 train fraction, seed 0.</td></tr><tr><td>Methods</td><td>D_own_0, D_own_1</td></tr></tbody>
+      </table>
+    </div>
+
+        </article>
+        <article class="text-card">
+          <h3>Methods In This Section</h3>
+
+    <div class="table-wrap small">
+      <table>
+        <thead><tr><th>Method</th><th>What it does in this section</th></tr></thead>
+        <tbody><tr><td>Clean frozen own-anchor (D_own_0)</td><td>Clean frozen anchor: use the same fixed sample-specific anchor as the noisy variant, but with no sphere noise.</td></tr><tr><td>Noisy frozen own-anchor (D_own_1)</td><td>Noisy frozen anchor: perturb the spherical embedding and reconstruct that same sample&#x27;s fixed anchor. This is the main sphere-anchor method.</td></tr></tbody>
+      </table>
+    </div>
+
+        </article>
+        <article class="text-card">
+          <h3>Expected Pattern</h3>
+          <ul><li>Use this as a preprocessing ablation, not the main mechanism claim.</li><li>If raw or norm-only runs collapse, that mainly says frozen Pythia states are anisotropic and hard for small heads.</li><li>Compare clean/noisy frozen own-anchor within this preprocessing mode, then compare the whole mode against source+anchor whitening.</li></ul>
+        </article>
+        <article class="text-card">
           <h3>Headline Contrasts</h3>
 
     <div class="table-wrap">
@@ -933,7 +1152,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_white_metrics.png" target="_blank" rel="noopener" aria-label="Open Metric Overview full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_white_metrics.png" alt="Metric Overview" loading="lazy" decoding="async">
       </a>
-      <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
+      <p><strong>How to read:</strong> Read RankMe and cosine together. A good geometry result has higher RankMe and lower cosine than its matched control; direct retrieval can favor InfoNCE because InfoNCE trains for direct retrieval.</p>
     </article>
 
     <article class="figure-card">
@@ -944,7 +1163,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_white_anchors.png" target="_blank" rel="noopener" aria-label="Open Anchor Geometry full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_white_anchors.png" alt="Anchor Geometry" loading="lazy" decoding="async">
       </a>
-      <p>Anchor diagnostics tell whether the target itself is usable. If anchors are anisotropic, the model can inherit that anisotropy.</p>
+      <p><strong>How to read:</strong> Anchor diagnostics tell whether the fixed target space is usable before training. If anchors are anisotropic, the model can inherit that problem.</p>
     </article>
 
     <article class="figure-card">
@@ -955,7 +1174,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_white_pca.png" target="_blank" rel="noopener" aria-label="Open PCA Maps full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_white_pca.png" alt="PCA Maps" loading="lazy" decoding="async">
       </a>
-      <p>Look for collapse as a tight dot, a thin line, or all classes stacked together. PCA is qualitative: it helps spot failure modes but does not prove success.</p>
+      <p><strong>How to read:</strong> Each panel is a 2-D projection of a high-dimensional embedding. A tiny dot, line, or stacked classes suggest collapse; a broad cloud suggests spread. PCA is visual evidence, not the final metric.</p>
     </article>
 
     <article class="figure-card">
@@ -966,7 +1185,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_white_sphere.png" target="_blank" rel="noopener" aria-label="Open Hypersphere Proxy full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_white_sphere.png" alt="Hypersphere Proxy" loading="lazy" decoding="async">
       </a>
-      <p>This remaps the stored PCA coordinates into a unit disk. A healthy run should use many directions instead of forming one clump.</p>
+      <p><strong>How to read:</strong> This reprojects points into a unit disk to show angular spread. Healthy embeddings occupy many directions; collapsed embeddings clump in one region.</p>
     </article>
 
     <article class="figure-card">
@@ -977,7 +1196,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_white_cosine_hists.png" target="_blank" rel="noopener" aria-label="Open Cosine Histograms full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_white_cosine_hists.png" alt="Cosine Histograms" loading="lazy" decoding="async">
       </a>
-      <p>Cosine histograms should move away from 1. A spike near 1 means many embeddings are almost identical.</p>
+      <p><strong>How to read:</strong> These histograms show all pairwise cosines, not just the mean. A spike near 1 means many examples are almost identical; a distribution shifted left is healthier.</p>
     </article>
 
     <article class="figure-card">
@@ -988,7 +1207,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_white_spectra.png" target="_blank" rel="noopener" aria-label="Open Eigenspectra full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_white_spectra.png" alt="Eigenspectra" loading="lazy" decoding="async">
       </a>
-      <p>A flatter eigenspectrum is healthier. A huge first component means anisotropy.</p>
+      <p><strong>How to read:</strong> This shows how variance is distributed across principal components. A huge first component means anisotropy; a flatter spectrum means more directions are being used.</p>
     </article>
 
     <article class="figure-card">
@@ -999,7 +1218,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_white_retrieval.png" target="_blank" rel="noopener" aria-label="Open Retrieval Bars full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_white_retrieval.png" alt="Retrieval Bars" loading="lazy" decoding="async">
       </a>
-      <p>For retrieval-like figures, a strong diagonal is good. Uniform vertical or horizontal bands mean a small number of embeddings act as hubs.</p>
+      <p><strong>How to read:</strong> Recall@1 asks whether each query retrieves its paired target. Direct embedding retrieval and cap-to-anchor retrieval are different spaces, so compare the matching retrieval metric for the method.</p>
     </article>
 
     <article class="figure-card">
@@ -1010,7 +1229,7 @@
       <a class="figure-link" href="assets/dashboard/exp2_pythia160m_synth_white_heatmaps.png" target="_blank" rel="noopener" aria-label="Open Similarity Heatmaps full-size">
         <img src="assets/dashboard/exp2_pythia160m_synth_white_heatmaps.png" alt="Similarity Heatmaps" loading="lazy" decoding="async">
       </a>
-      <p>For retrieval-like figures, a strong diagonal is good. Uniform vertical or horizontal bands mean a small number of embeddings act as hubs.</p>
+      <p><strong>How to read:</strong> Rows are queries and columns are targets. A bright diagonal is good. Bright vertical bands mean some targets are hubs that many queries retrieve.</p>
     </article>
     </div>
       <details>
@@ -1044,6 +1263,32 @@
           <ul><li>The downstream metric is strict exact-match string equality on synth_test.jsonl.</li><li>Noisy frozen anchor versus clean frozen anchor isolates the effect of sphere noise.</li><li>Training loss and exact match can move in different directions, so both are shown.</li></ul>
         </article>
         <article class="text-card">
+          <h3>How This Was Run</h3>
+
+    <div class="table-wrap small">
+      <table>
+        <thead><tr><th>Run detail</th><th>Value</th></tr></thead>
+        <tbody><tr><td>Task</td><td>Natural language to regular expression generation</td></tr><tr><td>Base model</td><td>HuggingFaceTB/SmolLM2-135M-Instruct</td></tr><tr><td>Data</td><td>8000 train prompts and 2000 held-out prompts.</td></tr><tr><td>Training</td><td>4 epochs, batch 16, learning rate 1e-05.</td></tr><tr><td>Evaluation</td><td>exact-match string equality on synth_test.jsonl</td></tr><tr><td>Methods</td><td>Regular, C, C_ema, D0, D1, Cross, Both</td></tr></tbody>
+      </table>
+    </div>
+
+        </article>
+        <article class="text-card">
+          <h3>Methods In This Section</h3>
+
+    <div class="table-wrap small">
+      <table>
+        <thead><tr><th>Method</th><th>What it does in this section</th></tr></thead>
+        <tbody><tr><td>Plain fine-tune (Regular)</td><td>Plain supervised fine-tune. The model learns to generate regex strings without any cap-anchor objective.</td></tr><tr><td>Co-trained self-anchor (C)</td><td>Co-trained self-anchor: the target is produced by the model being trained now. This is the collapse-prone moving-target control.</td></tr><tr><td>Momentum self-anchor (C_ema)</td><td>Momentum self-anchor: the target comes from a slow-moving EMA copy. More stable than co-trained, but still not a fixed external anchor.</td></tr><tr><td>Clean frozen anchor (D0)</td><td>Clean frozen anchor: use the same fixed sample-specific anchor as the noisy variant, but with no sphere noise.</td></tr><tr><td>Noisy frozen anchor (D1)</td><td>Noisy frozen anchor: perturb the spherical embedding and reconstruct that same sample&#x27;s fixed anchor. This is the main sphere-anchor method.</td></tr><tr><td>Frozen cross-view anchor (Cross)</td><td>Full fine-tune with a frozen cross-view cap objective in addition to language-model training.</td></tr><tr><td>Own + cross frozen anchors (Both)</td><td>Full fine-tune with both own-view and cross-view frozen cap objectives.</td></tr></tbody>
+      </table>
+    </div>
+
+        </article>
+        <article class="text-card">
+          <h3>Expected Pattern</h3>
+          <ul><li>Plain fine-tune is the baseline to beat for downstream generation.</li><li>Noisy frozen anchor minus clean frozen anchor isolates the sphere-noise contribution.</li><li>Exact match matters more than training loss because cap objectives change the loss scale across variants.</li></ul>
+        </article>
+        <article class="text-card">
           <h3>Headline Contrasts</h3>
 
     <div class="table-wrap">
@@ -1064,7 +1309,7 @@
       <a class="figure-link" href="assets/dashboard/exp3_full_synth_metrics.png" target="_blank" rel="noopener" aria-label="Open Metric Overview full-size">
         <img src="assets/dashboard/exp3_full_synth_metrics.png" alt="Metric Overview" loading="lazy" decoding="async">
       </a>
-      <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
+      <p><strong>How to read:</strong> Read RankMe and cosine together. A good geometry result has higher RankMe and lower cosine than its matched control; direct retrieval can favor InfoNCE because InfoNCE trains for direct retrieval.</p>
     </article>
 
     <article class="figure-card">
@@ -1075,7 +1320,7 @@
       <a class="figure-link" href="assets/dashboard/exp3_full_synth_history.png" target="_blank" rel="noopener" aria-label="Open Training Traces full-size">
         <img src="assets/dashboard/exp3_full_synth_history.png" alt="Training Traces" loading="lazy" decoding="async">
       </a>
-      <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
+      <p><strong>How to read:</strong> Training loss is an optimization trace, not the scientific result. Variants can have different loss terms, so compare final metrics rather than raw loss scale.</p>
     </article>
     </div>
       <details>
@@ -1109,6 +1354,32 @@
           <ul><li>This is the larger-model pass for the same full fine-tuning ablations as SmolLM2.</li><li>Plain fine-tune, co-trained self-anchor, clean frozen anchor, noisy frozen anchor, momentum self-anchor, cross-view anchor, and combined anchors test the matched controls from the handoff.</li><li>Read noisy frozen minus clean frozen as the sphere-noise contribution, and noisy frozen minus self-anchor as the external-anchor contribution.</li></ul>
         </article>
         <article class="text-card">
+          <h3>How This Was Run</h3>
+
+    <div class="table-wrap small">
+      <table>
+        <thead><tr><th>Run detail</th><th>Value</th></tr></thead>
+        <tbody><tr><td>Task</td><td>Natural language to regular expression generation</td></tr><tr><td>Base model</td><td>meta-llama/Llama-3.2-1B-Instruct</td></tr><tr><td>Data</td><td>8000 train prompts and 2000 held-out prompts.</td></tr><tr><td>Training</td><td>4 epochs, batch 8, learning rate 1e-05.</td></tr><tr><td>Evaluation</td><td>exact-match string equality on synth_test.jsonl</td></tr><tr><td>Methods</td><td>Regular, C, C_ema, D0, D1, Cross, Both</td></tr></tbody>
+      </table>
+    </div>
+
+        </article>
+        <article class="text-card">
+          <h3>Methods In This Section</h3>
+
+    <div class="table-wrap small">
+      <table>
+        <thead><tr><th>Method</th><th>What it does in this section</th></tr></thead>
+        <tbody><tr><td>Plain fine-tune (Regular)</td><td>Plain supervised fine-tune. The model learns to generate regex strings without any cap-anchor objective.</td></tr><tr><td>Co-trained self-anchor (C)</td><td>Co-trained self-anchor: the target is produced by the model being trained now. This is the collapse-prone moving-target control.</td></tr><tr><td>Momentum self-anchor (C_ema)</td><td>Momentum self-anchor: the target comes from a slow-moving EMA copy. More stable than co-trained, but still not a fixed external anchor.</td></tr><tr><td>Clean frozen anchor (D0)</td><td>Clean frozen anchor: use the same fixed sample-specific anchor as the noisy variant, but with no sphere noise.</td></tr><tr><td>Noisy frozen anchor (D1)</td><td>Noisy frozen anchor: perturb the spherical embedding and reconstruct that same sample&#x27;s fixed anchor. This is the main sphere-anchor method.</td></tr><tr><td>Frozen cross-view anchor (Cross)</td><td>Full fine-tune with a frozen cross-view cap objective in addition to language-model training.</td></tr><tr><td>Own + cross frozen anchors (Both)</td><td>Full fine-tune with both own-view and cross-view frozen cap objectives.</td></tr></tbody>
+      </table>
+    </div>
+
+        </article>
+        <article class="text-card">
+          <h3>Expected Pattern</h3>
+          <ul><li>Plain fine-tune is the baseline to beat for downstream generation.</li><li>Noisy frozen anchor minus clean frozen anchor isolates the sphere-noise contribution.</li><li>Exact match matters more than training loss because cap objectives change the loss scale across variants.</li></ul>
+        </article>
+        <article class="text-card">
           <h3>Headline Contrasts</h3>
 
     <div class="table-wrap">
@@ -1129,7 +1400,7 @@
       <a class="figure-link" href="assets/dashboard/exp3_llama1b_synth_metrics.png" target="_blank" rel="noopener" aria-label="Open Metric Overview full-size">
         <img src="assets/dashboard/exp3_llama1b_synth_metrics.png" alt="Metric Overview" loading="lazy" decoding="async">
       </a>
-      <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
+      <p><strong>How to read:</strong> Read RankMe and cosine together. A good geometry result has higher RankMe and lower cosine than its matched control; direct retrieval can favor InfoNCE because InfoNCE trains for direct retrieval.</p>
     </article>
 
     <article class="figure-card">
@@ -1140,7 +1411,7 @@
       <a class="figure-link" href="assets/dashboard/exp3_llama1b_synth_history.png" target="_blank" rel="noopener" aria-label="Open Training Traces full-size">
         <img src="assets/dashboard/exp3_llama1b_synth_history.png" alt="Training Traces" loading="lazy" decoding="async">
       </a>
-      <p>Bars are grouped by variant. High RankMe and low cosine are geometry wins; direct retrieval can favor contrastive baselines even when cap-anchor geometry improves.</p>
+      <p><strong>How to read:</strong> Training loss is an optimization trace, not the scientific result. Variants can have different loss terms, so compare final metrics rather than raw loss scale.</p>
     </article>
     </div>
       <details>
