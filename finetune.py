@@ -541,6 +541,9 @@ class RepresentationTrainer(Trainer):
         self.sigma_max = kwargs.pop('sigma_max', 0.5)
         self.sphere_radius = kwargs.pop('sphere_radius', None)
         self.lambda_cap = kwargs.pop('lambda_cap', 0.0)
+        self.cap_delay_epochs = kwargs.pop('cap_delay_epochs', 0.0)
+        self.cap_warmup_epochs = kwargs.pop('cap_warmup_epochs', 0.0)
+        self.total_train_epochs = kwargs.pop('total_train_epochs', None)
         self.cap_mode = kwargs.pop('cap_mode', 'own')
         self.ema_momentum = kwargs.pop('ema_momentum', 0.99)
         assert self.jepa_l2 + self.jepa_mse <= 1, "Only one of jepa_l2 and jepa_mse can be True."
@@ -552,17 +555,44 @@ class RepresentationTrainer(Trainer):
                 hidden_size = getattr(getattr(getattr(model, "base_model", None), "config", None), "hidden_size", None)
             if hidden_size is None:
                 raise ValueError("Could not infer model hidden_size for cap predictors")
-            self.cap_predictors = nn.ModuleDict({
-                "own_text": MLP(hidden_size, hidden_size, hidden_dim=hidden_size * 2),
-                "own_code": MLP(hidden_size, hidden_size, hidden_dim=hidden_size * 2),
-                "cross_text_to_code": MLP(hidden_size, hidden_size, hidden_dim=hidden_size * 2),
-                "cross_code_to_text": MLP(hidden_size, hidden_size, hidden_dim=hidden_size * 2),
-            })
+            cap_predictors = {}
+            if self.cap_mode in {"own", "both"}:
+                cap_predictors["own_text"] = MLP(hidden_size, hidden_size, hidden_dim=hidden_size * 2)
+                cap_predictors["own_code"] = MLP(hidden_size, hidden_size, hidden_dim=hidden_size * 2)
+            if self.cap_mode in {"cross", "both"}:
+                cap_predictors["cross_text_to_code"] = MLP(hidden_size, hidden_size, hidden_dim=hidden_size * 2)
+            if self.cap_mode == "both":
+                cap_predictors["cross_code_to_text"] = MLP(hidden_size, hidden_size, hidden_dim=hidden_size * 2)
+            self.cap_predictors = nn.ModuleDict(cap_predictors)
             model.add_module("sphere_cap_predictors", self.cap_predictors)
         super().__init__(*args, **kwargs)
 
     def _cap_enabled(self):
         return self.cap_predictors is not None and self.anchor_type != "none" and self.lambda_cap != 0.0
+
+    def _current_cap_weight(self):
+        if self.lambda_cap == 0.0:
+            return 0.0
+        if self.cap_delay_epochs <= 0.0 and self.cap_warmup_epochs <= 0.0:
+            return self.lambda_cap
+
+        state_epoch = getattr(self.state, "epoch", None)
+        max_steps = getattr(self.state, "max_steps", 0)
+        global_step = getattr(self.state, "global_step", 0)
+        if max_steps and max_steps > 0 and self.total_train_epochs:
+            current_epoch = (float(global_step) / float(max_steps)) * float(self.total_train_epochs)
+        elif state_epoch is not None:
+            current_epoch = float(state_epoch)
+        else:
+            current_epoch = 0.0
+
+        if current_epoch < self.cap_delay_epochs:
+            return 0.0
+        if self.cap_warmup_epochs <= 0.0:
+            return self.lambda_cap
+        progress = (current_epoch - self.cap_delay_epochs) / self.cap_warmup_epochs
+        progress = max(0.0, min(1.0, progress))
+        return self.lambda_cap * progress
     
     def _last_token_index(self, input_ids, labels, attention_mask):
         index = []
@@ -853,6 +883,7 @@ class RepresentationTrainer(Trainer):
         else:
             jepa_loss = torch.zeros((), device=lm_loss.device, dtype=lm_loss.dtype)
 
+        cap_weight = self._current_cap_weight()
         cap_loss = torch.zeros((), device=lm_loss.device, dtype=lm_loss.dtype)
         if self._cap_enabled() and user_hidden_states is not None:
             anchor_user, anchor_assistant, detach_anchor = self._compute_anchor_embeddings(
@@ -872,7 +903,7 @@ class RepresentationTrainer(Trainer):
             )
             self._update_ema_anchor(model)
 
-        total_loss = self.gamma * lm_loss + self.lbd * jepa_loss + self.lambda_cap * cap_loss
+        total_loss = self.gamma * lm_loss + self.lbd * jepa_loss + cap_weight * cap_loss
 
         if self.debug == 2 and torch.cuda.current_device() == 0:
             print(lm_loss, self.lbd, torch.mean(cosine_similarity))
@@ -881,7 +912,7 @@ class RepresentationTrainer(Trainer):
             exit(0)
 
         if self.debug == 5 and torch.cuda.current_device() == 0:
-            print(f"llm_loss: {lm_loss.float()}, jepa_loss: {jepa_loss.float()}, cap_loss: {cap_loss.float()}")
+            print(f"llm_loss: {lm_loss.float()}, jepa_loss: {jepa_loss.float()}, cap_loss: {cap_loss.float()}, cap_weight: {cap_weight}")
 
         return (total_loss, main_outputs) if return_outputs else total_loss
 
@@ -956,6 +987,8 @@ def main():
     parser.add_argument("--sigma-max", type=float, default=0.5, help="Maximum spherical cap noise; use 0.0 for the sigma=0 control.")
     parser.add_argument("--sphere-radius", type=float, default=None, help="Optional fixed sphere radius. Defaults to sqrt(hidden_dim).")
     parser.add_argument("--lambda-cap", type=float, default=0.0, help="Weight for own/cross noisy cap-anchor reconstruction.")
+    parser.add_argument("--cap-delay-epochs", type=float, default=0.0, help="Hold cap loss weight at 0 for this many epochs, then apply or ramp to --lambda-cap.")
+    parser.add_argument("--cap-warmup-epochs", type=float, default=0.0, help="Linearly ramp cap loss weight from 0 to --lambda-cap across this many epochs after --cap-delay-epochs.")
     parser.add_argument("--cap-mode", choices=["own", "cross", "both"], default="own", help="Cap-anchor structure to use.")
     parser.add_argument("--ema-momentum", type=float, default=0.99, help="EMA reference momentum when --anchor-type=ema.")
 
@@ -1195,6 +1228,9 @@ def main():
             sigma_max=args.sigma_max,
             sphere_radius=args.sphere_radius,
             lambda_cap=args.lambda_cap,
+            cap_delay_epochs=args.cap_delay_epochs,
+            cap_warmup_epochs=args.cap_warmup_epochs,
+            total_train_epochs=args.num_epochs,
             cap_mode=args.cap_mode,
             ema_momentum=args.ema_momentum,
         )

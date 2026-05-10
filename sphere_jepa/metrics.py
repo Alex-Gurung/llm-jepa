@@ -6,11 +6,25 @@ import torch
 import torch.nn.functional as F
 
 
+def _singular_values(z: torch.Tensor) -> torch.Tensor:
+    """Return singular values via the smaller Gram matrix when possible."""
+
+    z = z.float()
+    if z.numel() == 0 or min(z.shape) == 0:
+        return torch.empty(0, dtype=z.dtype, device=z.device)
+    if z.shape[0] <= z.shape[1]:
+        gram = z @ z.T
+    else:
+        gram = z.T @ z
+    vals = torch.linalg.eigvalsh(gram).clamp_min(0.0).sqrt()
+    return vals.flip(0)
+
+
 def rankme(z: torch.Tensor, eps: float = 1e-7) -> float:
     z = z - z.mean(dim=0, keepdim=True)
     if z.numel() == 0 or min(z.shape) == 0:
         return 0.0
-    s = torch.linalg.svdvals(z.float())
+    s = _singular_values(z)
     p = s / (s.sum() + eps)
     p = p.clamp_min(eps)
     return torch.exp(-(p * p.log()).sum()).item()
@@ -94,7 +108,7 @@ def eigen_spectrum(z: torch.Tensor, top_k: int = 32) -> dict:
     if z.numel() == 0 or min(z.shape) == 0:
         return {"mass": [], "cumulative": []}
     centered = z - z.mean(dim=0, keepdim=True)
-    s = torch.linalg.svdvals(centered)
+    s = _singular_values(centered)
     mass = s.pow(2)
     total = mass.sum()
     if total <= 0:
@@ -124,8 +138,9 @@ def pca_scatter(
     if centered.shape[1] == 1:
         coords = torch.cat([centered, torch.zeros_like(centered)], dim=1)
     else:
-        _, _, vh = torch.linalg.svd(centered, full_matrices=False)
-        coords = centered @ vh[:2].T
+        q = min(2, centered.shape[0], centered.shape[1])
+        _, _, components = torch.pca_lowrank(centered, q=q, center=False, niter=3)
+        coords = centered @ components[:, :q]
         if coords.shape[1] == 1:
             coords = torch.cat([coords, torch.zeros_like(coords)], dim=1)
     out = []
@@ -165,7 +180,7 @@ def anchor_geometry_diagnostics(anchor: torch.Tensor) -> dict:
     if min(centered.shape) == 0:
         top_ratio = 0.0
     else:
-        s = torch.linalg.svdvals(centered.float())
+        s = _singular_values(centered)
         mass = s.pow(2).sum()
         top_ratio = (s[0].pow(2) / mass).item() if mass > 0 else 0.0
     a_normed = F.normalize(anchor, dim=-1)
